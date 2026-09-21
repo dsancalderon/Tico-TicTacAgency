@@ -6,6 +6,6 @@
   "outputDirectory": "dist",
   "rewrites": [
     { "source": "/api/:path*", "destination": "/api/index" },
-    { "source": "/((?!api(?:/|$)).*)", "destination": "/index.html" }
+    { "source": "/((?!api(?:/|$)|assets(?:/|$)|.*\\.(?:svg|png|ico|json|jpg|jpeg|webp|js|css|woff2?|ttf|map)$).*)", "destination": "/index.html" }
   ]
 }

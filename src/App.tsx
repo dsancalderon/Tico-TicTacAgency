@@ -86,7 +86,10 @@ export function App() {
   useEffect(() => {
     const url = new URL(window.location.href);
     if (url.searchParams.get('auth') === 'confirmed') {
-      setAuthNotice('Correo confirmado correctamente. Tu cuenta ya está activa.');
+      setAuthNotice('¡Correo confirmado correctamente! Tu cuenta ya está activa.');
+      setAuthModalTitle('¡Correo Confirmado!');
+      setAuthModalSubtitle('Tu cuenta ha sido activada con éxito. Inicia sesión con tus credenciales para acceder.');
+      setIsAuthModalOpen(true);
       url.searchParams.delete('auth');
       window.history.replaceState({}, document.title, `${url.pathname}${url.search}${url.hash}`);
     }
@@ -479,6 +482,24 @@ export function App() {
         onGoToPlatform={() => setDashboardTab('studio')}
         onOpenNewCampaign={scrollToBriefing}
       />
+
+      {authNotice && (
+        <div role="status" className="max-w-5xl mx-auto w-full px-4 pt-4">
+          <div className="flex items-center justify-between gap-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-3.5 text-sm font-semibold text-emerald-900 shadow-xs animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className="flex items-center gap-2.5">
+              <span className="flex h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span>{authNotice}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setAuthNotice(null)}
+              className="text-emerald-700 hover:text-emerald-950 font-bold text-xs px-2 py-1 rounded-lg hover:bg-emerald-100 transition-colors cursor-pointer"
+            >
+              Cerrar
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ========================================================================= */}
       {/* HERO SECTION: ENFOQUE REAL EN PAUTA Y PUBLICIDAD DE PERFORMANCE           */}
