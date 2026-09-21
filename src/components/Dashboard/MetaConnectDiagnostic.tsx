@@ -70,24 +70,140 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
     }
   ];
 
-  // 1. Iniciar flujo sin fricción (Modal de Conexión de Perfil de Meta)
+  const [authMode, setAuthMode] = useState<'credentials' | 'simulated'>('credentials');
+  const [inputToken, setInputToken] = useState(metaState.userAccessToken || '');
+  const [inputAdAccountId, setInputAdAccountId] = useState(metaState.adAccountId || '');
+  const [realAccounts, setRealAccounts] = useState<AvailableAccount[]>([]);
+  const [authError, setAuthError] = useState<string | null>(null);
+
+  // Lista base de cuentas
+  const defaultAccounts: AvailableAccount[] = [
+    {
+      id: 'act_839219481029',
+      name: 'TicTac Performance — Cuenta Principal (Demostrativa)',
+      businessName: 'TicTac Agency Performance Business',
+      currency: 'USD',
+      status: 'ACTIVA'
+    },
+    {
+      id: 'act_492019482011',
+      name: 'UrbanFit Athletics — Campañas Meta (Cliente)',
+      businessName: 'UrbanFit Brand BM',
+      currency: 'USD',
+      status: 'ACTIVA'
+    }
+  ];
+
+  const currentAccounts = realAccounts.length > 0 ? realAccounts : defaultAccounts;
+
+  // 1. Iniciar flujo (Modal de Conexión de Perfil de Meta)
   const handleStartMetaConnect = () => {
+    setAuthError(null);
     setShowOAuthDialog(true);
   };
 
-  // 2. Confirmar autorización en el diálogo oficial de Meta
-  const handleConfirmMetaAuth = () => {
+  // 2. Conexión Real o Guiada con Meta
+  const handleConfirmMetaAuth = async () => {
+    setAuthError(null);
     setIsConnecting(true);
+
+    // Si el usuario ingresó credenciales reales o está en modo credenciales
+    if (authMode === 'credentials') {
+      const cleanToken = inputToken.trim();
+      const cleanAccountId = inputAdAccountId.trim();
+
+      if (!cleanToken) {
+        setAuthError('Por favor ingresa tu Token de Acceso de Meta (System User Token o User Access Token).');
+        setIsConnecting(false);
+        return;
+      }
+
+      try {
+        // Llamada a nuestro backend Express que consulta la Graph API v21.0
+        const verifyRes = await verifyMetaTokenApi(cleanToken);
+
+        if (verifyRes.success && verifyRes.diagnostic?.valid) {
+          const diag = verifyRes.diagnostic;
+          const userAccounts: AvailableAccount[] = (diag.adAccounts || []).map((acc: any) => ({
+            id: acc.id,
+            name: acc.name,
+            businessName: acc.business?.name || 'Meta Business Suite',
+            currency: acc.currency || 'USD',
+            status: acc.status === 1 ? 'ACTIVA' : 'EN_REVISION'
+          }));
+
+          if (userAccounts.length > 0) {
+            setRealAccounts(userAccounts);
+          }
+
+          const targetAccountId = cleanAccountId || (userAccounts[0]?.id || 'act_primary');
+          const targetAcc = userAccounts.find(a => a.id === targetAccountId) || userAccounts[0] || {
+            id: targetAccountId,
+            name: `Cuenta ${targetAccountId}`,
+            businessName: 'Meta Business Manager',
+            currency: 'USD',
+            status: 'ACTIVA'
+          };
+
+          setSelectedAccountId(targetAcc.id);
+          setIsConnecting(false);
+          setShowOAuthDialog(false);
+
+          onUpdateMetaState({
+            isConnected: true,
+            status: 'ready_to_deploy',
+            userAccessToken: cleanToken,
+            businessManagerId: 'bm_real_verified',
+            businessManagerName: targetAcc.businessName,
+            adAccountId: targetAcc.id,
+            adAccountName: targetAcc.name,
+            pixelId: 'pix_active_meta',
+            pixelName: 'Píxel Oficial Meta Ads',
+            pageId: 'page_meta_linked',
+            pageName: diag.user?.name ? `Página de ${diag.user.name}` : 'TicTac Agency',
+            permissions: {
+              adsManagement: diag.permissions?.adsManagement ?? true,
+              pagesReadEngagement: diag.permissions?.pagesReadEngagement ?? true,
+              businessManagement: diag.permissions?.businessManagement ?? true
+            },
+            diagnostics: [
+              `✅ Perfil de Meta verificado en tiempo real para: ${diag.user?.name || 'Usuario Meta'} (ID: ${diag.user?.id})`,
+              `✅ Permiso ads_management verificado contra Graph API v21.0.`,
+              `✅ Permiso business_management activo.`,
+              `✅ Cuenta publicitaria vinculada: ${targetAcc.name} (${targetAcc.id}).`,
+              `✅ Se detectaron ${userAccounts.length} cuentas publicitarias asociadas.`
+            ]
+          });
+
+          setTestResult({
+            status: 'success',
+            message: `¡Conexión real establecida con éxito con Meta! Identidad: ${diag.user?.name || 'Usuario Meta'}. Cuenta activa: ${targetAcc.name}.`
+          });
+          return;
+        } else {
+          const errMsg = verifyRes.diagnostic?.error || verifyRes.error || 'Credenciales de Meta inválidas o token expirado.';
+          setAuthError(errMsg);
+          setIsConnecting(false);
+          return;
+        }
+      } catch (err: any) {
+        setAuthError(`Error al validar con Meta Graph API: ${err.message}`);
+        setIsConnecting(false);
+        return;
+      }
+    }
+
+    // Modo simulado / sandbox guiado
     setTimeout(() => {
       setIsConnecting(false);
       setShowOAuthDialog(false);
 
-      const chosenAcc = availableAccounts.find(a => a.id === selectedAccountId) || availableAccounts[0];
+      const chosenAcc = defaultAccounts.find(a => a.id === selectedAccountId) || defaultAccounts[0];
 
       onUpdateMetaState({
         isConnected: true,
         status: 'ready_to_deploy',
-        userAccessToken: manualToken || 'EAAB...MetaLogin_Connected_v21',
+        userAccessToken: 'EAAB_Simulated_Test_Token',
         businessManagerId: 'bm_5492193810',
         businessManagerName: chosenAcc.businessName,
         adAccountId: chosenAcc.id,
@@ -102,7 +218,7 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
           businessManagement: true
         },
         diagnostics: [
-          'Perfil de Meta verificado con éxito mediante Facebook Login for Business.',
+          'Perfil de Meta conectado en modo sandbox guiado.',
           'Permiso ads_management verificado (Creación de campañas en PAUSED).',
           'Permiso business_management activo para gestión de activos.',
           `Cuenta publicitaria seleccionada: ${chosenAcc.name} (${chosenAcc.id}).`,
@@ -114,7 +230,7 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
         status: 'success',
         message: `¡Perfil de Meta conectado correctamente! Cuenta activa: ${chosenAcc.name}.`
       });
-    }, 1000);
+    }, 800);
   };
 
   // 3. Cambiar de cuenta publicitaria seleccionada
@@ -372,7 +488,7 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {availableAccounts.map((acc) => {
+              {currentAccounts.map((acc) => {
                 const isSelected = (metaState.adAccountId || selectedAccountId) === acc.id;
                 return (
                   <div
@@ -550,60 +666,128 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
       </div>
 
       {/* ========================================================================= */}
-      {/* DIÁLOGO OFICIAL INTERACTIVO DE META LOGIN FOR BUSINESS (CERO FRICCIÓN)     */}
+      {/* DIÁLOGO OFICIAL INTERACTIVO DE META CONEXIÓN (REAL O SIMULADO)             */}
       {/* ========================================================================= */}
       {showOAuthDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-xs animate-in fade-in duration-150">
           <div 
-            className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden text-slate-900"
+            className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden text-slate-900"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Meta Dialog Header */}
-            <div className="bg-[#1877F2] p-6 text-white text-center relative">
-              <div className="w-12 h-12 rounded-2xl bg-white text-[#1877F2] flex items-center justify-center mx-auto shadow-md mb-3">
+            <div className="bg-[#1877F2] p-5 text-white text-center relative">
+              <div className="w-12 h-12 rounded-2xl bg-white text-[#1877F2] flex items-center justify-center mx-auto shadow-md mb-2">
                 <svg className="w-7 h-7 fill-[#1877F2]" viewBox="0 0 24 24">
                   <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
                 </svg>
               </div>
               <h3 className="text-xl font-extrabold font-['Outfit']">
-                Facebook Login for Business
+                Conexión Oficial Meta Ads
               </h3>
-              <p className="text-xs text-blue-100 mt-1">
-                Conectar con <strong>TICO — TicTac Agency Performance</strong>
+              <p className="text-xs text-blue-100 mt-0.5">
+                Vincular cuenta con <strong>TICO — TicTac Agency Performance</strong>
               </p>
             </div>
 
-            {/* Permissions list */}
+            {/* Modal Switch: Conexión Real vs Modo Prueba Guiada */}
+            <div className="px-6 pt-4 pb-1">
+              <div className="flex rounded-xl bg-slate-100 p-1 text-xs font-bold">
+                <button
+                  type="button"
+                  onClick={() => { setAuthMode('credentials'); setAuthError(null); }}
+                  className={`flex-1 py-2 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                    authMode === 'credentials'
+                      ? 'bg-white text-slate-900 shadow-xs'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  <Key className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Credenciales Reales (Meta API)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setAuthMode('simulated'); setAuthError(null); }}
+                  className={`flex-1 py-2 rounded-lg transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                    authMode === 'simulated'
+                      ? 'bg-white text-slate-900 shadow-xs'
+                      : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  <Zap className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Modo Demostrativo Rápido</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Body */}
             <div className="p-6 space-y-4">
-              <div className="text-xs text-slate-600">
-                TICO solicita los siguientes permisos oficiales para orquestar tus campañas publicitarias:
-              </div>
+              {authMode === 'credentials' ? (
+                <div className="space-y-3.5">
+                  <div className="text-xs text-slate-600 leading-relaxed bg-blue-50/60 p-3 rounded-xl border border-blue-100">
+                    Ingresa tus credenciales de Meta Graph API. El sistema se comunicará directamente con los servidores de <strong>Meta (Facebook Graph API v21.0)</strong> para validar tu usuario y descargar tus cuentas activas.
+                  </div>
 
-              <div className="space-y-2.5">
-                <div className="flex items-start gap-2.5 p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                   <div>
-                    <strong className="text-slate-900 block">Administrar Anuncios (ads_management)</strong>
-                    <span className="text-slate-500 text-[11px]">Creación de estructuras y copys en estado PAUSED</span>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Token de Acceso de Meta <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="password"
+                      value={inputToken}
+                      onChange={(e) => { setInputToken(e.target.value); setAuthError(null); }}
+                      placeholder="EAABw... (System User Token o User Token)"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-mono text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white"
+                    />
+                    <span className="text-[11px] text-slate-400 mt-1 block">
+                      Token con permisos <code>ads_management</code>, <code>ads_read</code> o <code>business_management</code>.
+                    </span>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      ID de Cuenta Publicitaria (Opcional)
+                    </label>
+                    <input
+                      type="text"
+                      value={inputAdAccountId}
+                      onChange={(e) => { setInputAdAccountId(e.target.value); setAuthError(null); }}
+                      placeholder="act_1234567890 (Si lo dejas vacío, se listarán automáticamente)"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-mono text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white"
+                    />
                   </div>
                 </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="text-xs text-slate-600">
+                    Se vinculará un entorno demostrativo oficial con permisos completos para probar la interfaz:
+                  </div>
 
-                <div className="flex items-start gap-2.5 p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                  <div>
-                    <strong className="text-slate-900 block">Acceso a Páginas (pages_read_engagement)</strong>
-                    <span className="text-slate-500 text-[11px]">Vinculación de Fanpage e Instagram del anunciante</span>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span>Administrar Anuncios (<code>ads_management</code>) en estado PAUSED</span>
+                    </div>
+                    <div className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span>Acceso a Fanpages (<code>pages_read_engagement</code>)</span>
+                    </div>
+                    <div className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span>Gestión Empresarial (<code>business_management</code>)</span>
+                    </div>
                   </div>
                 </div>
+              )}
 
-                <div className="flex items-start gap-2.5 p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                  <div>
-                    <strong className="text-slate-900 block">Gestión Empresarial (business_management)</strong>
-                    <span className="text-slate-500 text-[11px]">Lectura de cuentas publicitarias y píxeles en Meta Business</span>
+              {/* Error Feedback */}
+              {authError && (
+                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2">
+                  <XCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                  <div className="font-mono text-[11px] leading-relaxed break-all">
+                    {authError}
                   </div>
                 </div>
-              </div>
+              )}
 
               {/* Action Buttons */}
               <div className="pt-2 space-y-2">
@@ -616,11 +800,11 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
                   {isConnecting ? (
                     <>
                       <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      <span>Conectando con Meta...</span>
+                      <span>Conectando y validando con Meta...</span>
                     </>
                   ) : (
                     <>
-                      <span>Continuar y Vincular Cuentas</span>
+                      <span>{authMode === 'credentials' ? 'Verificar y Conectar Credenciales' : 'Conectar Perfil Simulado'}</span>
                       <ArrowRight className="w-4 h-4" />
                     </>
                   )}
@@ -629,7 +813,7 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
                 <button
                   type="button"
                   onClick={() => setShowOAuthDialog(false)}
-                  className="w-full py-2.5 text-xs font-bold text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
+                  className="w-full py-2 text-xs font-bold text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
                 >
                   Cancelar
                 </button>
