@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { ShieldAlert, History, ArrowDownRight, ArrowUpRight, Plus, X } from 'lucide-react';
+import { useScrollLock } from '../../utils/scrollLock';
 import type { CreditTransaction } from '../../types';
 
 interface CreditsWidgetProps {
@@ -14,15 +15,7 @@ export const CreditsWidget: React.FC<CreditsWidgetProps> = ({
   onAddCredits
 }) => {
   const [showModal, setShowModal] = useState(false);
-  useEffect(() => {
-    if (showModal) {
-      const originalStyle = window.getComputedStyle(document.body).overflow;
-      document.body.style.overflow = 'hidden';
-      return () => {
-        document.body.style.overflow = originalStyle;
-      };
-    }
-  }, [showModal]);
+  useScrollLock(showModal);
 
   return (
     <>

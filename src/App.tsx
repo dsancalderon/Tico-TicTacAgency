@@ -28,6 +28,7 @@ import {
   Lock
 } from 'lucide-react';
 import { TicoLoader } from './components/TicoLoader';
+import { forceResetScroll } from './utils/scrollLock';
 
 export function App() {
   const [backendOnline, setBackendOnline] = useState<boolean>(false);
@@ -167,7 +168,16 @@ export function App() {
   // Login exitoso
   const handleAuthSuccess = (session: UserSession) => {
     setUserSession(session);
+    setIsAuthModalOpen(false);
+    forceResetScroll();
   };
+
+  useEffect(() => {
+    if (userSession?.isAuthenticated) {
+      setIsAuthModalOpen(false);
+      forceResetScroll();
+    }
+  }, [userSession?.isAuthenticated]);
 
   useEffect(() => {
     if (userSession && pendingBrief) {
@@ -199,6 +209,7 @@ export function App() {
     setUserSession(null);
     setCurrentStep('briefing');
     setStrategy(null);
+    forceResetScroll();
   };
 
   // Aprobación de Campaña y Débito de Créditos

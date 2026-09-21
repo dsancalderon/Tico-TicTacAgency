@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { TicoMascot } from '../TicoMascot';
+import { useScrollLock } from '../../utils/scrollLock';
 import './tico-loader.css';
 
 export type LoaderPhase = 'entering' | 'loading' | 'exiting' | 'done';
@@ -18,18 +19,7 @@ export function TicoLoader({ isLoaded, onFinish, minDuration = 1200, forceMotion
   useEffect(() => { started.current = Date.now(); }, []);
   useEffect(() => { finish.current = onFinish; }, [onFinish]);
 
-  useEffect(() => {
-    const overflow = document.body.style.overflow;
-    const padding = document.body.style.paddingRight;
-    if (phase === 'done') return;
-    const scrollbar = window.innerWidth - document.documentElement.clientWidth;
-    document.body.style.overflow = 'hidden';
-    if (scrollbar > 0) document.body.style.paddingRight = `${scrollbar}px`;
-    return () => {
-      document.body.style.overflow = overflow;
-      document.body.style.paddingRight = padding;
-    };
-  }, [phase]);
+  useScrollLock(phase !== 'done');
 
   useEffect(() => {
     if (!isLoaded) return;

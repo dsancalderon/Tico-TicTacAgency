@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Lock, Mail, User, ArrowRight, ShieldCheck } from 'lucide-react';
 import { TicoLogo } from './TicoLogo';
 import { requireSupabase, loadUserSession, supabase } from '../services/auth';
+import { useScrollLock } from '../utils/scrollLock';
 import type { UserSession } from '../types';
 
 interface AuthModalProps {
@@ -30,17 +31,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  useScrollLock(isOpen);
+
   useEffect(() => {
     if (isOpen) {
       setIsLogin(initialMode === 'login');
       setError('');
       setNotice('');
       setPassword('');
-      const originalStyle = window.getComputedStyle(document.body).overflow;
-      document.body.style.overflow = 'hidden';
-      return () => {
-        document.body.style.overflow = originalStyle;
-      };
     }
   }, [isOpen, initialMode]);
   if (!isOpen) return null;
