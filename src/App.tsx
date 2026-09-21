@@ -65,8 +65,8 @@ export function App() {
       businessManagement: true
     },
     diagnostics: [
-      'Token de usuario autenticado mediante Facebook Login for Business.',
-      'Permiso ads_management verificado.',
+      'Token de anunciante validado para Meta Marketing API v21.0.',
+      'Permiso ads_management verificado (Creación PAUSED activa).',
       'Cuenta publicitaria activa con método de pago registrado en Meta.',
       'Píxel de seguimiento activo y enlazado a la cuenta publicitaria.',
       'Página de Facebook e Instagram vinculadas con rol de anunciante.'
@@ -607,7 +607,7 @@ export function App() {
                 Conexión Oficial con Meta Ads
               </h3>
               <p className="text-slate-600 text-sm leading-relaxed">
-                Autorización mediante Facebook Login for Business, vinculación con tu cuenta publicitaria y verificación de permisos y píxel.
+                Vinculación directa con tu cuenta publicitaria, validación en tiempo real de permisos (ads_management) y orquestación en estado PAUSED.
               </p>
               <div className="mt-6 pt-4 border-t border-slate-100 flex items-center gap-2 text-xs font-semibold text-blue-600">
                 <span>Facebook Business Ready</span>
