@@ -4,7 +4,8 @@ import { defineConfig } from 'vite'
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: '/Tico-TicTacAgency/',
+  base: process.env.VITE_BASE_PATH || '/',
+  server: { proxy: { '/api': 'http://localhost:4000' } },
   plugins: [
     react(),
     tailwindcss(),

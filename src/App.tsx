@@ -1,3 +1,4 @@
+import { supabase, loadUserSession } from './services/auth';
 import { useState, useEffect } from 'react';
 import { Header } from './components/Header';
 import { BriefingForm } from './components/BriefingForm';
@@ -71,15 +72,7 @@ export function App() {
   });
 
   // Historial de Transacciones de Créditos
-  const [creditTransactions, setCreditTransactions] = useState<CreditTransaction[]>([
-    {
-      id: 'tx_init',
-      date: new Date().toISOString(),
-      amount: 50,
-      type: 'credit',
-      description: 'Asignación de créditos de bienvenida (Suscripción TicTac)'
-    }
-  ]);
+  const [creditTransactions, setCreditTransactions] = useState<CreditTransaction[]>([]);
 
   // Historial de Campañas Desplegadas
   const [deployedCampaignsList, setDeployedCampaignsList] = useState<GeneratedCampaignStrategy[]>([]);
@@ -94,18 +87,23 @@ export function App() {
       setIsAppLoaded(true);
     }, 2000);
 
-    const savedSession = localStorage.getItem('tico_user_session');
-    if (savedSession) {
-      try {
-        const parsed = JSON.parse(savedSession);
-        setUserSession(parsed);
-      } catch {
-        // Ignorar si hay error en json
-      }
-    }
+    localStorage.removeItem('tico_user_session');
+    let active = true;
+    let generation = 0;
+    const subscription = supabase?.auth.onAuthStateChange((_event, session) => {
+      const current = ++generation;
+      if (!session) { setUserSession(null); return; }
+      // Defer network work until the SDK's auth callback has released its lock.
+      setTimeout(() => {
+        if (!active || current !== generation) return;
+        loadUserSession().then(user => {
+          if (active && current === generation) setUserSession(user);
+        }).catch(() => { if (active && current === generation) setUserSession(null); });
+      }, 0);
+    }).data.subscription;
 
     checkBackendHealth().then((status) => setBackendOnline(status));
-    return () => clearTimeout(timer);
+    return () => { active = false; generation++; subscription?.unsubscribe(); clearTimeout(timer); };
   }, []);
 
   // Rotating keyword para el Hero (palabras concisas con transición sutil)
@@ -136,7 +134,7 @@ export function App() {
     if (!userSession?.isAuthenticated) {
       setPendingBrief(brief);
       setAuthModalTitle('Inicia sesión para generar tu estrategia');
-      setAuthModalSubtitle('Para estructurar tu plan publicitario y asignarle créditos a tu marca, ingresa cualquier correo y contraseña en este modo de prueba.');
+      setAuthModalSubtitle('Para estructurar tu plan publicitario y asignarle créditos a tu marca, inicia sesión con tu cuenta y correo confirmado.');
       setIsAuthModalOpen(true);
       return;
     }
@@ -150,7 +148,7 @@ export function App() {
       const el = document.getElementById('workflow-container');
       if (el) el.scrollIntoView({ behavior: 'smooth' });
     } catch (error) {
-      console.error('Error formulando estrategia:', error);
+      window.alert(error instanceof Error ? error.message : 'No se pudo generar la estrategia.');
     } finally {
       setIsLoadingStrategy(false);
     }
@@ -159,18 +157,32 @@ export function App() {
   // Login exitoso
   const handleAuthSuccess = (session: UserSession) => {
     setUserSession(session);
-    // Si había un brief pendiente del sandbox, ejecutarlo de inmediato
-    if (pendingBrief) {
-      const briefToProcess = pendingBrief;
-      setPendingBrief(null);
-      setTimeout(() => {
-        handleBriefSubmit(briefToProcess);
-      }, 300);
-    }
   };
 
+  useEffect(() => {
+    if (userSession && pendingBrief) {
+      const brief = pendingBrief;
+      setPendingBrief(null);
+      void handleBriefSubmit(brief);
+    }
+  }, [userSession, pendingBrief]);
+
+  useEffect(() => {
+    if (!userSession) {
+      setStrategy(null); setDeployResult(null); setDeployedCampaignsList([]);
+      setCreditTransactions([]); setCurrentStep('briefing'); setDashboardTab('studio');
+      setMetaState(previous => ({ ...previous, isConnected: false, status: 'disconnected',
+        userAccessToken: '', adAccountId: '', adAccountName: '', businessManagerId: '',
+        businessManagerName: '', pixelId: '', pixelName: '', pageId: '', pageName: '',
+        permissions: { adsManagement: false, pagesReadEngagement: false, businessManagement: false }, diagnostics: [] }));
+    }
+  }, [userSession?.id]);
+
   // Desconexión / Cerrar Sesión
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    const result = await supabase?.auth.signOut({ scope: 'local' });
+    if (result?.error) { window.alert('No se pudo cerrar la sesión. Inténtalo de nuevo.'); return; }
+    setPendingBrief(null);
     localStorage.removeItem('tico_user_session');
     setUserSession(null);
     setCurrentStep('briefing');
@@ -192,7 +204,6 @@ export function App() {
         const updatedCredits = Math.max(0, userSession.credits - cost);
         const updatedSession = { ...userSession, credits: updatedCredits };
         setUserSession(updatedSession);
-        localStorage.setItem('tico_user_session', JSON.stringify(updatedSession));
 
         // Registrar transacción de débito
         const newTx: CreditTransaction = {
@@ -218,28 +229,15 @@ export function App() {
       const el = document.getElementById('workflow-container');
       if (el) el.scrollIntoView({ behavior: 'smooth' });
     } catch (error) {
-      console.error('Error desplegando campaña:', error);
+      window.alert(error instanceof Error ? error.message : 'No se pudo desplegar la campaña.');
     } finally {
       setIsDeploying(false);
     }
   };
 
   // Recarga de Créditos
-  const handleAddCredits = (amount: number) => {
-    if (!userSession) return;
-    const newAmount = userSession.credits + amount;
-    const updated = { ...userSession, credits: newAmount };
-    setUserSession(updated);
-    localStorage.setItem('tico_user_session', JSON.stringify(updated));
-
-    const newTx: CreditTransaction = {
-      id: `tx_${Date.now()}`,
-      date: new Date().toISOString(),
-      amount,
-      type: 'credit',
-      description: `Recarga manual de saldo (+${amount} créditos)`
-    };
-    setCreditTransactions((prev) => [newTx, ...prev]);
+  const handleAddCredits = (_amount: number) => {
+    window.alert('Las recargas estarán disponibles cuando se integre el sistema de créditos.');
   };
 
   const handleResetStudio = () => {
@@ -539,7 +537,7 @@ export function App() {
               type="button"
               onClick={() => {
                 setAuthModalTitle('Acceso a la Plataforma TICO');
-                setAuthModalSubtitle('Ingresa con cualquier credencial de prueba para explorar el dashboard.');
+                setAuthModalSubtitle('Ingresa con tu cuenta y correo confirmado para acceder al dashboard.');
                 setIsAuthModalOpen(true);
               }}
               className="w-full sm:w-auto inline-flex items-center justify-center px-8 py-3.5 sm:py-4 rounded-full border border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 text-slate-800 font-semibold text-sm sm:text-base transition-all shadow-2xs cursor-pointer gap-2"

@@ -440,3 +440,57 @@ Durante esta sesión de trabajo se completaron mejoras estructurales en el motor
 ### 4. Seguridad y Buenas Prácticas
 - **Protección de Credenciales**: Verificación de `.gitignore` para asegurar que las variables de entorno privadas (`.env`) nunca se incluyan en el repositorio público de Git.
 - **Control de Pauta Estricto**: Todas las propuestas y flujos de creación publicitaria inicializan obligatoriamente en estado **`PAUSED`**, garantizando que ninguna campaña gaste presupuesto sin activación humana previa.
+
+## 18. Fase 1: Supabase Auth y despliegue unificado (21 septiembre 2026)
+
+Esta sección reemplaza las descripciones de autenticación simulada de las secciones anteriores.
+
+- React utiliza Supabase Auth para registro, confirmación de correo, login, renovación y cierre de sesión. Ya no acepta credenciales arbitrarias ni sesiones `tico_user_session`.
+- Express verifica el token con `auth.getUser()` y exige correo confirmado. `GET /api/auth/me` crea/recupera el perfil usando el token del usuario y las políticas RLS.
+- La tabla `public.profiles` guarda nombre y nombre del espacio personal. No representa todavía una organización compartida ni permisos administrativos. No almacena contraseñas.
+- Cada usuario solo puede leer, insertar y actualizar su perfil. No puede cambiar su identificador ni asignarse créditos o roles. El saldo inicial es cero; pagos y créditos persistentes quedan pendientes.
+- Las rutas de campañas y Meta requieren autenticación y están deshabilitadas por defecto. Antes de habilitarlas hay que aislar credenciales, activos y permisos por cliente. Los fallos de API ya no se convierten en despliegues simulados exitosos.
+- Vercel sirve Vite y la función Express `/api/index.ts` en el mismo dominio. El proxy de Vite hace lo mismo en desarrollo. GitHub Pages conserva su subruta, pero no ejecuta el backend.
+
+### Entorno y ejecución
+
+Usar `.env.example` como referencia y completar `.env` (ignorado por Git):
+
+```dotenv
+VITE_API_BASE_URL=/api
+VITE_SUPABASE_URL=https://PROJECT_REF.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
+SUPABASE_URL=https://PROJECT_REF.supabase.co
+SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
+ENABLE_ADVERTISING_API=false
+```
+
+La clave publishable es pública; nunca usar `service_role` ni claves secretas en variables `VITE_*`.
+
+```sh
+npm ci
+npm ci --prefix server
+npm run dev:all
+npm run build:all
+npm test
+```
+
+Si `tsx watch` falla en el entorno restringido de Windows (`uv_os_get_passwd`), usar `npm run build:server` seguido de `node server/dist/index.js`, y `npm run dev` para el frontend.
+
+### Recursos y configuración de despliegue
+
+- Repositorio: https://github.com/dsancalderon/Tico-TicTacAgency
+- Supabase: proyecto `tico-tictacagency`, referencia `ivltssrxjgvxfxoehzuq`, organización elegida por el propietario, región `us-east-1`.
+- Migración aplicada: `supabase/migrations/20260921032204_phase_one_profiles.sql`.
+- Importar el repositorio en Vercel desde la raíz. `vercel.json` instala ambas capas y compila ambas.
+- Configurar las seis variables anteriores en Vercel para Production/Preview. No copiar claves publicitarias globales para esta fase.
+- En Supabase Authentication > URL Configuration: establecer Site URL al dominio definitivo de Vercel y permitir ese dominio y `http://localhost:5173/` en Redirect URLs. Mantener Confirm email activado.
+- No dar por validado el correo hasta verificar la recepción, el retorno al sitio y el login con el usuario confirmado.
+
+### Evidencia y límites
+
+Se verificaron compilación de frontend/backend y prueba del middleware con proveedor Auth controlado: token ausente/falso rechazado, perfil verificado, créditos/roles de metadata ignorados y configuración ausente rechazada. La prueba se ejecuta con `npm test`.
+
+En Supabase real se comprobó aislamiento SELECT/UPDATE/INSERT entre usuarios mediante una transacción revertida; la revisión de seguridad no devolvió alertas para el esquema. Esto no sustituye la prueba completa de registro y confirmación por correo ni las pruebas HTTP sobre Vercel.
+
+Documentación: [registro Supabase](https://supabase.com/docs/reference/javascript/auth-signup), [RLS](https://supabase.com/docs/guides/database/postgres/row-level-security), [Vercel Functions](https://vercel.com/docs/functions/quickstart).

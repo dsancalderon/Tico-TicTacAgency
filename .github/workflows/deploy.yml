@@ -36,6 +36,8 @@ jobs:
 
       - name: Compilar Frontend (Vite)
         run: npm run build
+        env:
+          VITE_BASE_PATH: /Tico-TicTacAgency/
 
       - name: Configurar GitHub Pages
         uses: actions/configure-pages@v4

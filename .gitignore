@@ -24,6 +24,8 @@ server/dist
 # Local storage and cache
 *.local
 .cache
+.vercel
+supabase/.temp
 .DS_Store
 
 # Editor directories and files

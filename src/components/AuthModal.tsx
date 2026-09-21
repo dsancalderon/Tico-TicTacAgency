@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Lock, Mail, User, ArrowRight, ShieldCheck } from 'lucide-react';
 import { TicoLogo } from './TicoLogo';
+import { requireSupabase, loadUserSession, supabase } from '../services/auth';
 import type { UserSession } from '../types';
 
 interface AuthModalProps {
@@ -27,30 +28,37 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [workspace, setWorkspace] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  useEffect(() => { if (isOpen) { setIsLogin(initialMode === 'login'); setError(''); setNotice(''); setPassword(''); } }, [isOpen, initialMode]);
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-
-    // En esta fase de prueba se acepta cualquier correo y contraseña
-    setTimeout(() => {
-      const sessionName = name.trim() || email.split('@')[0] || 'Especialista TicTac';
-      const userSession: UserSession = {
-        id: `user_${Date.now()}`,
-        email: email || 'demo@tictacagency.com',
-        name: sessionName.charAt(0).toUpperCase() + sessionName.slice(1),
-        role: 'agency_admin',
-        workspaceName: workspace.trim() || 'TicTac Agency — Performance Hub',
-        credits: 50, // Saldo inicial para pruebas
-        isAuthenticated: true
-      };
-
-      localStorage.setItem('tico_user_session', JSON.stringify(userSession));
-      setLoading(false);
-      onSuccess(userSession);
+    if (loading) return;
+    setLoading(true); setError(''); setNotice('');
+    try {
+      const client = requireSupabase();
+      const { data, error: authError } = isLogin
+        ? await client.auth.signInWithPassword({ email: email.trim(), password })
+        : await client.auth.signUp({ email: email.trim(), password, options: {
+            data: { display_name: name.trim(), workspace_name: workspace.trim() },
+            emailRedirectTo: window.location.origin + import.meta.env.BASE_URL,
+          } });
+      if (authError) throw authError;
+      setPassword('');
+      if (!data.session) {
+        setNotice('Revisa tu correo para confirmar el registro. Si ya tienes cuenta, inicia sesión.');
+        return;
+      }
+      onSuccess(await loadUserSession());
       onClose();
-    }, 600);
+    } catch (err) {
+      const code = (err as { code?: string }).code;
+      setError(code === 'invalid_credentials' ? 'Correo o contraseña incorrectos.'
+        : code === 'email_not_confirmed' ? 'Confirma tu correo antes de iniciar sesión.'
+        : err instanceof Error ? err.message : 'No se pudo completar el acceso. Inténtalo de nuevo.');
+    } finally { setLoading(false); }
   };
 
   return (
@@ -83,7 +91,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           <p className="text-[11px] sm:text-xs text-slate-500 mt-1 leading-relaxed">
             {customSubtitle || (isLogin 
               ? 'Ingresa tus credenciales para gestionar briefings, autorizar cuentas de Meta Ads y desplegar pauta.'
-              : 'Registra tu agencia o marca para acceder al agente de planeación publicitaria con créditos incluidos.')
+              : 'Registra tu agencia o marca para acceder al agente de planeación publicitaria con una cuenta personal.')
             }
           </p>
 
@@ -91,10 +99,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           <div className="mt-3 p-2 rounded-xl bg-indigo-50/80 border border-indigo-100 flex items-center gap-2 text-[11px] text-indigo-900 font-medium">
             <ShieldCheck className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
             <span>
-              <strong>Modo de prueba:</strong> Ingresa cualquier correo y contraseña para continuar.
+              {supabase ? 'Acceso seguro. Confirma tu correo para activar tu cuenta.' : 'El acceso está pendiente de configuración.'}
             </span>
           </div>
 
+          {error && <p role="alert" className="mt-3 text-sm text-red-700">{error}</p>}
+          {notice && <p role="status" className="mt-3 text-sm text-emerald-700">{notice}</p>}
           {/* Form */}
           <form onSubmit={handleSubmit} className="mt-4 space-y-3">
             {!isLogin && (
@@ -106,7 +116,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   <div className="relative">
                     <User className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
                     <input
-                      type="text"
+                      type="text" required maxLength={120}
                       placeholder="Ej. Santiago Mejía"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
@@ -155,6 +165,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <Lock className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
                 <input
                   type="password"
+                  minLength={isLogin ? undefined : 8}
+                  autoComplete={isLogin ? "current-password" : "new-password"}
                   required
                   placeholder="••••••••"
                   value={password}
@@ -166,7 +178,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || !supabase}
               className="w-full mt-1.5 py-2.5 px-4 rounded-xl bg-slate-950 hover:bg-slate-800 text-white font-bold text-xs shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
             >
               {loading ? (
@@ -190,7 +202,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 ¿No tienes una cuenta aún?{' '}
                 <button
                   type="button"
-                  onClick={() => setIsLogin(false)}
+                  disabled={loading} onClick={() => { setIsLogin(false); setError(''); setNotice(''); }}
                   className="font-bold text-indigo-600 hover:text-indigo-700 hover:underline cursor-pointer"
                 >
                   Regístrate aquí
@@ -201,7 +213,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 ¿Ya tienes una cuenta registrada?{' '}
                 <button
                   type="button"
-                  onClick={() => setIsLogin(true)}
+                  disabled={loading} onClick={() => { setIsLogin(true); setError(''); setNotice(''); }}
                   className="font-bold text-indigo-600 hover:text-indigo-700 hover:underline cursor-pointer"
                 >
                   Inicia sesión aquí
