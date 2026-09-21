@@ -47,29 +47,26 @@ export function App() {
   const [dashboardTab, setDashboardTab] = useState<'studio' | 'meta-connect' | 'campaigns'>('studio');
 
   // Estado de Conexión de Meta Ads
+  // Estado de Conexión con Meta Ads API (inicializado en desconectado según requerimiento)
   const [metaState, setMetaState] = useState<MetaConnectionState>({
-    isConnected: true,
-    status: 'ready_to_deploy',
-    userAccessToken: 'EAAB...MetaOAuthToken_Active',
-    businessManagerId: 'bm_5492193810',
-    businessManagerName: 'TicTac Agency Performance Business',
-    adAccountId: 'act_839219481029',
-    adAccountName: 'TicTac Performance — Cuenta Principal',
-    pixelId: 'pix_9281740192',
-    pixelName: 'Meta Pixel Conversiones TicTac',
-    pageId: 'page_9381029381',
-    pageName: 'TicTac Agency Performance',
+    isConnected: false,
+    status: 'disconnected',
+    userAccessToken: '',
+    businessManagerId: '',
+    businessManagerName: '',
+    adAccountId: '',
+    adAccountName: '',
+    pixelId: '',
+    pixelName: '',
+    pageId: '',
+    pageName: '',
     permissions: {
-      adsManagement: true,
-      pagesReadEngagement: true,
-      businessManagement: true
+      adsManagement: false,
+      pagesReadEngagement: false,
+      businessManagement: false
     },
     diagnostics: [
-      'Token de anunciante validado para Meta Marketing API v21.0.',
-      'Permiso ads_management verificado (Creación PAUSED activa).',
-      'Cuenta publicitaria activa con método de pago registrado en Meta.',
-      'Píxel de seguimiento activo y enlazado a la cuenta publicitaria.',
-      'Página de Facebook e Instagram vinculadas con rol de anunciante.'
+      'La cuenta se encuentra desconectada. Vincula tu Token de Acceso de Meta o activa el modo demostrativo para comenzar.'
     ]
   });
 
@@ -111,20 +108,25 @@ export function App() {
     return () => clearTimeout(timer);
   }, []);
 
-  // Rotating keyword para el Hero de pauta publicitaria
+  // Rotating keyword para el Hero (palabras concisas con transición sutil)
   const keywords = [
-    'estrategia de pauta',
-    'campañas en Meta Ads',
-    'distribución de presupuesto',
-    'anuncios de alto impacto',
-    'inversión publicitaria'
+    'estrategia',
+    'publicidad',
+    'campaña',
+    'pauta digital',
+    'inversión'
   ];
   const [activeKeywordIndex, setActiveKeywordIndex] = useState(0);
+  const [isKeywordFading, setIsKeywordFading] = useState(false);
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setActiveKeywordIndex((prev) => (prev + 1) % keywords.length);
-    }, 3000);
+      setIsKeywordFading(true);
+      setTimeout(() => {
+        setActiveKeywordIndex((prev) => (prev + 1) % keywords.length);
+        setIsKeywordFading(false);
+      }, 300);
+    }, 3200);
     return () => clearInterval(interval);
   }, [keywords.length]);
 
@@ -493,13 +495,21 @@ export function App() {
           </div>
 
           {/* MAIN HERO HEADLINE */}
-          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold text-slate-900 tracking-tight font-['Outfit'] leading-[1.12]">
+          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold text-slate-900 tracking-tight font-['Outfit'] leading-[1.15]">
             <span>Deja tu{' '}</span>
             <span className="relative inline-block whitespace-nowrap">
-              <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                {keywords[activeKeywordIndex]}
+              <span
+                className={`inline-block transition-all duration-300 ease-out transform ${
+                  isKeywordFading
+                    ? 'opacity-0 -translate-y-2 scale-95 blur-[1px]'
+                    : 'opacity-100 translate-y-0 scale-100 blur-0'
+                }`}
+              >
+                <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">
+                  {keywords[activeKeywordIndex]}
+                </span>
               </span>
-              <span className="absolute left-0 -bottom-1 sm:-bottom-2 w-full h-1 sm:h-1.5 bg-gradient-to-r from-blue-500/40 via-indigo-500/40 to-purple-500/40 rounded-full" />
+              <span className="absolute left-0 -bottom-1 sm:-bottom-2 w-full h-1 sm:h-1.5 bg-gradient-to-r from-blue-500/40 via-indigo-500/40 to-purple-500/40 rounded-full transition-all duration-300" />
             </span>
             <br className="hidden sm:inline" />
             <span> en manos de TICO</span>
