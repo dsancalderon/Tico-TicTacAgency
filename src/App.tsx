@@ -8,12 +8,12 @@ import { TicoLogo } from './components/TicoLogo';
 import { AuthModal } from './components/AuthModal';
 import { DashboardLayout } from './components/Dashboard/DashboardLayout';
 import { MetaConnectDiagnostic } from './components/Dashboard/MetaConnectDiagnostic';
-import type { 
-  ClientBriefing, 
-  GeneratedCampaignStrategy, 
-  UserSession, 
-  MetaConnectionState, 
-  CreditTransaction 
+import type {
+  ClientBriefing,
+  GeneratedCampaignStrategy,
+  UserSession,
+  MetaConnectionState,
+  CreditTransaction
 } from './types';
 import { checkBackendHealth, generateStrategyApi, deployCampaignApi } from './services/api';
 import {
@@ -181,10 +181,12 @@ export function App() {
     if (!userSession) {
       setStrategy(null); setDeployResult(null); setDeployedCampaignsList([]);
       setCreditTransactions([]); setCurrentStep('briefing'); setDashboardTab('studio');
-      setMetaState(previous => ({ ...previous, isConnected: false, status: 'disconnected',
+      setMetaState(previous => ({
+        ...previous, isConnected: false, status: 'disconnected',
         userAccessToken: '', adAccountId: '', adAccountName: '', businessManagerId: '',
         businessManagerName: '', pixelId: '', pixelName: '', pageId: '', pageName: '',
-        permissions: { adsManagement: false, pagesReadEngagement: false, businessManagement: false }, diagnostics: [] }));
+        permissions: { adsManagement: false, pagesReadEngagement: false, businessManagement: false }, diagnostics: []
+      }));
     }
   }, [userSession?.id]);
 
@@ -287,16 +289,14 @@ export function App() {
             {/* Stepper indicators */}
             <div className="max-w-2xl mx-auto grid grid-cols-3 gap-3 text-left mb-6">
               <div
-                className={`p-3.5 rounded-2xl border transition-all ${
-                  currentStep === 'briefing'
-                    ? 'border-slate-950 bg-slate-950 text-white shadow-md'
-                    : 'border-slate-200 bg-white text-slate-600'
-                }`}
+                className={`p-3.5 rounded-2xl border transition-all ${currentStep === 'briefing'
+                  ? 'border-slate-950 bg-slate-950 text-white shadow-md'
+                  : 'border-slate-200 bg-white text-slate-600'
+                  }`}
               >
                 <div className="flex items-center gap-2 text-xs font-bold">
-                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-black ${
-                    currentStep === 'briefing' ? 'bg-white text-slate-950' : 'bg-slate-100 text-slate-700'
-                  }`}>1</span>
+                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-black ${currentStep === 'briefing' ? 'bg-white text-slate-950' : 'bg-slate-100 text-slate-700'
+                    }`}>1</span>
                   <span>Briefing</span>
                 </div>
                 <p className={`text-[11px] mt-1 ${currentStep === 'briefing' ? 'text-slate-300' : 'text-slate-400'}`}>
@@ -305,16 +305,14 @@ export function App() {
               </div>
 
               <div
-                className={`p-3.5 rounded-2xl border transition-all ${
-                  currentStep === 'strategy'
-                    ? 'border-slate-950 bg-slate-950 text-white shadow-md'
-                    : 'border-slate-200 bg-white text-slate-600'
-                }`}
+                className={`p-3.5 rounded-2xl border transition-all ${currentStep === 'strategy'
+                  ? 'border-slate-950 bg-slate-950 text-white shadow-md'
+                  : 'border-slate-200 bg-white text-slate-600'
+                  }`}
               >
                 <div className="flex items-center gap-2 text-xs font-bold">
-                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-black ${
-                    currentStep === 'strategy' ? 'bg-white text-slate-950' : 'bg-slate-100 text-slate-700'
-                  }`}>2</span>
+                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-black ${currentStep === 'strategy' ? 'bg-white text-slate-950' : 'bg-slate-100 text-slate-700'
+                    }`}>2</span>
                   <span>Plan & Creativos</span>
                 </div>
                 <p className={`text-[11px] mt-1 ${currentStep === 'strategy' ? 'text-slate-300' : 'text-slate-400'}`}>
@@ -323,16 +321,14 @@ export function App() {
               </div>
 
               <div
-                className={`p-3.5 rounded-2xl border transition-all ${
-                  currentStep === 'deployed'
-                    ? 'border-emerald-600 bg-emerald-600 text-white shadow-md'
-                    : 'border-slate-200 bg-white text-slate-600'
-                }`}
+                className={`p-3.5 rounded-2xl border transition-all ${currentStep === 'deployed'
+                  ? 'border-emerald-600 bg-emerald-600 text-white shadow-md'
+                  : 'border-slate-200 bg-white text-slate-600'
+                  }`}
               >
                 <div className="flex items-center gap-2 text-xs font-bold">
-                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-black ${
-                    currentStep === 'deployed' ? 'bg-white text-emerald-800' : 'bg-slate-100 text-slate-700'
-                  }`}>3</span>
+                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-black ${currentStep === 'deployed' ? 'bg-white text-emerald-800' : 'bg-slate-100 text-slate-700'
+                    }`}>3</span>
                   <span>Despliegue PAUSED</span>
                 </div>
                 <p className={`text-[11px] mt-1 ${currentStep === 'deployed' ? 'text-emerald-100' : 'text-slate-400'}`}>
@@ -504,10 +500,10 @@ export function App() {
       {/* ========================================================================= */}
       {/* HERO SECTION: ENFOQUE REAL EN PAUTA Y PUBLICIDAD DE PERFORMANCE           */}
       {/* ========================================================================= */}
-      <section className="relative overflow-hidden pt-12 sm:pt-16 pb-24 sm:pb-32 bg-white">
-        
+      <section className="relative overflow-hidden pt-8 sm:pt-16 pb-24 sm:pb-32 bg-white">
+
         {/* Subtle prismatic beam background */}
-        <div 
+        <div
           className="absolute -bottom-24 right-[-10%] sm:right-[-5%] w-[850px] h-[550px] pointer-events-none -z-0 opacity-85"
           style={{
             background: 'linear-gradient(125deg, rgba(34, 197, 94, 0.15) 0%, rgba(56, 189, 248, 0.45) 20%, rgba(99, 102, 241, 0.45) 45%, rgba(192, 132, 252, 0.45) 70%, rgba(244, 114, 182, 0.35) 90%, rgba(251, 191, 36, 0.25) 100%)',
@@ -517,25 +513,16 @@ export function App() {
         />
 
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
-          
-          {/* Eyebrow badge: TicTac Agency Performance */}
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-800 text-xs sm:text-sm font-semibold shadow-2xs mb-6 sm:mb-8 transition-all">
-            <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
-            <span>TicTac Agency Performance</span>
-            <span className="text-slate-300">|</span>
-            <span className="text-slate-600 text-[11px] font-medium hidden sm:inline">Meta Marketing API & Google Ads</span>
-          </div>
 
           {/* MAIN HERO HEADLINE */}
           <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold text-slate-900 tracking-tight font-['Outfit'] leading-[1.15]">
             <span>Deja tu{' '}</span>
             <span className="relative inline-block whitespace-nowrap">
               <span
-                className={`inline-block transition-all duration-300 ease-out transform ${
-                  isKeywordFading
-                    ? 'opacity-0 -translate-y-2 scale-95 blur-[1px]'
-                    : 'opacity-100 translate-y-0 scale-100 blur-0'
-                }`}
+                className={`inline-block transition-all duration-300 ease-out transform ${isKeywordFading
+                  ? 'opacity-0 -translate-y-2 scale-95 blur-[1px]'
+                  : 'opacity-100 translate-y-0 scale-100 blur-0'
+                  }`}
               >
                 <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">
                   {keywords[activeKeywordIndex]}
@@ -719,8 +706,8 @@ export function App() {
             <div className="flex flex-wrap items-center gap-6 sm:gap-8 text-xs font-semibold text-slate-600">
               <a href="#por-que-tico" className="hover:text-slate-950 transition-colors">Metodología</a>
               <a href="#briefing-section" className="hover:text-slate-950 transition-colors">Sandbox</a>
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={() => setIsAuthModalOpen(true)}
                 className="hover:text-slate-950 transition-colors cursor-pointer"
               >
