@@ -37,8 +37,12 @@ app.get('/api/health', (req, res) => {
 
 app.use('/api', requireAuth);
 app.get('/api/auth/me', getProfile);
-// Advertising credentials are not tenant-scoped yet: keep these routes closed in phase 1.
-app.use(['/api/campaigns', '/api/meta'], (_req, res, next) => {
+// Advertising credentials are not tenant-scoped yet: keep these routes closed in phase 1,
+// pero permitir siempre las rutas de diagnóstico y verificación de token suministrado por el usuario.
+app.use(['/api/campaigns', '/api/meta'], (req, res, next) => {
+  if (req.path === '/verify-token' || req.path === '/verify-account') {
+    return next();
+  }
   if (process.env.ENABLE_ADVERTISING_API !== 'true') {
     res.status(403).json({ error: 'Integraciones publicitarias pendientes de habilitación por cliente' }); return;
   }

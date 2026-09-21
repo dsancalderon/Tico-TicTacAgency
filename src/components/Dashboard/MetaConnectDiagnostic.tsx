@@ -157,7 +157,9 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
             `✅ Token validado para usuario: ${diag.user?.name || 'Usuario Meta'} (ID: ${diag.user?.id})`,
             `✅ Permiso ads_management verificado (Creación PAUSED habilitada).`,
             `✅ Permiso business_management verificado.`,
-            `✅ Cuenta publicitaria vinculada: ${targetAcc.name} (${targetAcc.id}).`,
+            userAccounts.length > 0
+              ? `✅ Cuenta publicitaria vinculada: ${targetAcc.name} (${targetAcc.id}).`
+              : `⚠️ Aviso: Tu token es válido, pero el Usuario del Sistema aún no tiene asignada una Cuenta Publicitaria. Ve a Meta Business > Usuarios del Sistema > Agregar activos > Cuentas publicitarias y activa Control total.`,
             `✅ Cuentas asociadas encontradas: ${userAccounts.length}`
           ]
         });
@@ -852,21 +854,23 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 {/* Paso A */}
-                <div className="bg-slate-800/80 border border-slate-700/70 rounded-2xl p-4 sm:p-5 space-y-2.5">
-                  <div className="flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center shrink-0">
-                      A
-                    </span>
-                    <span className="text-xs font-bold text-white">
-                      Abrir Usuarios del Sistema
-                    </span>
+                <div className="bg-slate-800/80 border border-slate-700/70 rounded-2xl p-4 sm:p-5 space-y-2.5 flex flex-col justify-between">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center shrink-0">
+                        A
+                      </span>
+                      <span className="text-xs font-bold text-white">
+                        Abrir Usuarios del Sistema
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-300 leading-relaxed">
+                      Entra a la Configuración de tu Negocio en <strong>Usuarios &gt; Usuarios del sistema</strong>. Si no tienes uno, pulsa <em>Agregar</em>, nómbralo <code>Tico Performance</code> y asigna rol <strong>Administrador</strong>.
+                    </p>
                   </div>
-                  <p className="text-[11px] text-slate-300 leading-relaxed">
-                    Entra a la Configuración de tu Negocio en <strong>Usuarios &gt; Usuarios del sistema</strong>. Si no tienes uno, pulsa <em>Agregar</em>, nómbralo <code>Tico Performance</code> y asigna rol <strong>Administrador</strong>.
-                  </p>
-                  <div className="pt-1">
+                  <div className="pt-2">
                     <a
                       href="https://business.facebook.com/settings/system-users"
                       target="_blank"
@@ -879,64 +883,118 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
                   </div>
                 </div>
 
-                {/* Paso B */}
-                <div className="bg-slate-800/80 border border-slate-700/70 rounded-2xl p-4 sm:p-5 space-y-2.5">
-                  <div className="flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center shrink-0">
-                      B
-                    </span>
-                    <span className="text-xs font-bold text-white">
-                      Asignar Activos al Usuario
+                {/* Paso B: Ventana 'Seleccionar activos y asignar permisos' (Detalle 3 Columnas) */}
+                <div className="bg-slate-800/80 border border-blue-500/50 rounded-2xl p-4 sm:p-5 space-y-3 lg:col-span-2 shadow-lg">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 pb-2 border-b border-slate-700/60">
+                    <div className="flex items-center gap-2">
+                      <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center shrink-0">
+                        B
+                      </span>
+                      <span className="text-xs sm:text-sm font-bold text-white">
+                        Ventana "Seleccionar activos y asignar permisos"
+                      </span>
+                    </div>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-900/60 text-blue-200 border border-blue-700/40 font-bold self-start sm:self-auto">
+                      Al pulsar "Agregar activos"
                     </span>
                   </div>
+
                   <p className="text-[11px] text-slate-300 leading-relaxed">
-                    Con el usuario <code>Tico Performance</code> seleccionado, haz clic en el botón <strong>"Agregar activos"</strong>:
+                    Con <code>Tico Performance</code> seleccionado, haz clic en el botón <strong>"Agregar activos"</strong>. Se abrirá la ventana oficial de 3 columnas. Debes vincular <strong>ambos activos</strong>:
                   </p>
-                  <ul className="text-[11px] text-slate-400 space-y-1 list-disc pl-4">
-                    <li>En <strong>Apps</strong>: Elige tu App recién creada y activa <strong>Control total</strong>.</li>
-                    <li>En <strong>Cuentas publicitarias</strong>: Elige tu cuenta y activa <strong>Control total (Administrar campañas)</strong>.</li>
-                  </ul>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                    {/* Activo 1: App */}
+                    <div className="p-3 rounded-xl bg-slate-900/90 border border-blue-500/40 space-y-2">
+                      <div className="flex items-center gap-2 text-blue-300 font-bold text-xs">
+                        <span className="w-4 h-4 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px]">1</span>
+                        <span>Asignar la App Creada</span>
+                      </div>
+                      <ul className="text-[11px] text-slate-300 space-y-1.5 list-disc pl-4">
+                        <li>
+                          <strong>Columna 1 ("Seleccionar tipo de activo"):</strong> Haz clic en <span className="text-white font-semibold">Apps</span>.
+                        </li>
+                        <li>
+                          <strong>Columna 2 ("Seleccionar activos"):</strong> Marca la casilla <span className="text-emerald-400 font-mono">Tico Performance Ads</span>.
+                        </li>
+                        <li>
+                          <strong>Columna 3 ("Asignar permisos"):</strong> En <em>Acceso total</em>, activa el switch <strong className="text-white">"Administrar app"</strong>.
+                        </li>
+                      </ul>
+                    </div>
+
+                    {/* Activo 2: Cuenta Publicitaria */}
+                    <div className="p-3 rounded-xl bg-slate-900/90 border border-emerald-500/50 space-y-2">
+                      <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs">
+                        <span className="w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px]">2</span>
+                        <span>Asignar la Cuenta Publicitaria (¡Imprescindible!)</span>
+                      </div>
+                      <ul className="text-[11px] text-slate-300 space-y-1.5 list-disc pl-4">
+                        <li>
+                          <strong>Columna 1 ("Seleccionar tipo de activo"):</strong> Haz clic en <span className="text-white font-semibold">Cuentas publicitarias</span>.
+                        </li>
+                        <li>
+                          <strong>Columna 2 ("Seleccionar activos"):</strong> Marca la casilla de tu <span className="text-white font-semibold">cuenta de anuncios</span>.
+                        </li>
+                        <li>
+                          <strong>Columna 3 ("Asignar permisos"):</strong> En <em>Acceso total</em>, activa el switch <strong className="text-white">"Administrar campañas" / "Control total"</strong>.
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 rounded-xl bg-blue-950/40 border border-blue-800/40 text-[11px] text-blue-200">
+                    <span>
+                      👉 Al marcar ambos, verifica que abajo diga <strong>"2 activos seleccionados"</strong> y pulsa el botón azul <strong className="text-white">"Asignar activos"</strong>.
+                    </span>
+                  </div>
                 </div>
 
                 {/* Paso C */}
-                <div className="bg-slate-800/80 border border-emerald-500/40 rounded-2xl p-4 sm:p-5 space-y-2.5 shadow-md">
-                  <div className="flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-full bg-emerald-600 text-white text-xs font-bold flex items-center justify-center shrink-0">
-                      C
-                    </span>
-                    <span className="text-xs font-bold text-white">
-                      Generar Token (3 Permisos)
+                <div className="bg-slate-800/80 border border-emerald-500/40 rounded-2xl p-4 sm:p-5 space-y-2.5 shadow-md lg:col-span-3">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-700/60">
+                    <div className="flex items-center gap-2">
+                      <span className="w-6 h-6 rounded-full bg-emerald-600 text-white text-xs font-bold flex items-center justify-center shrink-0">
+                        C
+                      </span>
+                      <span className="text-xs sm:text-sm font-bold text-white">
+                        Generar Token Permanente con los 3 Permisos Obligatorios
+                      </span>
+                    </div>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-900/60 text-emerald-300 border border-emerald-700/50 font-bold">
+                      Paso Final
                     </span>
                   </div>
+
                   <p className="text-[11px] text-slate-300 leading-relaxed">
-                    Pulsa <strong>"Generar nuevo token"</strong>, elige tu App, caducidad <strong>"Permanente" (Never expire)</strong> y marca estas 3 casillas obligatorias (haz clic para copiarlas):
+                    Pulsa el botón <strong>"Generar nuevo token"</strong>, elige tu App (<code>Tico Performance Ads</code>), caducidad <strong>"Permanente" (Never expire)</strong> y marca estas 3 casillas obligatorias (haz clic para copiarlas):
                   </p>
 
-                  <div className="flex flex-wrap gap-1.5 pt-1">
+                  <div className="flex flex-wrap gap-2 pt-1">
                     {[
-                      { id: 'ads_management', label: 'ads_management' },
-                      { id: 'ads_read', label: 'ads_read' },
-                      { id: 'business_management', label: 'business_management' }
+                      { id: 'ads_management', label: 'ads_management (Crear y editar campañas)' },
+                      { id: 'ads_read', label: 'ads_read (Lectura de métricas y anuncios)' },
+                      { id: 'business_management', label: 'business_management (Gestión en BM)' }
                     ].map((p) => (
                       <button
                         key={p.id}
                         type="button"
                         onClick={() => handleCopyPermission(p.id)}
-                        className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700 hover:border-slate-500 text-[10px] font-mono text-blue-300 hover:text-white flex items-center gap-1.5 transition-colors cursor-pointer"
+                        className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 hover:border-slate-500 text-[11px] font-mono text-blue-300 hover:text-white flex items-center gap-1.5 transition-colors cursor-pointer"
                         title="Haz clic para copiar"
                       >
                         <span>{p.label}</span>
                         {copiedPermission === p.id ? (
-                          <Check className="w-3 h-3 text-emerald-400" />
+                          <Check className="w-3.5 h-3.5 text-emerald-400" />
                         ) : (
-                          <Copy className="w-3 h-3 opacity-60" />
+                          <Copy className="w-3.5 h-3.5 opacity-60" />
                         )}
                       </button>
                     ))}
                   </div>
 
-                  <div className="text-[10px] text-emerald-300 bg-emerald-950/40 p-2 rounded-lg border border-emerald-800/50 mt-1">
-                    ✓ Copia el token que empieza por <code>EAABw...</code> y pégalo en el formulario de arriba.
+                  <div className="text-[11px] text-emerald-300 bg-emerald-950/40 p-2.5 rounded-xl border border-emerald-800/50 mt-1">
+                    ✓ Haz clic en <strong>Generar token</strong>, copia la clave que empieza por <code>EAABw...</code> y pégala en el formulario de arriba para conectar.
                   </div>
                 </div>
               </div>
