@@ -14,7 +14,13 @@ export const app = express();
 const PORT = process.env.PORT || 4000;
 
 app.use(cors({
-  origin: process.env.CLIENT_ORIGIN || 'http://localhost:5173',
+  origin: (origin, callback) => {
+    if (!origin || origin.includes('localhost') || origin.endsWith('.vercel.app') || origin === process.env.CLIENT_ORIGIN) {
+      callback(null, true);
+    } else {
+      callback(null, false);
+    }
+  },
   credentials: true
 }));
 
