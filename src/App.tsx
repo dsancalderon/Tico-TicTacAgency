@@ -500,7 +500,7 @@ export function App() {
       {/* ========================================================================= */}
       {/* HERO SECTION: ENFOQUE REAL EN PAUTA Y PUBLICIDAD DE PERFORMANCE           */}
       {/* ========================================================================= */}
-      <section className="relative overflow-hidden pt-8 sm:pt-16 pb-24 sm:pb-32 bg-white">
+      <section className="relative overflow-hidden pt-1 sm:pt-8 pb-24 sm:pb-32 bg-white">
 
         {/* Subtle prismatic beam background */}
         <div

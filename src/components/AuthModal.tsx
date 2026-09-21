@@ -30,7 +30,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
-  useEffect(() => { if (isOpen) { setIsLogin(initialMode === 'login'); setError(''); setNotice(''); setPassword(''); } }, [isOpen, initialMode]);
+  useEffect(() => {
+    if (isOpen) {
+      setIsLogin(initialMode === 'login');
+      setError('');
+      setNotice('');
+      setPassword('');
+      const originalStyle = window.getComputedStyle(document.body).overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalStyle;
+      };
+    }
+  }, [isOpen, initialMode]);
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -84,8 +96,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
         <div className="p-5 sm:p-6 overflow-y-auto">
           {/* Logo & Header */}
-          <div className="flex items-center gap-2 mb-2.5">
-            <TicoLogo size="sm" variant="stacked" />
+          <div className="flex items-center mb-3">
+            <TicoLogo size="sm" variant="horizontal" showPoweredBy={true} scale={0.88} />
           </div>
 
           <h3 className="text-xl sm:text-2xl font-extrabold tracking-tight font-['Outfit'] text-slate-900">

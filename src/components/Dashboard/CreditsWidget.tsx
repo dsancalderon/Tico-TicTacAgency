@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ShieldAlert, History, ArrowDownRight, ArrowUpRight, Plus, X } from 'lucide-react';
 import type { CreditTransaction } from '../../types';
 
@@ -14,6 +14,15 @@ export const CreditsWidget: React.FC<CreditsWidgetProps> = ({
   onAddCredits
 }) => {
   const [showModal, setShowModal] = useState(false);
+  useEffect(() => {
+    if (showModal) {
+      const originalStyle = window.getComputedStyle(document.body).overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalStyle;
+      };
+    }
+  }, [showModal]);
 
   return (
     <>
