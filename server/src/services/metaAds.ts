@@ -15,10 +15,15 @@ export interface MetaCampaignPayload {
 
 export interface MetaTokenDiagnostic {
   valid: boolean;
+  app?: {
+    id: string;
+    name: string;
+  };
   user?: {
     id: string;
     name: string;
     email?: string;
+    type?: string;
   };
   permissions?: {
     adsManagement: boolean;
@@ -33,8 +38,13 @@ export interface MetaTokenDiagnostic {
     status: number;
     statusLabel: string;
     currency: string;
+    amountSpent?: string;
     business?: { id: string; name: string };
+    pixel?: { id: string; name: string };
+    page?: { id: string; name: string };
   }>;
+  businesses?: Array<{ id: string; name: string }>;
+  pages?: Array<{ id: string; name: string }>;
   error?: string;
   rawError?: any;
 }
@@ -44,7 +54,7 @@ const GRAPH_BASE_URL = `https://graph.facebook.com/${GRAPH_API_VERSION}`;
 
 /**
  * Valida un token de acceso contra Meta Graph API v21.0 en tiempo real.
- * Obtiene el usuario autenticado, sus permisos y sus cuentas publicitarias.
+ * Obtiene la App asociada, identidad del usuario/System User, permisos reales, cuentas publicitarias, píxeles y páginas.
  */
 export async function verifyMetaToken(token: string): Promise<MetaTokenDiagnostic> {
   if (!token || token.trim() === '' || token.includes('your_')) {
@@ -55,8 +65,10 @@ export async function verifyMetaToken(token: string): Promise<MetaTokenDiagnosti
   }
 
   try {
-    // 1. Validar identidad del usuario o System User
-    const userRes = await fetch(`${GRAPH_BASE_URL}/me?fields=id,name,email&access_token=${encodeURIComponent(token)}`);
+    const cleanToken = token.trim();
+
+    // 1. Validar identidad con /me
+    const userRes = await fetch(`${GRAPH_BASE_URL}/me?fields=id,name,email&access_token=${encodeURIComponent(cleanToken)}`);
     const userData = await userRes.json() as any;
 
     if (!userRes.ok || userData.error) {
@@ -67,7 +79,9 @@ export async function verifyMetaToken(token: string): Promise<MetaTokenDiagnosti
       };
     }
 
-    // 2. Comprobar permisos otorgados (Permissions endpoint)
+    // 2. Inspeccionar token con /debug_token para extraer App oficial, scopes y tipo de usuario
+    let appInfo: { id: string; name: string } | undefined;
+    let userType: string = 'USER';
     let permissions = {
       adsManagement: false,
       pagesReadEngagement: false,
@@ -76,66 +90,127 @@ export async function verifyMetaToken(token: string): Promise<MetaTokenDiagnosti
     };
 
     try {
-      const permRes = await fetch(`${GRAPH_BASE_URL}/me/permissions?access_token=${encodeURIComponent(token)}`);
-      const permData = await permRes.json() as any;
+      const debugRes = await fetch(
+        `${GRAPH_BASE_URL}/debug_token?input_token=${encodeURIComponent(cleanToken)}&access_token=${encodeURIComponent(cleanToken)}`
+      );
+      const debugData = await debugRes.json() as any;
 
-      if (permData.data && Array.isArray(permData.data)) {
-        const granted = permData.data
-          .filter((p: any) => p.status === 'granted')
-          .map((p: any) => p.permission);
-
-        permissions = {
-          adsManagement: granted.includes('ads_management'),
-          pagesReadEngagement: granted.includes('pages_read_engagement') || granted.includes('pages_show_list'),
-          businessManagement: granted.includes('business_management'),
-          allGranted: granted
-        };
+      if (debugData.data) {
+        if (debugData.data.app_id || debugData.data.application) {
+          appInfo = {
+            id: String(debugData.data.app_id || ''),
+            name: debugData.data.application || `App ${debugData.data.app_id}`
+          };
+        }
+        if (debugData.data.type) {
+          userType = debugData.data.type;
+        }
+        if (Array.isArray(debugData.data.scopes)) {
+          const scopes = debugData.data.scopes;
+          permissions = {
+            adsManagement: scopes.includes('ads_management'),
+            pagesReadEngagement: scopes.includes('pages_read_engagement') || scopes.includes('pages_show_list'),
+            businessManagement: scopes.includes('business_management'),
+            allGranted: scopes
+          };
+        }
       }
     } catch {
-      // Si el endpoint de permisos falla (p.ej. System User Token), se evalúan en la llamada a cuentas
+      // Ignorar error de debug_token si no está disponible
     }
 
-    // 3. Obtener cuentas publicitarias asociadas
+    // 3. Si debug_token no aportó permisos, consultar /me/permissions
+    if (permissions.allGranted.length === 0) {
+      try {
+        const permRes = await fetch(`${GRAPH_BASE_URL}/me/permissions?access_token=${encodeURIComponent(cleanToken)}`);
+        const permData = await permRes.json() as any;
+
+        if (permData.data && Array.isArray(permData.data)) {
+          const granted = permData.data
+            .filter((p: any) => p.status === 'granted')
+            .map((p: any) => p.permission);
+
+          permissions = {
+            adsManagement: granted.includes('ads_management'),
+            pagesReadEngagement: granted.includes('pages_read_engagement') || granted.includes('pages_show_list'),
+            businessManagement: granted.includes('business_management'),
+            allGranted: granted
+          };
+        }
+      } catch {
+        // Continuar
+      }
+    }
+
+    // 4. Obtener cuentas publicitarias asociadas reales con sus píxeles y páginas
     let adAccounts: any[] = [];
     try {
       const adAccRes = await fetch(
-        `${GRAPH_BASE_URL}/me/adaccounts?fields=id,name,account_id,account_status,currency,amount_spent,business&access_token=${encodeURIComponent(token)}`
+        `${GRAPH_BASE_URL}/me/adaccounts?fields=id,name,account_id,account_status,currency,amount_spent,business,adspixels{id,name},promote_pages{id,name}&access_token=${encodeURIComponent(cleanToken)}`
       );
       const adAccData = await adAccRes.json() as any;
 
       if (adAccData.data && Array.isArray(adAccData.data)) {
-        adAccounts = adAccData.data.map((acc: any) => {
-          const statusLabels: Record<number, string> = {
-            1: 'ACTIVA',
-            2: 'DESHABILITADA',
-            3: 'PAGO_PENDIENTE',
-            7: 'EN_REVISION',
-            9: 'EN_CIERRE'
-          };
-          return {
-            id: acc.id,
-            name: acc.name || `Cuenta ${acc.account_id}`,
-            accountId: acc.account_id,
-            status: acc.account_status,
-            statusLabel: statusLabels[acc.account_status] || `ESTADO_${acc.account_status}`,
-            currency: acc.currency || 'USD',
-            business: acc.business ? { id: acc.business.id, name: acc.business.name } : undefined
-          };
-        });
+        const statusLabels: Record<number, string> = {
+          1: 'ACTIVA',
+          2: 'DESHABILITADA',
+          3: 'PAGO_PENDIENTE',
+          7: 'EN_REVISION',
+          9: 'EN_CIERRE'
+        };
+        adAccounts = adAccData.data.map((acc: any) => ({
+          id: acc.id,
+          name: acc.name || `Cuenta ${acc.account_id}`,
+          accountId: acc.account_id,
+          status: acc.account_status,
+          statusLabel: statusLabels[acc.account_status] || `ESTADO_${acc.account_status}`,
+          currency: acc.currency || 'USD',
+          amountSpent: acc.amount_spent,
+          business: acc.business ? { id: acc.business.id, name: acc.business.name } : undefined,
+          pixel: acc.adspixels?.data?.[0] ? { id: acc.adspixels.data[0].id, name: acc.adspixels.data[0].name } : undefined,
+          page: acc.promote_pages?.data?.[0] ? { id: acc.promote_pages.data[0].id, name: acc.promote_pages.data[0].name } : undefined
+        }));
       }
     } catch {
       // Continuar con lista vacía
     }
 
+    // 5. Obtener Businesses y Páginas del usuario/token
+    let businesses: any[] = [];
+    try {
+      const bRes = await fetch(`${GRAPH_BASE_URL}/me/businesses?fields=id,name&access_token=${encodeURIComponent(cleanToken)}`);
+      const bData = await bRes.json() as any;
+      if (bData.data && Array.isArray(bData.data)) {
+        businesses = bData.data.map((b: any) => ({ id: b.id, name: b.name }));
+      }
+    } catch {
+      // Continuar
+    }
+
+    let pages: any[] = [];
+    try {
+      const pRes = await fetch(`${GRAPH_BASE_URL}/me/accounts?fields=id,name&access_token=${encodeURIComponent(cleanToken)}`);
+      const pData = await pRes.json() as any;
+      if (pData.data && Array.isArray(pData.data)) {
+        pages = pData.data.map((p: any) => ({ id: p.id, name: p.name }));
+      }
+    } catch {
+      // Continuar
+    }
+
     return {
       valid: true,
+      app: appInfo,
       user: {
         id: userData.id,
         name: userData.name,
-        email: userData.email
+        email: userData.email,
+        type: userType
       },
       permissions,
-      adAccounts
+      adAccounts,
+      businesses,
+      pages
     };
   } catch (err: any) {
     return {
@@ -149,11 +224,12 @@ export async function verifyMetaToken(token: string): Promise<MetaTokenDiagnosti
  * Verifica el estado y permisos de una cuenta publicitaria específica en Meta Ads
  */
 export async function verifyMetaAdAccount(token: string, rawAccountId: string) {
-  const formattedId = rawAccountId.startsWith('act_') ? rawAccountId : `act_${rawAccountId}`;
+  const cleanId = rawAccountId.trim();
+  const formattedId = cleanId.startsWith('act_') ? cleanId : `act_${cleanId}`;
 
   try {
     const res = await fetch(
-      `${GRAPH_BASE_URL}/${formattedId}?fields=id,name,account_status,currency,amount_spent,business,min_daily_budget&access_token=${encodeURIComponent(token)}`
+      `${GRAPH_BASE_URL}/${formattedId}?fields=id,name,account_status,currency,amount_spent,business,promote_pages{id,name},adspixels{id,name},min_daily_budget&access_token=${encodeURIComponent(token)}`
     );
     const data = await res.json() as any;
 
@@ -165,15 +241,28 @@ export async function verifyMetaAdAccount(token: string, rawAccountId: string) {
       };
     }
 
+    const statusLabels: Record<number, string> = {
+      1: 'ACTIVA',
+      2: 'DESHABILITADA',
+      3: 'PAGO_PENDIENTE',
+      7: 'EN_REVISION',
+      9: 'EN_CIERRE'
+    };
+
     return {
       success: true,
       account: {
         id: data.id,
-        name: data.name,
+        name: data.name || `Cuenta ${data.id}`,
+        accountId: data.account_id || data.id.replace('act_', ''),
         status: data.account_status,
+        statusLabel: statusLabels[data.account_status] || `ESTADO_${data.account_status}`,
         isActive: data.account_status === 1,
-        currency: data.currency,
-        business: data.business ? { id: data.business.id, name: data.business.name } : null
+        currency: data.currency || 'USD',
+        amountSpent: data.amount_spent,
+        business: data.business ? { id: data.business.id, name: data.business.name } : undefined,
+        pixel: data.adspixels?.data?.[0] ? { id: data.adspixels.data[0].id, name: data.adspixels.data[0].name } : undefined,
+        page: data.promote_pages?.data?.[0] ? { id: data.promote_pages.data[0].id, name: data.promote_pages.data[0].name } : undefined
       }
     };
   } catch (err: any) {

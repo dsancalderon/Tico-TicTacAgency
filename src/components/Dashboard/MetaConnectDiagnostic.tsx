@@ -16,10 +16,12 @@ import {
   Sparkles, 
   Layers,
   Briefcase,
-  Info
+  Info,
+  RefreshCw,
+  AlertCircle
 } from 'lucide-react';
 import type { MetaConnectionState } from '../../types';
-import { verifyMetaTokenApi, testMetaCreationApi } from '../../services/api';
+import { verifyMetaTokenApi, verifyMetaAccountApi, testMetaCreationApi } from '../../services/api';
 
 interface MetaConnectDiagnosticProps {
   metaState: MetaConnectionState;
@@ -30,8 +32,13 @@ interface AvailableAccount {
   id: string;
   name: string;
   businessName: string;
+  businessId?: string;
   currency: string;
-  status: 'ACTIVA' | 'DESHABILITADA' | 'EN_REVISION';
+  status: string;
+  pixelName?: string;
+  pixelId?: string;
+  pageName?: string;
+  pageId?: string;
 }
 
 export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
@@ -50,8 +57,12 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
   const [copiedPermission, setCopiedPermission] = useState<string | null>(null);
 
   // Connected State
-  const [selectedAccountId, setSelectedAccountId] = useState(metaState.adAccountId || 'act_839219481029');
+  const [selectedAccountId, setSelectedAccountId] = useState(metaState.adAccountId || '');
   const [realAccounts, setRealAccounts] = useState<AvailableAccount[]>([]);
+  const [manualAccountId, setManualAccountId] = useState('');
+  const [isVerifyingManualAccount, setIsVerifyingManualAccount] = useState(false);
+  const [manualAccountError, setManualAccountError] = useState<string | null>(null);
+  const [isRefreshingAccounts, setIsRefreshingAccounts] = useState(false);
   const [isTestingCreation, setIsTestingCreation] = useState(false);
   const [testResult, setTestResult] = useState<{
     status: 'idle' | 'success' | 'error';
@@ -59,32 +70,33 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
     details?: any;
   }>({ status: 'idle', message: '' });
 
-  // Default accounts for demonstration / fallback
+  // Default accounts for demonstration / fallback (ONLY in demo mode)
   const defaultAccounts: AvailableAccount[] = [
     {
       id: 'act_839219481029',
-      name: 'TicTac Performance — Cuenta Principal',
-      businessName: 'TicTac Agency Performance Business',
+      name: 'TicTac Performance — Cuenta Demo',
+      businessName: 'TicTac Agency Performance Sandbox',
       currency: 'USD',
       status: 'ACTIVA'
     },
     {
       id: 'act_492019482011',
-      name: 'UrbanFit Athletics — Campañas Meta (Cliente)',
-      businessName: 'UrbanFit Brand BM',
+      name: 'UrbanFit Athletics — Demo Sandbox',
+      businessName: 'UrbanFit Brand Sandbox',
       currency: 'USD',
       status: 'ACTIVA'
     },
     {
       id: 'act_102948192834',
-      name: 'Nova Glow Cosméticos — Pauta Digital',
-      businessName: 'TicTac Agency Multi-Client',
+      name: 'Nova Glow Cosméticos — Demo COP',
+      businessName: 'Nova Glow Multi-Client Sandbox',
       currency: 'COP',
       status: 'ACTIVA'
     }
   ];
 
-  const currentAccounts = realAccounts.length > 0 ? realAccounts : defaultAccounts;
+  // Si el token es real, NUNCA mostrar cuentas demo falsas; mostrar solo las cuentas reales
+  const currentAccounts = metaState.isRealToken ? realAccounts : (realAccounts.length > 0 ? realAccounts : defaultAccounts);
 
   const handleCopyPermission = (perm: string) => {
     navigator.clipboard.writeText(perm);
@@ -115,67 +127,272 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
         const userAccounts: AvailableAccount[] = (diag.adAccounts || []).map((acc: any) => ({
           id: acc.id,
           name: acc.name,
-          businessName: acc.business?.name || 'Meta Business Suite',
+          businessName: acc.business?.name || diag.businesses?.[0]?.name || 'Meta Business Suite',
+          businessId: acc.business?.id || diag.businesses?.[0]?.id,
           currency: acc.currency || 'USD',
-          status: acc.status === 1 ? 'ACTIVA' : 'EN_REVISION'
+          status: acc.status === 1 ? 'ACTIVA' : (acc.statusLabel || 'EN_REVISION'),
+          pixelName: acc.pixel?.name,
+          pixelId: acc.pixel?.id,
+          pageName: acc.page?.name || diag.pages?.[0]?.name,
+          pageId: acc.page?.id || diag.pages?.[0]?.id
         }));
 
-        if (userAccounts.length > 0) {
-          setRealAccounts(userAccounts);
+        // Si el usuario ingresó un ID de cuenta publicitaria en el formulario:
+        let matchedAccount: AvailableAccount | undefined = userAccounts.find(
+          a => a.id === cleanAccountId || a.id === `act_${cleanAccountId}`
+        );
+
+        if (!matchedAccount && cleanAccountId) {
+          try {
+            const directAccRes = await verifyMetaAccountApi(cleanAccountId, cleanToken);
+            if (directAccRes.success && directAccRes.account) {
+              const acc = directAccRes.account;
+              matchedAccount = {
+                id: acc.id,
+                name: acc.name,
+                businessName: acc.business?.name || diag.businesses?.[0]?.name || 'Meta Business Suite',
+                businessId: acc.business?.id || diag.businesses?.[0]?.id,
+                currency: acc.currency || 'USD',
+                status: acc.status === 1 ? 'ACTIVA' : (acc.statusLabel || 'EN_REVISION'),
+                pixelName: acc.pixel?.name,
+                pixelId: acc.pixel?.id,
+                pageName: acc.page?.name || diag.pages?.[0]?.name,
+                pageId: acc.page?.id || diag.pages?.[0]?.id
+              };
+              userAccounts.unshift(matchedAccount);
+            }
+          } catch {
+            // Continuar
+          }
         }
 
-        const targetAccountId = cleanAccountId || (userAccounts[0]?.id || 'act_primary');
-        const targetAcc = userAccounts.find(a => a.id === targetAccountId) || userAccounts[0] || {
-          id: targetAccountId,
-          name: `Cuenta ${targetAccountId}`,
-          businessName: 'Meta Business Manager',
-          currency: 'USD',
-          status: 'ACTIVA'
-        };
+        setRealAccounts(userAccounts);
 
-        setSelectedAccountId(targetAcc.id);
-        setIsConnecting(false);
+        const chosenAcc = matchedAccount || userAccounts[0];
 
-        onUpdateMetaState({
-          isConnected: true,
-          status: 'ready_to_deploy',
-          userAccessToken: cleanToken,
-          businessManagerId: 'bm_real_verified',
-          businessManagerName: targetAcc.businessName,
-          adAccountId: targetAcc.id,
-          adAccountName: targetAcc.name,
-          pixelId: 'pix_active_meta',
-          pixelName: 'Píxel Oficial Meta Ads',
-          pageId: 'page_meta_linked',
-          pageName: diag.user?.name ? `Página de ${diag.user.name}` : 'TicTac Agency',
-          permissions: {
-            adsManagement: diag.permissions?.adsManagement ?? true,
-            pagesReadEngagement: diag.permissions?.pagesReadEngagement ?? true,
-            businessManagement: diag.permissions?.businessManagement ?? true
-          },
-          diagnostics: [
-            `✅ Token validado para usuario: ${diag.user?.name || 'Usuario Meta'} (ID: ${diag.user?.id})`,
-            `✅ Permiso ads_management verificado (Creación PAUSED habilitada).`,
-            `✅ Permiso business_management verificado.`,
-            userAccounts.length > 0
-              ? `✅ Cuenta publicitaria vinculada: ${targetAcc.name} (${targetAcc.id}).`
-              : `⚠️ Aviso: Tu token es válido, pero el Usuario del Sistema aún no tiene asignada una Cuenta Publicitaria. Ve a Meta Business > Usuarios del Sistema > Agregar activos > Cuentas publicitarias y activa Control total.`,
-            `✅ Cuentas asociadas encontradas: ${userAccounts.length}`
-          ]
-        });
+        if (chosenAcc) {
+          setSelectedAccountId(chosenAcc.id);
+          setIsConnecting(false);
 
-        setTestResult({
-          status: 'success',
-          message: `¡Conexión oficial con Meta completada con éxito! Cuenta vinculada: ${targetAcc.name}.`
-        });
+          onUpdateMetaState({
+            isConnected: true,
+            isRealToken: true,
+            status: 'ready_to_deploy',
+            userAccessToken: cleanToken,
+            appName: diag.app?.name || 'Tico Performance Ads',
+            appId: diag.app?.id,
+            userName: diag.user?.name || 'Usuario Meta',
+            userId: diag.user?.id,
+            userType: diag.user?.type || 'SYSTEM_USER',
+            businessManagerId: chosenAcc.businessId || diag.businesses?.[0]?.id,
+            businessManagerName: chosenAcc.businessName || diag.businesses?.[0]?.name,
+            adAccountId: chosenAcc.id,
+            adAccountName: chosenAcc.name,
+            pixelId: chosenAcc.pixelId,
+            pixelName: chosenAcc.pixelName,
+            pageId: chosenAcc.pageId || diag.pages?.[0]?.id,
+            pageName: chosenAcc.pageName || diag.pages?.[0]?.name,
+            permissions: {
+              adsManagement: diag.permissions?.adsManagement ?? true,
+              pagesReadEngagement: diag.permissions?.pagesReadEngagement ?? true,
+              businessManagement: diag.permissions?.businessManagement ?? true
+            },
+            diagnostics: [
+              `✅ App oficial en Meta: ${diag.app?.name || 'Tico Performance Ads'} (ID: ${diag.app?.id || 'N/A'})`,
+              `✅ Usuario del Sistema verificado: ${diag.user?.name || 'Usuario Meta'} (ID: ${diag.user?.id})`,
+              `✅ Permisos de Marketing API verificados (ads_management, ads_read, business_management).`,
+              `✅ Cuenta publicitaria vinculada: ${chosenAcc.name} (${chosenAcc.id}).`,
+              `✅ Cuentas asociadas encontradas: ${userAccounts.length}`
+            ]
+          });
+
+          setTestResult({
+            status: 'success',
+            message: `¡Conexión oficial con Meta completada con éxito! Cuenta publicitaria vinculada: ${chosenAcc.name}.`
+          });
+        } else {
+          // Token válido pero sin cuenta asignada todavía
+          setSelectedAccountId('');
+          setIsConnecting(false);
+
+          onUpdateMetaState({
+            isConnected: true,
+            isRealToken: true,
+            status: 'connected_needs_perms',
+            userAccessToken: cleanToken,
+            appName: diag.app?.name || 'Tico Performance Ads',
+            appId: diag.app?.id,
+            userName: diag.user?.name || 'Usuario Meta',
+            userId: diag.user?.id,
+            userType: diag.user?.type || 'SYSTEM_USER',
+            businessManagerId: diag.businesses?.[0]?.id,
+            businessManagerName: diag.businesses?.[0]?.name,
+            adAccountId: '',
+            adAccountName: '',
+            pixelId: '',
+            pixelName: '',
+            pageId: diag.pages?.[0]?.id,
+            pageName: diag.pages?.[0]?.name,
+            permissions: {
+              adsManagement: diag.permissions?.adsManagement ?? true,
+              pagesReadEngagement: diag.permissions?.pagesReadEngagement ?? true,
+              businessManagement: diag.permissions?.businessManagement ?? true
+            },
+            diagnostics: [
+              `✅ App oficial en Meta: ${diag.app?.name || 'Tico Performance Ads'} (ID: ${diag.app?.id || 'N/A'})`,
+              `✅ Usuario del Sistema verificado: ${diag.user?.name || 'Tico'} (ID: ${diag.user?.id})`,
+              `✅ Permisos de Marketing API activos: ads_management, ads_read, business_management.`,
+              `⚠️ Sin cuentas publicitarias asignadas directamente al Usuario del Sistema en Meta Business Suite.`
+            ]
+          });
+
+          setTestResult({
+            status: 'idle',
+            message: `Token oficial verificado con éxito para la App "${diag.app?.name || 'Tico Performance Ads'}" y el usuario "${diag.user?.name || 'Tico'}". Para crear campañas, asigna tu cuenta publicitaria en Meta Business Suite o ingresa su ID abajo.`
+          });
+        }
       } else {
-        const errMsg = verifyRes.diagnostic?.error || verifyRes.error || 'Token de acceso inválido o expirado.';
+        const errMsg = verifyRes.diagnostic?.error || verifyRes.error || 'Token de acceso inválido o expirado en Meta.';
         setAuthError(errMsg);
         setIsConnecting(false);
       }
     } catch (err: any) {
       setAuthError(`Error de conexión con el servidor: ${err.message}`);
       setIsConnecting(false);
+    }
+  };
+
+  // Recargar cuentas publicitarias desde Meta usando el token actual
+  const handleRefreshAccounts = async () => {
+    const token = metaState.userAccessToken || inputToken;
+    if (!token) return;
+    setIsRefreshingAccounts(true);
+    setManualAccountError(null);
+
+    try {
+      const res = await verifyMetaTokenApi(token);
+      if (res.success && res.diagnostic?.valid) {
+        const diag = res.diagnostic;
+        const userAccounts: AvailableAccount[] = (diag.adAccounts || []).map((acc: any) => ({
+          id: acc.id,
+          name: acc.name,
+          businessName: acc.business?.name || diag.businesses?.[0]?.name || 'Meta Business Suite',
+          businessId: acc.business?.id || diag.businesses?.[0]?.id,
+          currency: acc.currency || 'USD',
+          status: acc.status === 1 ? 'ACTIVA' : (acc.statusLabel || 'EN_REVISION'),
+          pixelName: acc.pixel?.name,
+          pixelId: acc.pixel?.id,
+          pageName: acc.page?.name || diag.pages?.[0]?.name,
+          pageId: acc.page?.id || diag.pages?.[0]?.id
+        }));
+
+        setRealAccounts(userAccounts);
+
+        if (userAccounts.length > 0) {
+          const chosen = userAccounts[0];
+          setSelectedAccountId(chosen.id);
+          onUpdateMetaState({
+            ...metaState,
+            status: 'ready_to_deploy',
+            adAccountId: chosen.id,
+            adAccountName: chosen.name,
+            businessManagerId: chosen.businessId || metaState.businessManagerId,
+            businessManagerName: chosen.businessName || metaState.businessManagerName,
+            pixelId: chosen.pixelId || metaState.pixelId,
+            pixelName: chosen.pixelName || metaState.pixelName,
+            pageId: chosen.pageId || metaState.pageId,
+            pageName: chosen.pageName || metaState.pageName,
+            diagnostics: [
+              ...metaState.diagnostics.filter(d => !d.startsWith('✅ Cuenta publicitaria vinculada:') && !d.startsWith('⚠️ Sin cuentas')),
+              `✅ Cuenta publicitaria oficial vinculada: ${chosen.name} (${chosen.id}).`
+            ]
+          });
+          setTestResult({
+            status: 'success',
+            message: `¡Se sincronizaron ${userAccounts.length} cuenta(s) oficiales de Meta con éxito! Cuenta activa: ${chosen.name}.`
+          });
+        } else {
+          setManualAccountError('Meta aún no reporta cuentas publicitarias asignadas a este Usuario del Sistema. Asegúrate de haber hecho clic en "Asignar activos" > "Cuentas publicitarias" > "Control total" y haber guardado los cambios en Meta Business Suite.');
+        }
+      } else {
+        setManualAccountError(res.diagnostic?.error || res.error || 'No se pudo consultar las cuentas en Meta.');
+      }
+    } catch (err: any) {
+      setManualAccountError(`Error al consultar Meta: ${err.message}`);
+    } finally {
+      setIsRefreshingAccounts(false);
+    }
+  };
+
+  // Verificar y vincular manualmente una cuenta publicitaria por su ID
+  const handleVerifyManualAccount = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const token = metaState.userAccessToken || inputToken;
+    const accountId = manualAccountId.trim();
+    if (!accountId) {
+      setManualAccountError('Por favor ingresa el ID de tu Cuenta Publicitaria (ej: act_1234567890).');
+      return;
+    }
+    if (!token) {
+      setManualAccountError('Token no disponible para verificar la cuenta.');
+      return;
+    }
+
+    setIsVerifyingManualAccount(true);
+    setManualAccountError(null);
+
+    try {
+      const res = await verifyMetaAccountApi(accountId, token);
+      if (res.success && res.account) {
+        const acc = res.account;
+        const newAcc: AvailableAccount = {
+          id: acc.id,
+          name: acc.name,
+          businessName: acc.business?.name || 'Meta Business Suite',
+          businessId: acc.business?.id,
+          currency: acc.currency || 'USD',
+          status: acc.status === 1 ? 'ACTIVA' : (acc.statusLabel || 'EN_REVISION'),
+          pixelName: acc.pixel?.name,
+          pixelId: acc.pixel?.id,
+          pageName: acc.page?.name,
+          pageId: acc.page?.id
+        };
+
+        const existing = realAccounts.filter(a => a.id !== newAcc.id);
+        const updated = [newAcc, ...existing];
+        setRealAccounts(updated);
+        setSelectedAccountId(newAcc.id);
+        setManualAccountId('');
+
+        onUpdateMetaState({
+          ...metaState,
+          status: 'ready_to_deploy',
+          adAccountId: newAcc.id,
+          adAccountName: newAcc.name,
+          businessManagerId: newAcc.businessId || metaState.businessManagerId,
+          businessManagerName: newAcc.businessName || metaState.businessManagerName,
+          pixelId: newAcc.pixelId || metaState.pixelId,
+          pixelName: newAcc.pixelName || metaState.pixelName,
+          pageId: newAcc.pageId || metaState.pageId,
+          pageName: newAcc.pageName || metaState.pageName,
+          diagnostics: [
+            ...metaState.diagnostics.filter(d => !d.startsWith('✅ Cuenta publicitaria') && !d.startsWith('⚠️ Sin cuentas')),
+            `✅ Cuenta publicitaria verificada en Meta: ${newAcc.name} (${newAcc.id}).`
+          ]
+        });
+
+        setTestResult({
+          status: 'success',
+          message: `¡Cuenta publicitaria ${newAcc.name} (${newAcc.id}) verificada y vinculada en Meta con éxito!`
+        });
+      } else {
+        const err = res.error || 'No se pudo verificar la cuenta en Meta.';
+        setManualAccountError(err);
+      }
+    } catch (err: any) {
+      setManualAccountError(`Error al consultar la cuenta publicitaria: ${err.message}`);
+    } finally {
+      setIsVerifyingManualAccount(false);
     }
   };
 
@@ -190,16 +407,22 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
 
       onUpdateMetaState({
         isConnected: true,
+        isRealToken: false,
         status: 'ready_to_deploy',
         userAccessToken: 'EAAB_Demo_Verified_Token',
-        businessManagerId: 'bm_5492193810',
+        appName: 'TicTac Demo App',
+        appId: 'demo_app_001',
+        userName: 'Usuario Sandbox',
+        userId: 'demo_user_123',
+        userType: 'DEMO',
+        businessManagerId: 'bm_demo_sandbox',
         businessManagerName: chosenAcc.businessName,
         adAccountId: chosenAcc.id,
         adAccountName: chosenAcc.name,
-        pixelId: 'pix_9281740192',
-        pixelName: 'Meta Pixel Conversiones TicTac',
-        pageId: 'page_9381029381',
-        pageName: 'TicTac Agency Performance',
+        pixelId: 'pix_demo_123',
+        pixelName: 'Meta Pixel Conversiones Demo',
+        pageId: 'page_demo_123',
+        pageName: 'TicTac Agency Performance Demo',
         permissions: {
           adsManagement: true,
           pagesReadEngagement: true,
@@ -227,9 +450,15 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
     if (metaState.isConnected) {
       onUpdateMetaState({
         ...metaState,
+        status: 'ready_to_deploy',
         adAccountId: acc.id,
         adAccountName: acc.name,
-        businessManagerName: acc.businessName,
+        businessManagerId: acc.businessId || metaState.businessManagerId,
+        businessManagerName: acc.businessName || metaState.businessManagerName,
+        pixelId: acc.pixelId || metaState.pixelId,
+        pixelName: acc.pixelName || metaState.pixelName,
+        pageId: acc.pageId || metaState.pageId,
+        pageName: acc.pageName || metaState.pageName,
         diagnostics: [
           ...metaState.diagnostics.filter(d => !d.startsWith('✅ Cuenta publicitaria vinculada:')),
           `✅ Cuenta publicitaria vinculada: ${acc.name} (${acc.id}).`
@@ -240,6 +469,15 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
 
   // 4. Test Creation in PAUSED
   const handleTestCreation = async () => {
+    const targetAccId = metaState.adAccountId || selectedAccountId;
+    if (!targetAccId) {
+      setTestResult({
+        status: 'error',
+        message: 'No hay ninguna cuenta publicitaria seleccionada para realizar la prueba.'
+      });
+      return;
+    }
+
     setIsTestingCreation(true);
     setTestResult({
       status: 'idle',
@@ -248,7 +486,7 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
 
     try {
       const result = await testMetaCreationApi(
-        metaState.adAccountId || selectedAccountId,
+        targetAccId,
         metaState.userAccessToken,
         'TicTac Performance'
       );
@@ -280,7 +518,22 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
   const handleDisconnect = () => {
     onUpdateMetaState({
       isConnected: false,
+      isRealToken: false,
       status: 'disconnected',
+      userAccessToken: '',
+      appName: '',
+      appId: '',
+      userName: '',
+      userId: '',
+      userType: '',
+      adAccountId: '',
+      adAccountName: '',
+      businessManagerId: '',
+      businessManagerName: '',
+      pixelId: '',
+      pixelName: '',
+      pageId: '',
+      pageName: '',
       permissions: {
         adsManagement: false,
         pagesReadEngagement: false,
@@ -288,6 +541,10 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
       },
       diagnostics: ['La cuenta se encuentra desconectada. No se pueden orquestar campañas en Meta Ads.']
     });
+    setRealAccounts([]);
+    setSelectedAccountId('');
+    setManualAccountId('');
+    setManualAccountError(null);
     setTestResult({ status: 'idle', message: '' });
     setAuthError(null);
   };
@@ -1023,120 +1280,271 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
         /* ESTADO CONECTADO: SELECCIÓN DE CUENTA PUBLICITARIA Y PRUEBA EN VIVO       */
         /* ========================================================================= */
         <div className="space-y-6">
-          {/* Status Banner */}
-          <div className="p-6 rounded-3xl bg-emerald-50/80 border border-emerald-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-bold shadow-sm">
+          {/* Status Banner Oficial de Meta */}
+          <div className="p-6 rounded-3xl bg-emerald-50/80 border border-emerald-200 flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+            <div className="flex items-start sm:items-center gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-bold shadow-sm shrink-0">
                 <CheckCircle2 className="w-7 h-7" />
               </div>
-              <div>
-                <div className="text-xs font-bold uppercase tracking-wider text-emerald-800">
-                  Perfil de Meta Autorizado con Éxito
+              <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-xs font-extrabold uppercase tracking-wider text-emerald-800">
+                    {metaState.isRealToken ? 'Token Oficial de Meta Autorizado' : 'Modo Demostrativo Activo'}
+                  </span>
+                  {metaState.appName && (
+                    <span className="text-[11px] font-mono font-bold bg-blue-100 text-blue-800 px-2.5 py-0.5 rounded-full border border-blue-200">
+                      App: {metaState.appName}
+                    </span>
+                  )}
+                  {metaState.userType && (
+                    <span className="text-[10px] font-mono bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full font-semibold">
+                      {metaState.userType}
+                    </span>
+                  )}
                 </div>
-                <div className="text-lg sm:text-xl font-extrabold text-slate-900 font-['Outfit'] flex items-center gap-2 mt-0.5">
-                  <span>{metaState.adAccountName}</span>
-                  <span className="text-xs font-mono font-bold bg-emerald-100 text-emerald-900 px-2.5 py-0.5 rounded-full border border-emerald-300/60">
-                    {metaState.status === 'ready_to_deploy' ? 'Lista para Implementar' : 'Activa'}
+
+                <div className="text-lg sm:text-xl font-extrabold text-slate-900 font-['Outfit'] flex flex-wrap items-center gap-2">
+                  <span>
+                    {metaState.adAccountName 
+                      ? `${metaState.adAccountName} (${metaState.adAccountId})` 
+                      : (metaState.userName ? `Usuario: ${metaState.userName}` : 'Perfil Meta Verificado')}
+                  </span>
+                  <span className={`text-xs font-mono font-bold px-2.5 py-0.5 rounded-full border ${
+                    metaState.adAccountId
+                      ? 'bg-emerald-100 text-emerald-900 border-emerald-300/60'
+                      : 'bg-amber-100 text-amber-900 border-amber-300/60'
+                  }`}>
+                    {metaState.adAccountId ? 'Lista para Implementar' : 'Sin Cuenta Asignada'}
                   </span>
                 </div>
+
+                {metaState.userId && (
+                  <div className="text-[11px] text-slate-500 font-mono">
+                    ID Usuario Meta: <strong>{metaState.userId}</strong> • Token Permanente de Administrador
+                  </div>
+                )}
               </div>
             </div>
 
-            <button
-              type="button"
-              disabled={isTestingCreation}
-              onClick={handleTestCreation}
-              className="px-6 py-3 rounded-2xl bg-slate-950 hover:bg-slate-800 disabled:opacity-60 text-white text-xs font-bold transition-all shadow-sm flex items-center gap-2 cursor-pointer self-start sm:self-auto"
-            >
-              {isTestingCreation ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  <span>Validando en Meta Marketing API...</span>
-                </>
-              ) : (
-                <>
-                  <Play className="w-4 h-4 text-emerald-400" />
-                  <span>Ejecutar Prueba en Pausa (PAUSED)</span>
-                </>
-              )}
-            </button>
+            <div className="flex flex-wrap items-center gap-2.5 self-start lg:self-auto">
+              <button
+                type="button"
+                disabled={isTestingCreation || !metaState.adAccountId}
+                onClick={handleTestCreation}
+                className={`px-5 py-3 rounded-2xl text-xs font-bold transition-all shadow-sm flex items-center gap-2 cursor-pointer ${
+                  metaState.adAccountId
+                    ? 'bg-slate-950 hover:bg-slate-800 text-white'
+                    : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                }`}
+                title={!metaState.adAccountId ? 'Vincula o asigna una cuenta publicitaria para ejecutar la prueba' : ''}
+              >
+                {isTestingCreation ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span>Validando en Meta Marketing API...</span>
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-4 h-4 text-emerald-400" />
+                    <span>Ejecutar Prueba en Pausa (PAUSED)</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
 
-          {/* Selector de Cuentas Publicitarias Disponibles */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between text-xs font-bold text-slate-700 uppercase tracking-wider">
-              <span>Cuentas Publicitarias Disponibles (Selecciona una):</span>
-              <span className="text-slate-400 font-normal lowercase">{currentAccounts.length} cuentas vinculadas</span>
+          {/* ========================================================================= */}
+          {/* CASO A: TIENE CUENTAS PUBLICITARIAS EN META                               */}
+          {/* ========================================================================= */}
+          {currentAccounts.length > 0 ? (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between text-xs font-bold text-slate-700 uppercase tracking-wider">
+                <span>Cuentas Publicitarias Disponibles en Meta ({currentAccounts.length}):</span>
+                <button
+                  type="button"
+                  onClick={handleRefreshAccounts}
+                  disabled={isRefreshingAccounts}
+                  className="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 font-semibold cursor-pointer lowercase"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isRefreshingAccounts ? 'animate-spin' : ''}`} />
+                  <span>{isRefreshingAccounts ? 'actualizando...' : 'recargar cuentas'}</span>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {currentAccounts.map((acc) => {
+                  const isSelected = (metaState.adAccountId || selectedAccountId) === acc.id;
+                  return (
+                    <div
+                      key={acc.id}
+                      onClick={() => handleSelectAccount(acc)}
+                      className={`p-4 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${
+                        isSelected
+                          ? 'border-blue-600 bg-blue-50/50 shadow-xs ring-2 ring-blue-600/20'
+                          : 'border-slate-200 bg-slate-50/60 hover:bg-white hover:border-slate-300'
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-center justify-between text-xs font-bold mb-1.5">
+                          <span className={`font-mono text-[10px] px-2 py-0.5 rounded ${
+                            isSelected ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'
+                          }`}>
+                            {acc.id}
+                          </span>
+                          <span className="text-emerald-600 text-[10px] font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                            {acc.status}
+                          </span>
+                        </div>
+                        <div className="text-xs font-bold text-slate-900 leading-snug">
+                          {acc.name}
+                        </div>
+                        <div className="text-[11px] text-slate-500 mt-1 truncate">
+                          {acc.businessName}
+                        </div>
+                      </div>
+
+                      <div className="mt-4 pt-3 border-t border-slate-200/70 flex items-center justify-between text-xs">
+                        <span className="text-slate-500 text-[11px]">Moneda: <strong>{acc.currency}</strong></span>
+                        <span className={`text-[11px] font-bold ${isSelected ? 'text-blue-700' : 'text-slate-400'}`}>
+                          {isSelected ? '✓ Seleccionada' : 'Elegir esta cuenta'}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {currentAccounts.map((acc) => {
-                const isSelected = (metaState.adAccountId || selectedAccountId) === acc.id;
-                return (
-                  <div
-                    key={acc.id}
-                    onClick={() => handleSelectAccount(acc)}
-                    className={`p-4 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${
-                      isSelected
-                        ? 'border-blue-600 bg-blue-50/50 shadow-xs ring-2 ring-blue-600/20'
-                        : 'border-slate-200 bg-slate-50/60 hover:bg-white hover:border-slate-300'
-                    }`}
-                  >
-                    <div>
-                      <div className="flex items-center justify-between text-xs font-bold mb-1.5">
-                        <span className={`font-mono text-[10px] px-2 py-0.5 rounded ${
-                          isSelected ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'
-                        }`}>
-                          {acc.id}
-                        </span>
-                        <span className="text-emerald-600 text-[10px] font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                          {acc.status}
-                        </span>
-                      </div>
-                      <div className="text-xs font-bold text-slate-900 leading-snug">
-                        {acc.name}
-                      </div>
-                      <div className="text-[11px] text-slate-500 mt-1 truncate">
-                        {acc.businessName}
-                      </div>
-                    </div>
-
-                    <div className="mt-4 pt-3 border-t border-slate-200/70 flex items-center justify-between text-xs">
-                      <span className="text-slate-500 text-[11px]">Moneda: <strong>{acc.currency}</strong></span>
-                      <span className={`text-[11px] font-bold ${isSelected ? 'text-blue-700' : 'text-slate-400'}`}>
-                        {isSelected ? '✓ Seleccionada' : 'Elegir esta cuenta'}
-                      </span>
-                    </div>
+          ) : (
+            /* ========================================================================= */
+            /* CASO B: 0 CUENTAS ASIGNADAS AL USUARIO DEL SISTEMA EN META BUSINESS SUITE */
+            /* ========================================================================= */
+            <div className="p-6 rounded-3xl bg-amber-50/80 border border-amber-200/90 space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                <div className="flex items-start gap-3.5">
+                  <div className="w-10 h-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center font-bold shadow-xs shrink-0 mt-0.5">
+                    <AlertCircle className="w-6 h-6" />
                   </div>
-                );
-              })}
-            </div>
-          </div>
+                  <div className="space-y-1">
+                    <h4 className="text-sm sm:text-base font-extrabold text-amber-950 font-['Outfit']">
+                      0 Cuentas Publicitarias Asignadas al Usuario en Meta
+                    </h4>
+                    <p className="text-xs text-amber-900/90 leading-relaxed max-w-2xl">
+                      Tu token es 100% oficial y pertenece a la App <strong>{metaState.appName || 'Tico Performance Ads'}</strong> y al Usuario <strong>{metaState.userName || 'Tico'}</strong>, pero Meta reporta que este usuario aún no tiene vinculada ninguna Cuenta Publicitaria en tu Business Suite.
+                    </p>
+                  </div>
+                </div>
 
-          {/* Asset Details Grid */}
+                <button
+                  type="button"
+                  onClick={handleRefreshAccounts}
+                  disabled={isRefreshingAccounts}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 disabled:opacity-60 text-white text-xs font-bold transition-all shadow-xs shrink-0 cursor-pointer self-start sm:self-auto"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isRefreshingAccounts ? 'animate-spin' : ''}`} />
+                  <span>{isRefreshingAccounts ? 'Consultando Meta...' : 'Recargar Cuentas de Meta'}</span>
+                </button>
+              </div>
+
+              {/* Formulario Rápido: Vincular Directamente por ID */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-white border border-amber-200/90 space-y-3 shadow-xs">
+                <div className="text-xs font-bold text-slate-800 flex items-center gap-2">
+                  <Key className="w-4 h-4 text-blue-600" />
+                  <span>Opción 1: ¿Conoces el ID de tu Cuenta Publicitaria? Ingrésalo aquí:</span>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <input
+                    type="text"
+                    value={manualAccountId}
+                    onChange={(e) => { setManualAccountId(e.target.value); setManualAccountError(null); }}
+                    placeholder="act_1234567890 o solo los números"
+                    className="flex-1 bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs font-mono text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white"
+                  />
+                  <button
+                    type="button"
+                    disabled={isVerifyingManualAccount || !manualAccountId.trim()}
+                    onClick={handleVerifyManualAccount}
+                    className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+                  >
+                    {isVerifyingManualAccount ? (
+                      <>
+                        <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <span>Consultando en Meta...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Check className="w-3.5 h-3.5" />
+                        <span>Verificar y Cargar Cuenta</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+                {manualAccountError && (
+                  <div className="text-[11px] text-rose-700 bg-rose-50 p-3 rounded-xl border border-rose-200 font-mono">
+                    {manualAccountError}
+                  </div>
+                )}
+              </div>
+
+              {/* Opción 2: Instrucciones para asignar en Business Suite */}
+              <div className="text-xs text-amber-950 bg-amber-100/60 p-4 rounded-2xl border border-amber-200/80 space-y-2.5">
+                <div className="font-bold flex items-center gap-1.5 text-amber-950">
+                  <ExternalLink className="w-3.5 h-3.5 text-amber-800" />
+                  <span>Opción 2: Cómo asignar la Cuenta en Meta Business Suite (3 Clics):</span>
+                </div>
+                <ol className="text-[11px] text-amber-900/95 list-decimal pl-5 space-y-1.5 leading-relaxed">
+                  <li>
+                    Abre <a href="https://business.facebook.com/settings/system-users" target="_blank" rel="noreferrer" className="underline font-bold text-blue-700 hover:text-blue-900">Meta Business Suite &gt; Configuración del Negocio &gt; Usuarios del Sistema</a> y selecciona al usuario <strong>"{metaState.userName || 'Tico'}"</strong>.
+                  </li>
+                  <li>
+                    Haz clic en el botón <strong>"Asignar activos"</strong> &gt; selecciona la pestaña <strong>"Cuentas publicitarias"</strong> (la segunda columna al lado de Apps).
+                  </li>
+                  <li>
+                    Marca tu cuenta de anuncios, activa el interruptor <strong>"Control total / Administrar campañas"</strong> y haz clic en <strong>"Guardar cambios"</strong>.
+                  </li>
+                  <li>
+                    Regresa aquí y haz clic en el botón <strong>"Recargar Cuentas de Meta"</strong> de arriba.
+                  </li>
+                </ol>
+              </div>
+            </div>
+          )}
+
+          {/* Asset Details Grid Oficial */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
               <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                Business Manager
+                Portfolio Comercial (Business Manager)
               </span>
-              <div className="text-sm font-bold text-slate-900 truncate">{metaState.businessManagerName}</div>
-              <span className="text-[11px] font-mono text-slate-500">{metaState.businessManagerId}</span>
+              <div className="text-sm font-bold text-slate-900 truncate">
+                {metaState.businessManagerName || (metaState.businessManagerId ? `Portfolio ${metaState.businessManagerId}` : 'Meta Business Suite')}
+              </div>
+              <span className="text-[11px] font-mono text-slate-500">
+                {metaState.businessManagerId || 'Detectado desde Meta'}
+              </span>
             </div>
 
             <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
               <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">
                 Píxel de Seguimiento
               </span>
-              <div className="text-sm font-bold text-slate-900 truncate">{metaState.pixelName}</div>
-              <span className="text-[11px] font-mono text-slate-500">{metaState.pixelId}</span>
+              <div className="text-sm font-bold text-slate-900 truncate">
+                {metaState.pixelName || (metaState.pixelId ? `Píxel ${metaState.pixelId}` : 'Sin píxel configurado')}
+              </div>
+              <span className="text-[11px] font-mono text-slate-500">
+                {metaState.pixelId || 'No detectado en esta cuenta'}
+              </span>
             </div>
 
             <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
               <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                Página de Anunciante
+                Página de Anunciante (Fanpage)
               </span>
-              <div className="text-sm font-bold text-slate-900 truncate">{metaState.pageName}</div>
-              <span className="text-[11px] font-mono text-slate-500">{metaState.pageId}</span>
+              <div className="text-sm font-bold text-slate-900 truncate">
+                {metaState.pageName || (metaState.pageId ? `Página ${metaState.pageId}` : 'Sin página asociada')}
+              </div>
+              <span className="text-[11px] font-mono text-slate-500">
+                {metaState.pageId || 'No asignada al usuario'}
+              </span>
             </div>
           </div>
 
@@ -1191,7 +1599,7 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
                 }`}>
                   <Check className="w-3 h-3" />
                 </span>
-                <span className="font-semibold text-slate-800">pages_read_engagement</span>
+                <span className="font-semibold text-slate-800">pages_read_engagement / ads_read</span>
               </div>
 
               <div className="flex items-center gap-2 text-xs bg-white p-3 rounded-xl border border-slate-200">

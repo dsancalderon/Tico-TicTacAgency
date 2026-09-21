@@ -44,6 +44,12 @@ export interface MetaConnectionState {
     businessManagement: boolean;
   };
   diagnostics: string[];
+  appName?: string;
+  appId?: string;
+  userName?: string;
+  userId?: string;
+  userType?: string;
+  isRealToken?: boolean;
 }
 
 export interface CreativeAsset {
