@@ -8,7 +8,11 @@ import {
   Play,
   XCircle,
   ChevronDown,
-  ArrowRight
+  ArrowRight,
+  HelpCircle,
+  BookOpen,
+  ExternalLink,
+  Copy
 } from 'lucide-react';
 import type { MetaConnectionState } from '../../types';
 import { verifyMetaTokenApi, testMetaCreationApi } from '../../services/api';
@@ -75,6 +79,14 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
   const [inputAdAccountId, setInputAdAccountId] = useState(metaState.adAccountId || '');
   const [realAccounts, setRealAccounts] = useState<AvailableAccount[]>([]);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [showTokenGuide, setShowTokenGuide] = useState(false);
+  const [copiedStep, setCopiedStep] = useState<string | null>(null);
+
+  const copyToClipboard = (text: string, id: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedStep(id);
+    setTimeout(() => setCopiedStep(null), 2000);
+  };
 
   // Lista base de cuentas
   const defaultAccounts: AvailableAccount[] = [
@@ -728,9 +740,20 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                      Token de Acceso de Meta <span className="text-rose-500">*</span>
-                    </label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                        Token de Acceso de Meta <span className="text-rose-500">*</span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setShowTokenGuide(!showTokenGuide)}
+                        className="text-[11px] font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 cursor-pointer"
+                      >
+                        <HelpCircle className="w-3.5 h-3.5" />
+                        <span>{showTokenGuide ? 'Ocultar Guía' : '¿Cómo obtener este Token?'}</span>
+                      </button>
+                    </div>
+
                     <input
                       type="password"
                       value={inputToken}
@@ -742,6 +765,107 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
                       Token con permisos <code>ads_management</code>, <code>ads_read</code> o <code>business_management</code>.
                     </span>
                   </div>
+
+                  {/* Guía Visual Desplegable para Conseguir el Token */}
+                  {showTokenGuide && (
+                    <div className="p-4 rounded-2xl bg-slate-900 text-white space-y-3.5 text-xs animate-in fade-in duration-200 shadow-inner">
+                      <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                        <span className="font-bold flex items-center gap-1.5 text-blue-400">
+                          <BookOpen className="w-4 h-4" />
+                          <span>Guía Rápida: Obtener Token de Meta en 3 Pasos</span>
+                        </span>
+                        <span className="text-[10px] bg-blue-900/60 text-blue-200 px-2 py-0.5 rounded font-mono">
+                          Oficial Meta Business
+                        </span>
+                      </div>
+
+                      <div className="text-[11px] text-slate-300 leading-relaxed">
+                        <strong className="text-white">¿Por qué se pide el token?</strong> Meta exige que para que una ventana emergente de inicio de sesión gestione anuncios de clientes terceros en producción, la App de Meta pase una auditoría comercial previa (<a href="https://developers.facebook.com/docs/development/release/business-verification" target="_blank" rel="noreferrer" className="text-blue-400 underline inline-flex items-center gap-0.5">Business Verification <ExternalLink className="w-2.5 h-2.5" /></a>). 
+                        Mientras tanto, cualquier anunciante puede generar su Token permanente en 1 minuto:
+                      </div>
+
+                      <div className="space-y-3 pt-1">
+                        {/* Paso 1 */}
+                        <div className="flex items-start gap-2.5 bg-slate-800/80 p-2.5 rounded-xl border border-slate-700/60">
+                          <div className="w-5 h-5 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-[10px] shrink-0 mt-0.5">
+                            1
+                          </div>
+                          <div className="space-y-1 w-full">
+                            <span className="font-bold text-white block">Abre la Configuración del Negocio en Meta:</span>
+                            <div className="text-[11px] text-slate-300">
+                              Ingresa a tu Business Manager oficial en Meta:
+                            </div>
+                            <a 
+                              href="https://business.facebook.com/settings/system-users" 
+                              target="_blank" 
+                              rel="noreferrer" 
+                              className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-bold rounded-lg transition-colors mt-1"
+                            >
+                              <span>Abrir Meta Business Suite (Usuarios del Sistema)</span>
+                              <ExternalLink className="w-3 h-3" />
+                            </a>
+                          </div>
+                        </div>
+
+                        {/* Paso 2 */}
+                        <div className="flex items-start gap-2.5 bg-slate-800/80 p-2.5 rounded-xl border border-slate-700/60">
+                          <div className="w-5 h-5 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-[10px] shrink-0 mt-0.5">
+                            2
+                          </div>
+                          <div className="space-y-1">
+                            <span className="font-bold text-white block">Crea o selecciona un "Usuario del Sistema" (System User):</span>
+                            <p className="text-[11px] text-slate-300">
+                              En el menú lateral izquierdo: <strong>Usuarios &gt; Usuarios del sistema</strong>. Si no tienes uno, pulsa <em>Agregar</em>, dale nombre (ej. <code>Tico Performance</code>) y rol <em>Administrador</em>.
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Paso 3 */}
+                        <div className="flex items-start gap-2.5 bg-slate-800/80 p-2.5 rounded-xl border border-slate-700/60">
+                          <div className="w-5 h-5 rounded-full bg-blue-600 text-white font-bold flex items-center justify-center text-[10px] shrink-0 mt-0.5">
+                            3
+                          </div>
+                          <div className="space-y-1 w-full">
+                            <span className="font-bold text-white block">Genera el Token con estos 3 permisos:</span>
+                            <p className="text-[11px] text-slate-300">
+                              Haz clic en <strong>Generar nuevo token</strong>, selecciona tu aplicación y marca estas 3 casillas obligatorias:
+                            </p>
+                            <div className="flex flex-wrap gap-1.5 mt-1.5">
+                              {['ads_management', 'ads_read', 'business_management'].map((perm) => (
+                                <button
+                                  key={perm}
+                                  type="button"
+                                  onClick={() => copyToClipboard(perm, perm)}
+                                  className="px-2 py-0.5 rounded bg-slate-900 border border-slate-700 font-mono text-[10px] text-blue-300 hover:text-white flex items-center gap-1 cursor-pointer"
+                                  title="Copiar permiso"
+                                >
+                                  <span>{perm}</span>
+                                  {copiedStep === perm ? <Check className="w-2.5 h-2.5 text-emerald-400" /> : <Copy className="w-2.5 h-2.5 opacity-60" />}
+                                </button>
+                              ))}
+                            </div>
+                            <span className="text-[10px] text-amber-300 block pt-1">
+                              💡 Elige caducidad: <strong>"Permanente" (Never expire)</strong> para que nunca se desconecte.
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Opción alternativa */}
+                      <div className="pt-2 border-t border-slate-800 flex items-center justify-between text-[11px] text-slate-400">
+                        <span>¿Quieres probar sólo por 1 hora?</span>
+                        <a 
+                          href="https://developers.facebook.com/tools/explorer/" 
+                          target="_blank" 
+                          rel="noreferrer" 
+                          className="text-blue-400 hover:underline inline-flex items-center gap-1"
+                        >
+                          <span>Graph API Explorer</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </div>
+                    </div>
+                  )}
 
                   <div>
                     <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
