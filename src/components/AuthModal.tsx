@@ -38,12 +38,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     if (loading) return;
     setLoading(true); setError(''); setNotice('');
     try {
+      if (!isLogin && !/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{12,}$/.test(password)) {
+        throw new Error('Usa al menos 12 caracteres, con mayúscula, minúscula, número y símbolo.');
+      }
       const client = requireSupabase();
       const { data, error: authError } = isLogin
         ? await client.auth.signInWithPassword({ email: email.trim(), password })
         : await client.auth.signUp({ email: email.trim(), password, options: {
             data: { display_name: name.trim(), workspace_name: workspace.trim() },
-            emailRedirectTo: window.location.origin + import.meta.env.BASE_URL,
+            emailRedirectTo: new URL('?auth=confirmed', window.location.origin + import.meta.env.BASE_URL).toString(),
           } });
       if (authError) throw authError;
       setPassword('');
@@ -165,7 +168,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <Lock className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
                 <input
                   type="password"
-                  minLength={isLogin ? undefined : 8}
+                  minLength={isLogin ? undefined : 12}
                   autoComplete={isLogin ? "current-password" : "new-password"}
                   required
                   placeholder="••••••••"
@@ -174,6 +177,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-indigo-600 transition-all"
                 />
               </div>
+              {!isLogin && (
+                <p className="mt-1 text-[10px] leading-relaxed text-slate-500">
+                  Mínimo 12 caracteres con mayúscula, minúscula, número y símbolo.
+                </p>
+              )}
             </div>
 
             <button

@@ -494,3 +494,14 @@ Se verificaron compilación de frontend/backend y prueba del middleware con prov
 En Supabase real se comprobó aislamiento SELECT/UPDATE/INSERT entre usuarios mediante una transacción revertida; la revisión de seguridad no devolvió alertas para el esquema. Esto no sustituye la prueba completa de registro y confirmación por correo ni las pruebas HTTP sobre Vercel.
 
 Documentación: [registro Supabase](https://supabase.com/docs/reference/javascript/auth-signup), [RLS](https://supabase.com/docs/guides/database/postgres/row-level-security), [Vercel Functions](https://vercel.com/docs/functions/quickstart).
+
+### Despliegue verificado
+
+- Producción: https://tico-tic-tac-agency.vercel.app (repositorio conectado en Vercel).
+- Commit de implementación desplegado: `a5c5bd6`.
+- HTTP verificado: `/` 200, `/api/health` 200, `/api/auth/me` sin token 401.
+- Tokens falsificados rechazados con 401 en `/api/auth/me`, `/api/campaigns/deploy` y `/api/meta/verify-token`.
+- Formulario publicado inspeccionado visualmente. El correo indicado por el propietario figura confirmado en Supabase.
+- Supabase registra dos usuarios con correo confirmado, inicio de sesión posterior y perfil creado. El enlace confirmaba correctamente, pero su redirección visual seguía pendiente de corregir.
+- Pendiente: Site URL y Redirect URLs en la cuenta propietaria de `tictacagencyperformance Org`. La sesión del navegador de otra organización no tuvo acceso a esta configuración.
+- El complemento Vercel devolvió 403 para el equipo y su herramienta de despliegue no estuvo disponible; la importación y el despliegue se completaron desde el navegador autenticado.

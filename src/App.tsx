@@ -43,6 +43,7 @@ export function App() {
   const [pendingBrief, setPendingBrief] = useState<ClientBriefing | null>(null);
   const [authModalTitle, setAuthModalTitle] = useState<string | undefined>(undefined);
   const [authModalSubtitle, setAuthModalSubtitle] = useState<string | undefined>(undefined);
+  const [authNotice, setAuthNotice] = useState<string | null>(null);
 
   // Estado de Navegación del Dashboard
   const [dashboardTab, setDashboardTab] = useState<'studio' | 'meta-connect' | 'campaigns'>('studio');
@@ -83,6 +84,12 @@ export function App() {
 
   // Carga inicial y persistencia de sesión
   useEffect(() => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('auth') === 'confirmed') {
+      setAuthNotice('Correo confirmado correctamente. Tu cuenta ya está activa.');
+      url.searchParams.delete('auth');
+      window.history.replaceState({}, document.title, `${url.pathname}${url.search}${url.hash}`);
+    }
     const timer = setTimeout(() => {
       setIsAppLoaded(true);
     }, 2000);
@@ -265,6 +272,12 @@ export function App() {
         activeTab={dashboardTab}
         onSelectTab={setDashboardTab}
       >
+        {authNotice && (
+          <div role="status" className="mb-6 flex items-center justify-between gap-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-900">
+            <span>{authNotice}</span>
+            <button type="button" onClick={() => setAuthNotice(null)} className="text-emerald-700 hover:text-emerald-950">Cerrar</button>
+          </div>
+        )}
         {/* TAB 1: ESTUDIO DE PAUTA (BRIEF, ESTRATEGIA Y DESPLIEGUE) */}
         {dashboardTab === 'studio' && (
           <div className="space-y-8" id="workflow-container">
