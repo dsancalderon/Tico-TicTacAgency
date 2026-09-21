@@ -13,7 +13,8 @@ import {
   Copy,
   Eye,
   EyeOff,
-  Sparkles
+  Sparkles,
+  ChevronDown
 } from 'lucide-react';
 import type { MetaConnectionState } from '../../types';
 import { verifyMetaTokenApi, testMetaCreationApi } from '../../services/api';
@@ -43,8 +44,9 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
   const [isConnecting, setIsConnecting] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
-  // Guide Copy State
+  // Guide State
   const [copiedPermission, setCopiedPermission] = useState<string | null>(null);
+  const [showAppGuide, setShowAppGuide] = useState(true);
 
   // Connected State
   const [selectedAccountId, setSelectedAccountId] = useState(metaState.adAccountId || 'act_839219481029');
@@ -596,6 +598,75 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
                   </p>
                 </div>
 
+                {/* Sub-Guía Esencial: ¿Meta te pide crear o seleccionar una App? */}
+                <div className="bg-gradient-to-r from-blue-950 to-indigo-950 border border-blue-500/40 rounded-2xl p-3.5 space-y-2.5">
+                  <button
+                    type="button"
+                    onClick={() => setShowAppGuide(!showAppGuide)}
+                    className="w-full flex items-center justify-between text-left cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="w-5 h-5 rounded-full bg-blue-500 text-white font-bold flex items-center justify-center text-[10px] shrink-0">
+                        !
+                      </span>
+                      <span className="font-bold text-blue-200 group-hover:text-white transition-colors text-xs">
+                        ¿Meta te pide crear una App para continuar?
+                      </span>
+                    </div>
+                    <span className="text-[11px] font-semibold text-blue-300 flex items-center gap-1 shrink-0 ml-2">
+                      {showAppGuide ? 'Ocultar' : 'Ver cómo crearla (1 min)'}
+                      <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showAppGuide ? 'rotate-180' : ''}`} />
+                    </span>
+                  </button>
+
+                  {showAppGuide && (
+                    <div className="pt-2 border-t border-blue-900/60 space-y-2.5 text-[11px] text-slate-300 animate-in fade-in duration-150">
+                      <p className="leading-relaxed text-blue-100">
+                        Meta exige asociar una <strong>App empresarial</strong> a tu negocio para poder generar el token de un usuario del sistema. Si no tienes una creada, síguelo en 4 pasos rápidos:
+                      </p>
+
+                      <div className="space-y-2">
+                        <div className="flex items-start gap-2 bg-slate-900/90 p-2.5 rounded-xl border border-slate-700/60">
+                          <span className="w-4 h-4 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">a</span>
+                          <div className="space-y-1">
+                            <span className="text-white font-semibold block">Entra a Meta Developers y pulsa "Crear app":</span>
+                            <a
+                              href="https://developers.facebook.com/apps/create/"
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-600/80 hover:bg-blue-600 text-white text-[10px] font-bold rounded-lg transition-colors mt-0.5"
+                            >
+                              <span>Abrir developers.facebook.com/apps/create</span>
+                              <ExternalLink className="w-3 h-3" />
+                            </a>
+                          </div>
+                        </div>
+
+                        <div className="flex items-start gap-2 bg-slate-900/90 p-2.5 rounded-xl border border-slate-700/60">
+                          <span className="w-4 h-4 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">b</span>
+                          <div>
+                            <span className="text-white font-semibold">Tipo de App:</span> Selecciona el caso de uso <strong>"Otro"</strong> y luego tipo <strong>"Empresa" (Business)</strong>.
+                          </div>
+                        </div>
+
+                        <div className="flex items-start gap-2 bg-slate-900/90 p-2.5 rounded-xl border border-slate-700/60">
+                          <span className="w-4 h-4 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">c</span>
+                          <div>
+                            <span className="text-white font-semibold">Nombre y Empresa:</span> Escribe un nombre (ej. <code>Tico Ads</code>) y en el selector <strong>"Cuenta de Business Manager"</strong> elige tu empresa actual. Pulsa <em>Crear app</em>.
+                          </div>
+                        </div>
+
+                        <div className="flex items-start gap-2 bg-slate-900/90 p-2.5 rounded-xl border border-slate-700/60">
+                          <span className="w-4 h-4 rounded-full bg-emerald-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">✓</span>
+                          <div>
+                            <span className="text-emerald-400 font-semibold">¡Listo!</span> Regresa a la pestaña de <strong>Usuarios del sistema</strong> y al pulsar <em>Generar token</em> ya podrás elegir esta nueva app.
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 {/* Paso 3 */}
                 <div className="bg-slate-800/80 p-3.5 rounded-2xl border border-slate-700/60 space-y-2">
                   <div className="flex items-center gap-2">
@@ -607,7 +678,7 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-300 pl-7 leading-relaxed">
-                    Haz clic en <strong>Generar nuevo token</strong>, selecciona tu aplicación y marca las siguientes 3 casillas (haz clic en cada permiso para copiarlo):
+                    Haz clic en <strong>Generar nuevo token</strong>, selecciona tu aplicación (la que creaste en el paso anterior) y marca estas 3 casillas obligatorias (haz clic para copiarlas):
                   </p>
 
                   <div className="pl-7 flex flex-wrap gap-1.5 pt-1">
