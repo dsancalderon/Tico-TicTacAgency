@@ -1,0 +1,36 @@
+{
+  "name": "tico-tictacagency",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "server": "npm run dev --prefix server",
+    "dev:all": "concurrently -n \"frontend,backend\" -c \"cyan,magenta\" \"npm run dev\" \"npm run server\"",
+    "build": "tsc -b && vite build",
+    "build:server": "npm run build --prefix server",
+    "build:all": "npm run build && npm run build:server",
+    "lint": "oxlint",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "^24.13.3",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "@vitejs/plugin-react": "^6.1.1",
+    "clsx": "^2.1.1",
+    "concurrently": "^10.0.5",
+    "lucide-react": "^1.47.0",
+    "oxlint": "^1.81.0",
+    "tailwind-merge": "^3.7.0",
+    "tailwindcss": "^4.3.3",
+    "typescript": "~6.0.2",
+    "vite": "^8.3.0"
+  }
+}

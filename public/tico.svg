@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 367 432" fill="none" width="367" height="432">
+  <defs>
+    <linearGradient id="tico-grad" gradientUnits="userSpaceOnUse" x1="28.67" y1="166.0" x2="366.17" y2="330.81">
+      <stop offset="0" stop-color="#0082FE"/>
+      <stop offset="0.214" stop-color="#1278FF"/>
+      <stop offset="0.357" stop-color="#406EFE"/>
+      <stop offset="0.5" stop-color="#5B67FA"/>
+      <stop offset="0.643" stop-color="#6F60F7"/>
+      <stop offset="0.786" stop-color="#8959F3"/>
+      <stop offset="1" stop-color="#A751F1"/>
+    </linearGradient>
+  </defs>
+  <g stroke="url(#tico-grad)" stroke-linecap="round" stroke-linejoin="round">
+    <path id="tico-head" d="M183.4 138.25C291.65 138.25 347.78 136.93 347.78 275.75C347.78 414.57 291.65 413.25 183.4 413.25C75.15 413.25 19.02 414.57 19.02 275.75C19.02 136.93 75.15 138.25 183.4 138.25Z" stroke-width="29.12"/>
+    <path id="tico-antenna-stem" d="M183.4 138.25V92.38" stroke-width="30.5" stroke-linecap="butt"/>
+    <circle id="tico-antenna-ring" cx="183.4" cy="55.12" r="37.25" stroke-width="27.75"/>
+    <path id="tico-eye-left" d="M84.81 268.86A33.02 33.02 0 0 1 147.08 265.76" stroke-width="24.43"/>
+    <path id="tico-eye-right" d="M219.77 265.76A33.02 33.02 0 0 1 282.04 268.86" stroke-width="24.43"/>
+    <path id="tico-smile" d="M146.97 324.01A42.77 42.77 0 0 0 219.83 324.01" stroke-width="20.85"/>
+  </g>
+</svg>

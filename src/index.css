@@ -1,0 +1,108 @@
+@import "tailwindcss";
+
+@theme {
+  --color-tico-blue: #0082fe;
+  --color-tico-blue-light: #1278ff;
+  --color-tico-indigo: #5b67fa;
+  --color-tico-purple: #a751f1;
+  --color-tico-bg: #fafbff;
+}
+
+@layer base {
+  :root {
+    --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    --font-heading: 'Outfit', system-ui, -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background-color: #ffffff;
+    color: #0f172a;
+    overflow-x: hidden;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
+  }
+
+  code, pre {
+    font-family: var(--font-mono);
+  }
+}
+
+/* YCloud-style Prismatic Iridescent Refraction Beam */
+.prism-beam {
+  position: absolute;
+  pointer-events: none;
+  background: linear-gradient(
+    135deg,
+    rgba(56, 189, 248, 0.35) 0%,
+    rgba(99, 102, 241, 0.40) 25%,
+    rgba(168, 85, 247, 0.45) 50%,
+    rgba(236, 72, 153, 0.35) 75%,
+    rgba(251, 146, 60, 0.25) 100%
+  );
+  filter: blur(80px);
+  transform: rotate(-12deg);
+  opacity: 0.85;
+}
+
+/* Subtle ambient aura */
+.ambient-glow {
+  background: radial-gradient(circle at 50% 50%, rgba(99, 102, 241, 0.08) 0%, rgba(255, 255, 255, 0) 70%);
+}
+
+/* Light mode crisp cards */
+.light-glass-card {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: 0 20px 40px -15px rgba(15, 23, 42, 0.07), 0 0 1px 1px rgba(15, 23, 42, 0.02);
+}
+
+.light-glass-card-hover {
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.light-glass-card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.12), 0 0 1px 1px rgba(15, 23, 42, 0.04);
+}
+
+/* Chat bubble styling */
+.chat-bubble-agent {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+}
+
+.chat-bubble-user {
+  background: linear-gradient(135deg, #1d4ed8, #4338ca);
+  color: #ffffff;
+}
+
+/* Custom scrollbar for light theme */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #f8fafc;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+@keyframes pulse-subtle {
+  0%, 100% { opacity: 0.9; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.02); }
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 4s ease-in-out infinite;
+}

@@ -1,0 +1,74 @@
+/* A quiet, seamless 3.2-second brand loop. Motion stays on transform/opacity. */
+.tico-loader {
+  --tico-loop: 2600ms;
+  --tico-ease: cubic-bezier(.45, 0, .25, 1);
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: #fafbff;
+  color: #18223a;
+  isolation: isolate;
+}
+.tico-loader-content { display: flex; flex-direction: column; align-items: center; padding: 32px; }
+.tico-loader-art { position: relative; width: 176px; height: 184px; margin-bottom: 26px; }
+.tico-loader-aura {
+  position: absolute; inset: -38px;
+  background: radial-gradient(ellipse, #727bfa0d, transparent 68%);
+  border-radius: 50%;
+}
+.tico-loader-float {
+  position: relative; width: 112px; margin: 12px auto 0;
+  animation: tico-float var(--tico-loop) var(--tico-ease) infinite;
+  will-change: transform;
+}
+.tico-loader-float svg { display: block; width: 100%; height: auto; }
+.tico-loader .tico-eye-left, .tico-loader .tico-eye-right {
+  animation: tico-blink 6400ms cubic-bezier(.65, 0, .35, 1) infinite;
+}
+.tico-loader-shadow {
+  position: absolute; bottom: 8px; left: 57px; width: 62px; height: 7px;
+  border-radius: 50%; background: #6370b9; filter: blur(5px);
+  animation: tico-ground var(--tico-loop) var(--tico-ease) infinite;
+}
+.tico-loader-wordmark {
+  font-family: var(--font-heading, sans-serif); font-size: 38px;
+  font-weight: 600; line-height: 1; letter-spacing: -1.8px;
+}
+.tico-loader-wordmark span { color: #7364ef; }
+.tico-loader-caption { margin: 16px 0 24px; font-size: 12px; font-weight: 400; letter-spacing: .02em; color: #65718a; }
+.tico-loader-track { width: 112px; height: 3px; border-radius: 20px; background: #e9ecf5; overflow: hidden; }
+.tico-loader-track span {
+  display: block; width: 50%; height: 100%; border-radius: inherit;
+  background: linear-gradient(90deg, #0082fe, #7465f5, #a751f1);
+  animation: tico-travel 2400ms cubic-bezier(.65, 0, .35, 1) infinite;
+  will-change: transform;
+}
+.tico-loader-signature {
+  position: absolute; bottom: max(32px, env(safe-area-inset-bottom));
+  font-size: 9px; letter-spacing: .24em; font-weight: 700; color: #778197;
+}
+.tico-loader-signature span { font-weight: 400; }
+.tico-phase-exiting { animation: tico-leave 450ms cubic-bezier(.4, 0, .2, 1) both; }
+@keyframes tico-float {
+  0%, 100% { transform: translateY(0) rotate(-3deg); }
+  25% { transform: translateY(-12px) rotate(0deg); }
+  50% { transform: translateY(-20px) rotate(3deg); }
+  75% { transform: translateY(-8px) rotate(0deg); }
+}
+@keyframes tico-ground { 0%, 100% { transform: scaleX(1); opacity: .15; } 50% { transform: scaleX(.8); opacity: .08; } }
+@keyframes tico-blink { 0%, 43%, 49%, 100% { transform: scaleY(1); } 46% { transform: scaleY(.13); } }
+@keyframes tico-travel { 0% { transform: translateX(-105%); } 100% { transform: translateX(205%); } }
+@keyframes tico-leave { to { opacity: 0; } }
+@media (max-height: 440px) {
+  .tico-loader-content { transform: scale(.75); }
+  .tico-loader-signature { bottom: 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tico-loader[data-motion='system'], .tico-loader[data-motion='system'] * { animation: none !important; will-change: auto; }
+  .tico-loader[data-motion='system'] .tico-loader-shadow { opacity: .12; }
+  .tico-loader[data-motion='system'] .tico-loader-track span { transform: translateX(50%); }
+  .tico-phase-exiting[data-motion='system'] { opacity: 0; }
+}
