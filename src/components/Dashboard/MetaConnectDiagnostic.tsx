@@ -10,11 +10,13 @@ import {
   ArrowRight, 
   BookOpen, 
   ExternalLink, 
-  Copy,
-  Eye,
-  EyeOff,
-  Sparkles,
-  ChevronDown
+  Copy, 
+  Eye, 
+  EyeOff, 
+  Sparkles, 
+  Layers,
+  Briefcase,
+  Info
 } from 'lucide-react';
 import type { MetaConnectionState } from '../../types';
 import { verifyMetaTokenApi, testMetaCreationApi } from '../../services/api';
@@ -46,7 +48,6 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
 
   // Guide State
   const [copiedPermission, setCopiedPermission] = useState<string | null>(null);
-  const [showAppGuide, setShowAppGuide] = useState(true);
 
   // Connected State
   const [selectedAccountId, setSelectedAccountId] = useState(metaState.adAccountId || 'act_839219481029');
@@ -338,360 +339,590 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
       {/* ESTADO DESCONECTADO: FORMULARIO DIRECTO + GUÍA PASO A PASO EN 2 COLUMNAS   */}
       {/* ========================================================================= */}
       {!metaState.isConnected ? (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            {/* COLUMNA IZQUIERDA: FORMULARIO DIRECTO DE CONEXIÓN */}
-            <div className="lg:col-span-7 bg-slate-50/70 border border-slate-200 rounded-3xl p-6 sm:p-7 space-y-6">
-              {/* Tab Selector: Token Real vs Modo Demo */}
+        <div className="space-y-10">
+          {/* ========================================================================= */}
+          {/* SECCIÓN 1: FORMULARIO DIRECTO DE CONEXIÓN (SUPERIOR - ANCHO CÓMODO)       */}
+          {/* ========================================================================= */}
+          <div className="max-w-4xl mx-auto w-full bg-slate-50/80 border border-slate-200/90 rounded-3xl p-6 sm:p-8 space-y-6 shadow-xs">
+            {/* Header del Formulario */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-200/80">
               <div>
-                <div className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
-                  Método de Conexión
-                </div>
-                <div className="grid grid-cols-2 gap-2 p-1.5 bg-slate-200/80 rounded-2xl text-xs font-bold">
-                  <button
-                    type="button"
-                    onClick={() => { setConnectTab('token'); setAuthError(null); }}
-                    className={`py-2.5 px-3 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 ${
-                      connectTab === 'token'
-                        ? 'bg-white text-slate-900 shadow-sm'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    <Key className="w-4 h-4 text-blue-600" />
-                    <span>Conexión Real (Token)</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setConnectTab('demo'); setAuthError(null); }}
-                    className={`py-2.5 px-3 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 ${
-                      connectTab === 'demo'
-                        ? 'bg-white text-slate-900 shadow-sm'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    <Zap className="w-4 h-4 text-amber-500" />
-                    <span>Modo Demo (1 Clic)</span>
-                  </button>
-                </div>
+                <h3 className="text-base sm:text-lg font-extrabold text-slate-900 font-['Outfit'] flex items-center gap-2">
+                  <Key className="w-5 h-5 text-blue-600" />
+                  <span>Vincula tu Token de Meta Ads</span>
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Ingresa tu System User Token o activa el modo demostrativo para sincronizar tus campañas.
+                </p>
               </div>
 
-              {/* CONTENIDO TAB 1: TOKEN REAL */}
-              {connectTab === 'token' ? (
-                <form onSubmit={handleConnectWithToken} className="space-y-5">
-                  <div className="p-4 rounded-2xl bg-blue-50/70 border border-blue-200/80 text-xs text-blue-950 space-y-1">
-                    <strong className="font-bold flex items-center gap-1.5 text-blue-900">
-                      <ShieldCheck className="w-4 h-4 text-blue-600" />
-                      <span>Conexión Directa con Meta Marketing API</span>
-                    </strong>
-                    <p className="text-[11px] leading-relaxed text-blue-900/90">
-                      Ingresa tu <strong>System User Token</strong> de Meta Business. TICO validará tus permisos en tiempo real contra los servidores oficiales de Meta sin guardar contraseñas.
-                    </p>
-                  </div>
+              {/* Tab Selector: Token Real vs Modo Demo */}
+              <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-200/80 rounded-2xl text-xs font-bold shrink-0 self-start sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => { setConnectTab('token'); setAuthError(null); }}
+                  className={`py-2 px-3.5 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                    connectTab === 'token'
+                      ? 'bg-white text-slate-900 shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <Key className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Token Real</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setConnectTab('demo'); setAuthError(null); }}
+                  className={`py-2 px-3.5 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                    connectTab === 'demo'
+                      ? 'bg-white text-slate-900 shadow-xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <Zap className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Modo Demo</span>
+                </button>
+              </div>
+            </div>
 
-                  {/* Campo Token */}
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
-                      Token de Acceso de Meta <span className="text-rose-500">*</span>
-                    </label>
-                    <div className="relative">
-                      <input
-                        type={showPassword ? 'text' : 'password'}
-                        value={inputToken}
-                        onChange={(e) => { setInputToken(e.target.value); setAuthError(null); }}
-                        placeholder="EAABw... (System User Token permanente)"
-                        className="w-full bg-white border border-slate-300 rounded-xl pl-3.5 pr-10 py-3 text-xs font-mono text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
-                        title={showPassword ? 'Ocultar' : 'Mostrar'}
-                      >
-                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                    </div>
-                    <span className="text-[11px] text-slate-500 block">
-                      Debe contener los permisos: <code>ads_management</code>, <code>ads_read</code> y <code>business_management</code>.
-                    </span>
-                  </div>
+            {/* CONTENIDO TAB 1: TOKEN REAL */}
+            {connectTab === 'token' ? (
+              <form onSubmit={handleConnectWithToken} className="space-y-5">
+                <div className="p-4 rounded-2xl bg-blue-50/70 border border-blue-200/80 text-xs text-blue-950 space-y-1">
+                  <strong className="font-bold flex items-center gap-1.5 text-blue-900">
+                    <ShieldCheck className="w-4 h-4 text-blue-600" />
+                    <span>Conexión Directa con Meta Marketing API v21.0</span>
+                  </strong>
+                  <p className="text-[11px] leading-relaxed text-blue-900/90">
+                    Ingresa tu <strong>System User Token</strong> de Meta Business. TICO validará tus permisos en tiempo real directamente contra los servidores oficiales de Meta sin guardar contraseñas.
+                  </p>
+                </div>
 
-                  {/* Campo Cuenta Publicitaria */}
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
-                      ID de Cuenta Publicitaria <span className="text-slate-400 font-normal lowercase">(Opcional)</span>
-                    </label>
+                {/* Campo Token */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
+                    Token de Acceso de Meta <span className="text-rose-500">*</span>
+                  </label>
+                  <div className="relative">
                     <input
-                      type="text"
-                      value={inputAdAccountId}
-                      onChange={(e) => { setInputAdAccountId(e.target.value); setAuthError(null); }}
-                      placeholder="act_1234567890 (Si lo dejas vacío, TICO listará todas tus cuentas)"
-                      className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-3 text-xs font-mono text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10"
+                      type={showPassword ? 'text' : 'password'}
+                      value={inputToken}
+                      onChange={(e) => { setInputToken(e.target.value); setAuthError(null); }}
+                      placeholder="EAABw... (System User Token permanente de Meta)"
+                      className="w-full bg-white border border-slate-300 rounded-xl pl-3.5 pr-10 py-3 text-xs font-mono text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
+                      title={showPassword ? 'Ocultar' : 'Mostrar'}
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  <span className="text-[11px] text-slate-500 block">
+                    Debe contener los 3 permisos: <code>ads_management</code>, <code>ads_read</code> y <code>business_management</code>. (Consulta la guía abajo si necesitas generarlo).
+                  </span>
+                </div>
+
+                {/* Campo Cuenta Publicitaria */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
+                    ID de Cuenta Publicitaria <span className="text-slate-400 font-normal lowercase">(Opcional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={inputAdAccountId}
+                    onChange={(e) => { setInputAdAccountId(e.target.value); setAuthError(null); }}
+                    placeholder="act_1234567890 (Si lo dejas vacío, TICO listará todas tus cuentas activas)"
+                    className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-3 text-xs font-mono text-slate-900 focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/10"
+                  />
+                </div>
+
+                {/* Feedback de Error */}
+                {authError && (
+                  <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-900 text-xs flex items-start gap-3">
+                    <XCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <strong className="block font-bold">Error de validación con Meta:</strong>
+                      <p className="font-mono text-[11px] leading-relaxed break-all">{authError}</p>
+                      <span className="block text-[11px] text-rose-700 mt-1">
+                        💡 Revisa que el token no haya expirado y que pertenezca a un Usuario del Sistema con permisos de Administrador.
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Botón Acción Principal */}
+                <button
+                  type="submit"
+                  disabled={isConnecting || !inputToken.trim()}
+                  className="w-full py-3.5 px-6 rounded-2xl bg-[#1877F2] hover:bg-[#166fe5] disabled:opacity-50 text-white font-bold text-sm shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2.5 cursor-pointer"
+                >
+                  {isConnecting ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <span>Verificando permisos con Graph API...</span>
+                    </>
+                  ) : (
+                    <>
+                      <ShieldCheck className="w-4 h-4" />
+                      <span>Conectar con Meta Marketing API</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </>
+                  )}
+                </button>
+              </form>
+            ) : (
+              /* CONTENIDO TAB 2: MODO DEMOSTRATIVO */
+              <div className="space-y-5">
+                <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-200/80 text-xs text-amber-950 space-y-1">
+                  <strong className="font-bold flex items-center gap-1.5 text-amber-900">
+                    <Sparkles className="w-4 h-4 text-amber-600" />
+                    <span>Sandbox Guiado (Sin Token de Meta)</span>
+                  </strong>
+                  <p className="text-[11px] leading-relaxed text-amber-900/90">
+                    Permite explorar todo el flujo de planeación, segmentación y simulación de despliegue en estado <code>PAUSED</code> con una cuenta de prueba sin requerir credenciales reales de Facebook.
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-white border border-slate-200 text-xs space-y-2">
+                  <div className="font-bold text-slate-800">Cuentas simuladas disponibles:</div>
+                  <ul className="text-[11px] text-slate-600 space-y-1.5 list-disc pl-4">
+                    <li><code>act_839219481029</code> — TicTac Performance Lab (USD)</li>
+                    <li><code>act_492019482011</code> — UrbanFit Athletics (USD)</li>
+                    <li><code>act_102948192834</code> — Nova Glow Cosméticos (COP)</li>
+                  </ul>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleConnectDemo}
+                  disabled={isConnecting}
+                  className="w-full py-3.5 px-6 rounded-2xl bg-slate-950 hover:bg-slate-800 disabled:opacity-60 text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  {isConnecting ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      <span>Iniciando modo demo...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="w-4 h-4 text-amber-400" />
+                      <span>Conectar en Modo Demostrativo (1 Clic)</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+
+            {/* Micro-Garantías al pie del formulario */}
+            <div className="pt-4 border-t border-slate-200 grid grid-cols-3 gap-2 text-[11px] text-slate-500 text-center">
+              <div>
+                <strong className="text-slate-800 block">100% PAUSED</strong>
+                <span>Sin gasto automático</span>
+              </div>
+              <div>
+                <strong className="text-slate-800 block">Oficial Meta</strong>
+                <span>Graph API v21.0</span>
+              </div>
+              <div>
+                <strong className="text-slate-800 block">Reversible</strong>
+                <span>Desconexión en 1 clic</span>
+              </div>
+            </div>
+          </div>
+
+          {/* ========================================================================= */}
+          {/* SECCIÓN 2: GUÍA DETALLADA PASO A PASO (INFERIOR - ANCHO COMPLETO)         */}
+          {/* ========================================================================= */}
+          <div className="w-full bg-slate-900 text-white rounded-3xl p-6 sm:p-8 lg:p-10 space-y-8 shadow-xl border border-slate-800">
+            {/* Cabecera Principal de la Guía */}
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-6 border-b border-slate-800">
+              <div className="space-y-1.5 max-w-3xl">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-950/80 border border-blue-600/40 text-blue-300 text-xs font-bold">
+                  <BookOpen className="w-3.5 h-3.5 text-blue-400" />
+                  <span>Guía Oficial Meta Developers & Business Suite</span>
+                </div>
+                <h3 className="text-xl sm:text-2xl font-black text-white font-['Outfit'] tracking-tight">
+                  Cómo Crear la App en Meta for Developers y Obtener tu Token
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                  Sigue los <strong>5 apartados del formulario oficial "Crear una app"</strong> en Meta Developers y luego genera tu Token Permanente de Administrador en Business Manager.
+                </p>
+              </div>
+
+              {/* Botones de Acceso Rápido Directo */}
+              <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5 shrink-0">
+                <a
+                  href="https://developers.facebook.com/apps/create/"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl transition-all shadow-md cursor-pointer hover:scale-[1.02]"
+                >
+                  <span>1. Crear App en Meta Developers</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+                <a
+                  href="https://business.facebook.com/settings/system-users"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 text-xs font-bold rounded-xl transition-all shadow-xs cursor-pointer hover:scale-[1.02]"
+                >
+                  <span>2. Usuarios del Sistema</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </div>
+            </div>
+
+            {/* ===================================================================== */}
+            {/* FASE A: LOS 5 APARTADOS DEL FORMULARIO "CREAR UNA APP" EN DEVELOPERS */}
+            {/* ===================================================================== */}
+            <div className="space-y-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-[11px] font-mono text-blue-400 font-bold uppercase tracking-wider">
+                    Fase 1 de 2
+                  </span>
+                  <h4 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+                    <Layers className="w-4 h-4 text-blue-400" />
+                    <span>Asistente Oficial "Crear una app" en developers.facebook.com</span>
+                  </h4>
+                </div>
+                <span className="text-xs text-slate-400 hidden sm:inline">
+                  5 Apartados Obligatorios
+                </span>
+              </div>
+
+              {/* Stepper Visual Horizontal */}
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs">
+                {[
+                  { num: '1', title: 'Detalles de la app', active: true },
+                  { num: '2', title: 'Casos de uso', active: true },
+                  { num: '3', title: 'Negocio', active: true },
+                  { num: '4', title: 'Requisitos', active: true },
+                  { num: '5', title: 'Resumen', active: true }
+                ].map((s) => (
+                  <div
+                    key={s.num}
+                    className="p-2.5 rounded-xl bg-slate-800/80 border border-slate-700/80 flex items-center gap-2 text-slate-200"
+                  >
+                    <span className="w-5 h-5 rounded-full bg-blue-600 text-white font-bold text-[11px] flex items-center justify-center shrink-0">
+                      {s.num}
+                    </span>
+                    <span className="font-semibold truncate text-[11px]">{s.title}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desglose Detallado de los 5 Apartados */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-1">
+                {/* APARTADO 1: DETALLES DE LA APP */}
+                <div className="bg-slate-800/80 border border-slate-700/70 rounded-2xl p-4 sm:p-5 space-y-3 flex flex-col justify-between">
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between pb-2 border-b border-slate-700/50">
+                      <span className="text-xs font-extrabold text-blue-400 uppercase tracking-wider">
+                        1. Detalles de la app
+                      </span>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-900/60 text-blue-200 border border-blue-700/40 font-bold">
+                        Paso inicial
+                      </span>
+                    </div>
+
+                    <div className="space-y-1.5 text-xs text-slate-300">
+                      <strong className="text-white block">Nombre de la app (máx. 30 caracteres):</strong>
+                      <p className="text-[11px] text-slate-400">
+                        Escribe un nombre que identifique tu marca o agencia:
+                      </p>
+                      <div className="p-2 rounded-lg bg-slate-900 border border-slate-700 text-xs font-mono text-emerald-400 flex items-center justify-between">
+                        <span>Tico Performance Ads</span>
+                        <span className="text-[10px] text-slate-400">Recomendado</span>
+                      </div>
+                      <div className="text-[10px] text-amber-300 bg-amber-950/40 p-2 rounded-lg border border-amber-800/50 mt-1">
+                        ⚠️ <strong>Prohibido por Meta:</strong> No uses palabras como <code>Facebook</code>, <code>Meta</code>, <code>Instagram</code> o <code>FB</code> en el nombre.
+                      </div>
+                    </div>
+
+                    <div className="space-y-1 text-xs text-slate-300 pt-1">
+                      <strong className="text-white block">Correo de contacto de la app:</strong>
+                      <p className="text-[11px] text-slate-400">
+                        Pon un correo que uses habitualmente (ej. <code>tictacagencyp@gmail.com</code> o el correo de tu negocio). Meta lo usará para enviarte alertas de políticas y salud de API.
+                      </p>
+                    </div>
                   </div>
 
-                  {/* Feedback de Error */}
-                  {authError && (
-                    <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-900 text-xs flex items-start gap-3">
-                      <XCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
-                      <div className="space-y-1">
-                        <strong className="block font-bold">Error de validación con Meta:</strong>
-                        <p className="font-mono text-[11px] leading-relaxed break-all">{authError}</p>
-                        <span className="block text-[11px] text-rose-700 mt-1">
-                          💡 Revisa que el token no haya expirado y que pertenezca a un Usuario del Sistema con permisos de Administrador.
+                  <div className="pt-2 border-t border-slate-700/50 text-[11px] text-slate-400 flex items-center gap-1.5">
+                    <span className="font-bold text-white">Acción:</span> Pulsa el botón azul <strong>"Siguiente"</strong>.
+                  </div>
+                </div>
+
+                {/* APARTADO 2: CASOS DE USO */}
+                <div className="bg-slate-800/80 border border-blue-500/40 rounded-2xl p-4 sm:p-5 space-y-3 flex flex-col justify-between shadow-lg">
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between pb-2 border-b border-slate-700/50">
+                      <span className="text-xs font-extrabold text-blue-400 uppercase tracking-wider">
+                        2. Casos de uso
+                      </span>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-900/60 text-emerald-300 border border-emerald-700/50 font-bold">
+                        Muy Importante
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-slate-300">
+                      Meta te mostrará un catálogo de 20 casos de uso. Marca <strong>únicamente</strong> esta casilla:
+                    </p>
+
+                    {/* Casilla Obligatoria */}
+                    <div className="p-3 rounded-xl bg-blue-950/70 border border-blue-500/50 space-y-1">
+                      <div className="flex items-start gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                        <div>
+                          <span className="text-xs font-bold text-white block">
+                            Crear y administrar anuncios con la API de marketing
+                          </span>
+                          <p className="text-[11px] text-blue-200/90 leading-relaxed mt-0.5">
+                            Permite estructurar campañas, presupuestos, conjuntos y creativos en estado <code>PAUSED</code> directamente en Meta.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Casilla Opcional */}
+                    <div className="p-2.5 rounded-xl bg-slate-900/80 border border-slate-700/70 text-[11px] text-slate-300 space-y-1">
+                      <div className="flex items-start gap-2">
+                        <span className="text-blue-400 font-bold">☑</span>
+                        <span>
+                          <strong className="text-white">Medir datos de rendimiento de los anuncios</strong> (Opcional, para métricas y diagnósticos en tiempo real).
                         </span>
                       </div>
                     </div>
-                  )}
 
-                  {/* Botón Acción Principal */}
-                  <button
-                    type="submit"
-                    disabled={isConnecting || !inputToken.trim()}
-                    className="w-full py-3.5 px-6 rounded-2xl bg-[#1877F2] hover:bg-[#166fe5] disabled:opacity-50 text-white font-bold text-sm shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2.5 cursor-pointer"
-                  >
-                    {isConnecting ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        <span>Validando credenciales en Meta Graph API...</span>
-                      </>
-                    ) : (
-                      <>
-                        <svg className="w-4 h-4 fill-white" viewBox="0 0 24 24">
-                          <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-                        </svg>
-                        <span>Verificar y Conectar con Meta Ads</span>
-                        <ArrowRight className="w-4 h-4" />
-                      </>
-                    )}
-                  </button>
-                </form>
-              ) : (
-                /* CONTENIDO TAB 2: MODO DEMOSTRATIVO */
-                <div className="space-y-5">
-                  <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-200 text-xs text-amber-950 space-y-1.5">
-                    <strong className="font-bold flex items-center gap-1.5 text-amber-900">
-                      <Sparkles className="w-4 h-4 text-amber-600" />
-                      <span>Entorno Demostrativo Oficial TicTac Agency</span>
-                    </strong>
-                    <p className="text-[11px] leading-relaxed text-amber-900/90">
-                      Prueba todas las funcionalidades de TICO (generación con IA, previsualización de copys, exportación a Excel y simulación de despliegue PAUSED) sin necesidad de ingresar credenciales ahora.
-                    </p>
-                  </div>
-
-                  <div className="space-y-2.5 text-xs text-slate-600">
-                    <div className="flex items-center gap-2 p-3 bg-white rounded-xl border border-slate-200">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                      <span>Acceso a cuentas de demostración preconfiguradas</span>
-                    </div>
-                    <div className="flex items-center gap-2 p-3 bg-white rounded-xl border border-slate-200">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                      <span>Simulación completa de respuesta Meta Marketing API v21.0</span>
-                    </div>
-                    <div className="flex items-center gap-2 p-3 bg-white rounded-xl border border-slate-200">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                      <span>Exportación de planillas estructuradas sin restricciones</span>
+                    <div className="text-[10px] text-rose-300 bg-rose-950/40 p-2 rounded-lg border border-rose-800/50">
+                      ⛔ <strong>Atención:</strong> Deja <u>desmarcadas</u> todas las demás opciones (WhatsApp, Threads, Messenger, Juegos, etc.). Si marcas otras, Meta te exigirá revisiones adicionales.
                     </div>
                   </div>
 
-                  <button
-                    type="button"
-                    disabled={isConnecting}
-                    onClick={handleConnectDemo}
-                    className="w-full py-3.5 px-6 rounded-2xl bg-slate-950 hover:bg-slate-800 disabled:opacity-60 text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
-                  >
-                    {isConnecting ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        <span>Iniciando modo demo...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Zap className="w-4 h-4 text-amber-400" />
-                        <span>Conectar en Modo Demostrativo (1 Clic)</span>
-                        <ArrowRight className="w-4 h-4" />
-                      </>
-                    )}
-                  </button>
+                  <div className="pt-2 border-t border-slate-700/50 text-[11px] text-slate-400 flex items-center gap-1.5">
+                    <span className="font-bold text-white">Acción:</span> Pulsa el botón azul <strong>"Siguiente"</strong>.
+                  </div>
                 </div>
-              )}
 
-              {/* Micro-Garantías al pie del formulario */}
-              <div className="pt-4 border-t border-slate-200 grid grid-cols-3 gap-2 text-[11px] text-slate-500 text-center">
-                <div>
-                  <strong className="text-slate-800 block">100% PAUSED</strong>
-                  <span>Sin gasto automático</span>
+                {/* APARTADO 3: NEGOCIO */}
+                <div className="bg-slate-800/80 border border-slate-700/70 rounded-2xl p-4 sm:p-5 space-y-3 flex flex-col justify-between">
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between pb-2 border-b border-slate-700/50">
+                      <span className="text-xs font-extrabold text-blue-400 uppercase tracking-wider">
+                        3. Negocio (Portfolio Comercial)
+                      </span>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-900/60 text-blue-200 border border-blue-700/40 font-bold">
+                        Vinculación
+                      </span>
+                    </div>
+
+                    <div className="space-y-1.5 text-xs text-slate-300">
+                      <strong className="text-white block">
+                        ¿Qué portfolio comercial quieres conectar a esta app?
+                      </strong>
+                      <p className="text-[11px] text-slate-400 leading-relaxed">
+                        Meta te listará tus Portfolios Comerciales (Business Managers) existentes.
+                      </p>
+
+                      <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-700 space-y-1 text-xs">
+                        <div className="flex items-center gap-2 text-white font-semibold">
+                          <Briefcase className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                          <span>Selecciona tu Empresa / Agencia</span>
+                        </div>
+                        <p className="text-[11px] text-slate-400">
+                          Ejemplo: <code>Tic Tac Agency</code> o el Business Manager oficial donde residen tus cuentas publicitarias y páginas.
+                        </p>
+                      </div>
+
+                      <div className="text-[10px] text-slate-300 bg-slate-900/80 p-2 rounded-lg border border-slate-700/60 mt-1">
+                        💡 <strong>Nota sobre verificación:</strong> Si tu portfolio tiene <em>"Verificación del negocio completada"</em> genial, pero si aún no está verificado Meta te permite conectarlo igualmente en modo desarrollo/interno.
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-700/50 text-[11px] text-slate-400 flex items-center gap-1.5">
+                    <span className="font-bold text-white">Acción:</span> Pulsa el botón azul <strong>"Siguiente"</strong>.
+                  </div>
                 </div>
-                <div>
-                  <strong className="text-slate-800 block">Oficial Meta</strong>
-                  <span>Graph API v21.0</span>
+
+                {/* APARTADO 4: REQUISITOS */}
+                <div className="bg-slate-800/80 border border-slate-700/70 rounded-2xl p-4 sm:p-5 space-y-3 flex flex-col justify-between">
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between pb-2 border-b border-slate-700/50">
+                      <span className="text-xs font-extrabold text-blue-400 uppercase tracking-wider">
+                        4. Requisitos de publicación
+                      </span>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-900/60 text-emerald-300 border border-emerald-700/50 font-bold">
+                        Sin Trámites
+                      </span>
+                    </div>
+
+                    <div className="space-y-1.5 text-xs text-slate-300">
+                      <strong className="text-white block">Pantalla de Requisitos de Meta:</strong>
+                      <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-700/80 space-y-1 text-[11px]">
+                        <span className="text-slate-400 italic block">
+                          "Estos son los pasos que debes completar para obtener y conservar el acceso a los datos del negocio y de los usuarios."
+                        </span>
+                        <div className="flex items-center gap-1.5 text-emerald-400 font-bold pt-1">
+                          <Check className="w-3.5 h-3.5" />
+                          <span>No se identificaron requisitos.</span>
+                        </div>
+                      </div>
+
+                      <p className="text-[11px] text-slate-300 leading-relaxed pt-1">
+                        Al haber seleccionado <strong>únicamente la API de marketing</strong> para uso comercial propio, no necesitas subir videos de screencast, contratos ni pasar por App Review en esta fase.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-700/50 text-[11px] text-slate-400 flex items-center gap-1.5">
+                    <span className="font-bold text-white">Acción:</span> Pulsa directamente en <strong>"Siguiente"</strong>.
+                  </div>
                 </div>
-                <div>
-                  <strong className="text-slate-800 block">Reversible</strong>
-                  <span>Desconexión en 1 clic</span>
+
+                {/* APARTADO 5: RESUMEN */}
+                <div className="bg-slate-800/80 border border-slate-700/70 rounded-2xl p-4 sm:p-5 space-y-3 flex flex-col justify-between md:col-span-2 lg:col-span-2">
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between pb-2 border-b border-slate-700/50">
+                      <span className="text-xs font-extrabold text-blue-400 uppercase tracking-wider">
+                        5. Resumen y Creación Final
+                      </span>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-900/60 text-blue-200 border border-blue-700/40 font-bold">
+                        Finalización
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs text-slate-300">
+                      <div className="space-y-1 bg-slate-900/70 p-3 rounded-xl border border-slate-700/60">
+                        <strong className="text-white block">Revisa que los datos coincidan:</strong>
+                        <ul className="text-[11px] text-slate-400 space-y-1 list-disc pl-4 mt-1">
+                          <li><strong>Nombre de app:</strong> <code>Tico Performance Ads</code></li>
+                          <li><strong>Caso de uso:</strong> API de marketing</li>
+                          <li><strong>Portfolio comercial:</strong> Tu empresa seleccionada</li>
+                        </ul>
+                      </div>
+
+                      <div className="space-y-1 bg-slate-900/70 p-3 rounded-xl border border-slate-700/60">
+                        <strong className="text-white block">Confirmación de Seguridad:</strong>
+                        <p className="text-[11px] text-slate-400 leading-relaxed">
+                          Al presionar <strong>"Crear app"</strong>, Facebook te pedirá introducir tu contraseña personal para validar que eres el propietario de la cuenta.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-700/50 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                    <span className="text-slate-300 font-semibold">
+                      ¡Listo! Haz clic en el botón azul <strong className="text-white">"Crear app"</strong> en Meta Developers.
+                    </span>
+                    <a
+                      href="https://developers.facebook.com/apps/create/"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-lg text-xs transition-colors shrink-0"
+                    >
+                      <span>Abrir Asistente Crear App</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* COLUMNA DERECHA: GUÍA VISUAL PASO A PASO */}
-            <div className="lg:col-span-5 bg-slate-900 text-white rounded-3xl p-6 sm:p-7 space-y-6 shadow-xl border border-slate-800">
-              <div className="flex items-center justify-between pb-4 border-b border-slate-800">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-xs">
-                    <BookOpen className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-bold text-white">Guía Oficial de Conexión</h3>
-                    <span className="text-[11px] text-slate-400">Obtén tu Token en 3 pasos rápidos</span>
-                  </div>
+            {/* ===================================================================== */}
+            {/* FASE B: VINCULACIÓN DE ACTIVOS Y TOKEN PERMANENTE EN BUSINESS MANAGER  */}
+            {/* ===================================================================== */}
+            <div className="space-y-4 pt-4 border-t border-slate-800">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-[11px] font-mono text-emerald-400 font-bold uppercase tracking-wider">
+                    Fase 2 de 2
+                  </span>
+                  <h4 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+                    <Key className="w-4 h-4 text-emerald-400" />
+                    <span>Generación del Token Permanente en Meta Business Manager</span>
+                  </h4>
                 </div>
-                <span className="text-[10px] font-bold bg-blue-900/60 text-blue-300 border border-blue-700/50 px-2 py-0.5 rounded">
-                  Meta Business Suite
+                <span className="text-xs text-slate-400 hidden sm:inline">
+                  3 Pasos Rápidos
                 </span>
               </div>
 
-              {/* ¿Por qué se pide? */}
-              <div className="text-[11px] text-slate-300 leading-relaxed bg-slate-800/60 p-3 rounded-2xl border border-slate-700/40">
-                <strong className="text-white block mb-1">¿Por qué se requiere este Token?</strong>
-                Meta exige que las aplicaciones de automatización de anuncios utilicen un <strong>Token de Usuario del Sistema (System User Token)</strong> para conectarse de forma segura sin comprometer tu contraseña personal de Facebook.
-              </div>
-
-              {/* Los 3 Pasos */}
-              <div className="space-y-3.5">
-                {/* Paso 1 */}
-                <div className="bg-slate-800/80 p-3.5 rounded-2xl border border-slate-700/60 space-y-2">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Paso A */}
+                <div className="bg-slate-800/80 border border-slate-700/70 rounded-2xl p-4 sm:p-5 space-y-2.5">
                   <div className="flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[11px] font-bold flex items-center justify-center shrink-0">
-                      1
+                    <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center shrink-0">
+                      A
                     </span>
                     <span className="text-xs font-bold text-white">
-                      Abre la Configuración del Negocio en Meta
+                      Abrir Usuarios del Sistema
                     </span>
                   </div>
-                  <p className="text-[11px] text-slate-300 pl-7">
-                    Accede a tu Business Manager oficial de Facebook en la sección de Usuarios del Sistema:
+                  <p className="text-[11px] text-slate-300 leading-relaxed">
+                    Entra a la Configuración de tu Negocio en <strong>Usuarios &gt; Usuarios del sistema</strong>. Si no tienes uno, pulsa <em>Agregar</em>, nómbralo <code>Tico Performance</code> y asigna rol <strong>Administrador</strong>.
                   </p>
-                  <div className="pl-7">
+                  <div className="pt-1">
                     <a
                       href="https://business.facebook.com/settings/system-users"
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-bold rounded-xl transition-colors shadow-xs cursor-pointer"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-700 border border-slate-700 text-white text-[11px] font-bold rounded-xl transition-colors"
                     >
-                      <span>Ir a Usuarios del Sistema en Meta</span>
+                      <span>Ir a Usuarios del Sistema</span>
                       <ExternalLink className="w-3 h-3" />
                     </a>
                   </div>
                 </div>
 
-                {/* Paso 2 */}
-                <div className="bg-slate-800/80 p-3.5 rounded-2xl border border-slate-700/60 space-y-1.5">
+                {/* Paso B */}
+                <div className="bg-slate-800/80 border border-slate-700/70 rounded-2xl p-4 sm:p-5 space-y-2.5">
                   <div className="flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[11px] font-bold flex items-center justify-center shrink-0">
-                      2
+                    <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center shrink-0">
+                      B
                     </span>
                     <span className="text-xs font-bold text-white">
-                      Crea o selecciona un Usuario del Sistema
+                      Asignar Activos al Usuario
                     </span>
                   </div>
-                  <p className="text-[11px] text-slate-300 pl-7 leading-relaxed">
-                    En el menú lateral izquierdo: <strong>Usuarios &gt; Usuarios del sistema</strong>. Si no tienes uno, haz clic en <em>Agregar</em>, asígnale el nombre <code>Tico Performance</code> y rol <strong>Administrador</strong>.
+                  <p className="text-[11px] text-slate-300 leading-relaxed">
+                    Con el usuario <code>Tico Performance</code> seleccionado, haz clic en el botón <strong>"Agregar activos"</strong>:
                   </p>
+                  <ul className="text-[11px] text-slate-400 space-y-1 list-disc pl-4">
+                    <li>En <strong>Apps</strong>: Elige tu App recién creada y activa <strong>Control total</strong>.</li>
+                    <li>En <strong>Cuentas publicitarias</strong>: Elige tu cuenta y activa <strong>Control total (Administrar campañas)</strong>.</li>
+                  </ul>
                 </div>
 
-                {/* Sub-Guía Esencial: ¿Meta te pide crear o seleccionar una App? */}
-                <div className="bg-gradient-to-r from-blue-950 to-indigo-950 border border-blue-500/40 rounded-2xl p-3.5 space-y-2.5">
-                  <button
-                    type="button"
-                    onClick={() => setShowAppGuide(!showAppGuide)}
-                    className="w-full flex items-center justify-between text-left cursor-pointer group"
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="w-5 h-5 rounded-full bg-blue-500 text-white font-bold flex items-center justify-center text-[10px] shrink-0">
-                        !
-                      </span>
-                      <span className="font-bold text-blue-200 group-hover:text-white transition-colors text-xs">
-                        ¿Meta te pide crear una App para continuar?
-                      </span>
-                    </div>
-                    <span className="text-[11px] font-semibold text-blue-300 flex items-center gap-1 shrink-0 ml-2">
-                      {showAppGuide ? 'Ocultar' : 'Ver cómo crearla (1 min)'}
-                      <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showAppGuide ? 'rotate-180' : ''}`} />
-                    </span>
-                  </button>
-
-                  {showAppGuide && (
-                    <div className="pt-2 border-t border-blue-900/60 space-y-2.5 text-[11px] text-slate-300 animate-in fade-in duration-150">
-                      <p className="leading-relaxed text-blue-100">
-                        Meta exige asociar una <strong>App empresarial</strong> a tu negocio para poder generar el token de un usuario del sistema. Si no tienes una creada, síguelo en 4 pasos rápidos:
-                      </p>
-
-                      <div className="space-y-2">
-                        <div className="flex items-start gap-2 bg-slate-900/90 p-2.5 rounded-xl border border-slate-700/60">
-                          <span className="w-4 h-4 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">a</span>
-                          <div className="space-y-1">
-                            <span className="text-white font-semibold block">Entra a Meta Developers y pulsa "Crear app":</span>
-                            <a
-                              href="https://developers.facebook.com/apps/create/"
-                              target="_blank"
-                              rel="noreferrer"
-                              className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-600/80 hover:bg-blue-600 text-white text-[10px] font-bold rounded-lg transition-colors mt-0.5"
-                            >
-                              <span>Abrir developers.facebook.com/apps/create</span>
-                              <ExternalLink className="w-3 h-3" />
-                            </a>
-                          </div>
-                        </div>
-
-                        <div className="flex items-start gap-2 bg-slate-900/90 p-2.5 rounded-xl border border-slate-700/60">
-                          <span className="w-4 h-4 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">b</span>
-                          <div>
-                            <span className="text-white font-semibold">Tipo de App:</span> Selecciona el caso de uso <strong>"Otro"</strong> y luego tipo <strong>"Empresa" (Business)</strong>.
-                          </div>
-                        </div>
-
-                        <div className="flex items-start gap-2 bg-slate-900/90 p-2.5 rounded-xl border border-slate-700/60">
-                          <span className="w-4 h-4 rounded-full bg-blue-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">c</span>
-                          <div>
-                            <span className="text-white font-semibold">Nombre y Empresa:</span> Escribe un nombre (ej. <code>Tico Ads</code>) y en el selector <strong>"Cuenta de Business Manager"</strong> elige tu empresa actual. Pulsa <em>Crear app</em>.
-                          </div>
-                        </div>
-
-                        <div className="flex items-start gap-2 bg-slate-900/90 p-2.5 rounded-xl border border-slate-700/60">
-                          <span className="w-4 h-4 rounded-full bg-emerald-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0 mt-0.5">✓</span>
-                          <div>
-                            <span className="text-emerald-400 font-semibold">¡Listo!</span> Regresa a la pestaña de <strong>Usuarios del sistema</strong> y al pulsar <em>Generar token</em> ya podrás elegir esta nueva app.
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Paso 3 */}
-                <div className="bg-slate-800/80 p-3.5 rounded-2xl border border-slate-700/60 space-y-2">
+                {/* Paso C */}
+                <div className="bg-slate-800/80 border border-emerald-500/40 rounded-2xl p-4 sm:p-5 space-y-2.5 shadow-md">
                   <div className="flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-full bg-blue-600 text-white text-[11px] font-bold flex items-center justify-center shrink-0">
-                      3
+                    <span className="w-6 h-6 rounded-full bg-emerald-600 text-white text-xs font-bold flex items-center justify-center shrink-0">
+                      C
                     </span>
                     <span className="text-xs font-bold text-white">
-                      Genera el Token con estos 3 Permisos
+                      Generar Token (3 Permisos)
                     </span>
                   </div>
-                  <p className="text-[11px] text-slate-300 pl-7 leading-relaxed">
-                    Haz clic en <strong>Generar nuevo token</strong>, selecciona tu aplicación (la que creaste en el paso anterior) y marca estas 3 casillas obligatorias (haz clic para copiarlas):
+                  <p className="text-[11px] text-slate-300 leading-relaxed">
+                    Pulsa <strong>"Generar nuevo token"</strong>, elige tu App, caducidad <strong>"Permanente" (Never expire)</strong> y marca estas 3 casillas obligatorias (haz clic para copiarlas):
                   </p>
 
-                  <div className="pl-7 flex flex-wrap gap-1.5 pt-1">
+                  <div className="flex flex-wrap gap-1.5 pt-1">
                     {[
-                      { id: 'ads_management', label: 'ads_management (Campañas)' },
-                      { id: 'ads_read', label: 'ads_read (Lectura)' },
-                      { id: 'business_management', label: 'business_management (BM)' }
+                      { id: 'ads_management', label: 'ads_management' },
+                      { id: 'ads_read', label: 'ads_read' },
+                      { id: 'business_management', label: 'business_management' }
                     ].map((p) => (
                       <button
                         key={p.id}
                         type="button"
                         onClick={() => handleCopyPermission(p.id)}
-                        className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700 hover:border-slate-500 text-[11px] font-mono text-blue-300 hover:text-white flex items-center gap-1.5 transition-colors cursor-pointer"
+                        className="px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-700 hover:border-slate-500 text-[10px] font-mono text-blue-300 hover:text-white flex items-center gap-1.5 transition-colors cursor-pointer"
                         title="Haz clic para copiar"
                       >
                         <span>{p.label}</span>
@@ -704,25 +935,28 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
                     ))}
                   </div>
 
-                  <div className="pl-7 pt-1 text-[11px] text-amber-300">
-                    💡 <strong>Importante:</strong> Elige caducidad <strong>"Permanente" (Never expire)</strong> para que la conexión nunca se cierre.
+                  <div className="text-[10px] text-emerald-300 bg-emerald-950/40 p-2 rounded-lg border border-emerald-800/50 mt-1">
+                    ✓ Copia el token que empieza por <code>EAABw...</code> y pégalo en el formulario de arriba.
                   </div>
                 </div>
               </div>
+            </div>
 
-              {/* Acceso Rápido Alternativo Explorer */}
-              <div className="pt-3 border-t border-slate-800 flex items-center justify-between text-[11px] text-slate-400">
-                <span>¿Quieres probar sólo por 1 hora?</span>
-                <a
-                  href="https://developers.facebook.com/tools/explorer/"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-blue-400 hover:text-blue-300 hover:underline inline-flex items-center gap-1"
-                >
-                  <span>Graph API Explorer</span>
-                  <ExternalLink className="w-3 h-3" />
-                </a>
+            {/* Footer de la Guía: Acceso Explorer */}
+            <div className="pt-4 border-t border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-slate-400">
+              <div className="flex items-center gap-2">
+                <Info className="w-4 h-4 text-blue-400 shrink-0" />
+                <span>¿Deseas probar de inmediato con un token temporal de 1 hora sin crear una app?</span>
               </div>
+              <a
+                href="https://developers.facebook.com/tools/explorer/"
+                target="_blank"
+                rel="noreferrer"
+                className="text-blue-400 hover:text-blue-300 hover:underline inline-flex items-center gap-1 text-xs font-semibold"
+              >
+                <span>Abrir Graph API Explorer</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
             </div>
           </div>
         </div>
