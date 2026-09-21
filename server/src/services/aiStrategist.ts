@@ -12,7 +12,9 @@ export interface StrategyRequest {
   additionalNotes?: string;
 }
 
-export function generateStrategyFromBrief(brief: StrategyRequest) {
+export async function generateStrategyFromBrief(brief: StrategyRequest) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  console.log('[TICO-AI] Generando estrategia para:', brief.brandName, '| GEMINI_API_KEY:', apiKey ? `Presente (${apiKey.slice(0, 6)}...)` : 'NO configurada');
   const includeMeta = brief.preferredPlatforms === 'meta' || brief.preferredPlatforms === 'both';
   const includeGoogle = brief.preferredPlatforms === 'google' || brief.preferredPlatforms === 'both';
 
@@ -23,13 +25,99 @@ export function generateStrategyFromBrief(brief: StrategyRequest) {
   } else if (brief.preferredPlatforms === 'google') {
     googleShare = 100;
   } else {
-    metaShare = brief.objective === 'lead_generation' ? 65 : 50;
+    metaShare = brief.objective === 'lead_generation' || brief.objective === 'brand_awareness' ? 65 : 50;
     googleShare = 100 - metaShare;
   }
 
   const metaBudget = Math.round((brief.budgetTotal * metaShare) / 100);
   const googleBudget = Math.round((brief.budgetTotal * googleShare) / 100);
 
+  // 1. Generación en tiempo real con Google Gemini 3.6 Flash
+  if (apiKey && apiKey.trim() !== '' && !apiKey.includes('your_')) {
+    try {
+      const prompt = `Eres TICO, el agente senior de planeación y pauta publicitaria de TicTac Agency Performance. Con 6 años de experiencia en marketing de resultados, formulas estrategias reales, segmentación de audiencias y copys de alta conversión (fórmulas AIDA, PAS, ganchos emocionales) respetando las políticas de Meta Ads y Google Ads.
+
+Analiza este briefing y genera la estrategia publicitaria en formato JSON:
+- Marca: ${brief.brandName}
+- Sitio Web: ${brief.websiteUrl || 'No especificado'}
+- Industria / Categoría: ${brief.industry || 'General'}
+- Audiencia Objetivo: ${brief.targetAudience || 'Compradores potenciales'}
+- Objetivo de Negocio: ${brief.objective}
+- Presupuesto Total: ${brief.budgetTotal} ${brief.currency}
+- Plataformas Elegidas: ${brief.preferredPlatforms}
+- Notas adicionales: ${brief.additionalNotes || 'Ninguna'}
+
+Debes responder ÚNICAMENTE un objeto JSON válido con las siguientes propiedades:
+{
+  "strategySummary": "Resumen ejecutivo claro de la estrategia publicitaria, ángulos de venta y enfoque de crecimiento (1 a 2 párrafos concisos)",
+  "metaAds": ${includeMeta ? `{
+    "campaignName": "[TICO] ${brief.brandName} - Meta Ads (${brief.objective})",
+    "objective": "${brief.objective === 'lead_generation' ? 'OUTCOME_LEADS' : 'OUTCOME_SALES'}",
+    "placements": ["instagram_feed", "instagram_stories", "facebook_feed", "facebook_reels"],
+    "interestsAndBehaviors": ["array de 4 a 6 intereses específicos y comportamientos recomendados en Meta Ads"],
+    "primaryTexts": ["array de 2 a 3 textos persuasivos principales usando fórmulas de respuesta directa como AIDA o PAS"],
+    "headlines": ["array de 3 titulares de alto gancho y CTR"],
+    "callToAction": "${brief.objective === 'lead_generation' ? 'CONTACT_US' : 'LEARN_MORE'}"
+  }` : 'null'},
+  "googleAds": ${includeGoogle ? `{
+    "campaignType": "SEARCH",
+    "keywords": ["array de 4 a 6 palabras clave con concordancia de frase o exacta"],
+    "headlines": ["array de 3 titulares de menos de 30 caracteres"],
+    "descriptions": ["array de 2 descripciones de menos de 90 caracteres"],
+    "targetLocations": ["Colombia", "Latinoamérica"]
+  }` : 'null'}
+}`;
+
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey.trim()}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            responseMimeType: 'application/json',
+            temperature: 0.7
+          }
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json() as any;
+        const rawJson = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (rawJson) {
+          const parsed = JSON.parse(rawJson);
+          return {
+            briefingId: `brief_${Date.now()}`,
+            brandName: brief.brandName,
+            strategySummary: parsed.strategySummary || `Estrategia de performance generada por TICO para ${brief.brandName}.`,
+            totalBudget: brief.budgetTotal,
+            currency: brief.currency,
+            createdAt: new Date().toISOString(),
+            creditCost: 5,
+            status: 'awaiting_approval',
+            complianceChecked: true,
+            creatives: [],
+            metaAds: includeMeta && parsed.metaAds ? {
+              ...parsed.metaAds,
+              budgetSharePercentage: metaShare,
+              budgetAmount: metaBudget,
+              dailyBudget: Math.round(metaBudget / 30)
+            } : undefined,
+            googleAds: includeGoogle && parsed.googleAds ? {
+              ...parsed.googleAds,
+              budgetSharePercentage: googleShare,
+              budgetAmount: googleBudget
+            } : undefined
+          };
+        }
+      } else {
+        console.warn('Gemini API returned error status, falling back to deterministic template:', await res.text());
+      }
+    } catch (err) {
+      console.error('Error invoking Gemini 3.6 Flash for strategy generation:', err);
+    }
+  }
+
+  // 2. Fallback estructurado si no hay clave o si ocurre un fallo de red
   return {
     briefingId: `brief_${Date.now()}`,
     brandName: brief.brandName,

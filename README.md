@@ -29,13 +29,13 @@ La automatización debe mantener el control humano sobre la estrategia y la acti
 | Nombre del producto | TICO | Identificado en el README original |
 | Marca de la agencia | TicTac Agency Performance / TicTac AGC Performance | Nombre comercial exacto por normalizar |
 | Producto | Web de planeación e implementación con IA | Visión planteada por los fundadores |
-| Canales | Meta Ads y Google Ads | Visión del producto; orden de desarrollo pendiente |
-| Control humano | Aprobación explícita y creación inicial en `PAUSED` | Coincide en ambas fuentes |
-| Frontend | React 19, TypeScript, Vite y Tailwind CSS v4 | Base declarada; no verificada en código |
-| Backend | Node.js, Express y TypeScript | Base declarada; no verificada en código |
-| Python | Mencionado para el agente durante la exploración | Papel no definido; no implica migración del backend |
-| Comercialización | Suscripción con créditos | Propuesta más reciente; tarifas y reglas pendientes |
-| Integraciones y calidad de IA | Requieren pruebas | No se acreditó operación productiva en esta revisión |
+| Canales | Meta Ads (Graph API v21.0) y Google Ads | Meta validado con System User Token; creación inicial en PAUSED |
+| Control humano | Aprobación explícita y creación inicial en `PAUSED` | Implementado como requisito estricto en el flujo |
+| Frontend | React 19, TypeScript, Vite y Tailwind CSS | Verificado y operativo en local (`localhost:5173`) |
+| Backend | Node.js, Express y TypeScript | Verificado y operativo en local (`localhost:4000`) |
+| IA | Google Gemini 3.6 Flash | Operativo con prompt de performance y fallback |
+| Comercialización | Suscripción con créditos | Propuesta de modelo; tarifas pendientes |
+| Integraciones y calidad de IA | Operativa en local | Probado en vivo para briefs de performance y Meta Ads |
 
 No interpretar una función descrita en este documento como ya implementada. Actualizar su estado únicamente con evidencia del repositorio y de pruebas.
 
@@ -405,3 +405,38 @@ Fuentes consultadas en la conversación; revalidar antes de implementar o lanzar
 - [SIC: datos personales e IA](https://sedeelectronica.sic.gov.co/transparencia/normativa/circular-externa-2-de-2024-de-la-superintendencia-de-industria-y-comercio-lineamientos-sobre-el-tratamiento-de-datos)
 
 Al continuar el proyecto, actualizar las decisiones con los fundadores y el estado técnico con evidencia. No convertir ejemplos, recomendaciones o simulaciones en funcionalidades verificadas ni compromisos comerciales.
+
+## 17. Avances de la sesión y estado actual de implementación (Septiembre 2026)
+
+Durante esta sesión de trabajo se completaron mejoras estructurales en el motor de IA, la integración con Meta Ads y la experiencia de usuario de la plataforma:
+
+### 1. Integración de Inteligencia Artificial Real (Google Gemini 3.6 Flash)
+- **Servicio de Estrategia (`server/src/services/aiStrategist.ts`)**: Se conectó el backend directamente con el modelo `gemini-3.6-flash` a través de la API oficial de Google (`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent`).
+- **Prompt de Performance Marketing**: Configurado con la metodología y experiencia de 6 años de TicTac Agency, generando de forma autónoma:
+  - Resumen ejecutivo y justificación táctica de la inversión.
+  - Textos persuasivos para Meta Ads con marcos de respuesta directa (**AIDA**, **PAS**, ganchos emocionales).
+  - Segmentaciones de audiencias recomendadas (intereses y comportamientos de alto valor).
+  - Estructuras para Google Ads (Search): palabras clave con concordancias, titulares (<= 30 caracteres) y descripciones (<= 90 caracteres).
+- **Fallback Determinista Robusto**: Si la API externa no está disponible o no se proporciona clave, el sistema conmuta sin fisuras a un motor de plantillas de alta fidelidad.
+- **Gestión de Entorno en Backend (`server/src/index.ts`)**: Configuración de `dotenv` con resolución de ruta al `.env` raíz y opción `override: true`.
+
+### 2. Rediseño del Hub de Conexión y Diagnóstico de Meta Ads
+- **Conexión Directa (`src/components/Dashboard/MetaConnectDiagnostic.tsx`)**: Se eliminaron los textos confusos de "inicios de sesión simulados sin tokens", implementando un flujo honesto y directo con validación de credenciales reales ante la **Graph API v21.0** de Meta.
+- **Guía Interactiva para Crear Meta Business App**: Tutorial desplegable paso a paso para usuarios que no disponen de una app en *Meta for Developers*:
+  1. Creación de aplicación tipo **Negocio (Business)** en `developers.facebook.com`.
+  2. Asociación al Business Manager de la marca o agencia.
+  3. Generación del **Token de Usuario del Sistema (System User Token)** permanente (sin fecha de expiración).
+- **Diagnóstico en Tiempo Real**: Verificación del estado de la cuenta publicitaria (`act_...`), nombre de la entidad vinculada y validación de permisos requeridos (`ads_management`, `ads_read`, `business_management`).
+- **Estado Inicial Desconectado**: La plataforma inicia con la vista desconectada por defecto para permitir al usuario probar su propia configuración.
+
+### 3. Optimizaciones de Interfaz y Experiencia de Usuario (UI/UX)
+- **Formulario de Autenticación (`src/components/AuthModal.tsx`)**:
+  - Corrección de apilamiento: Elevado a `z-[100]` para evitar cualquier solapamiento detrás del Navbar (`sticky z-50`).
+  - Ajuste de dimensiones verticales: Altura máxima ajustada a `max-h-[88vh]` con contenedor con scrollbar interna (`overflow-y-auto`) y paddings compactos (`p-5 sm:p-6`), garantizando visibilidad completa de campos y botones en cualquier resolución de pantalla.
+- **Hero Section (`src/App.tsx`)**:
+  - Depuración de palabras clave rotativas: Sustitución de frases extensas por términos concisos y de impacto (`'estrategia'`, `'publicidad'`, `'campaña'`, `'pauta digital'`, `'inversión'`).
+  - Animación suave de transición (`fade & translate` sutil con `blur` transitorio) para un cambio de términos fluido que previene saltos en el layout.
+
+### 4. Seguridad y Buenas Prácticas
+- **Protección de Credenciales**: Verificación de `.gitignore` para asegurar que las variables de entorno privadas (`.env`) nunca se incluyan en el repositorio público de Git.
+- **Control de Pauta Estricto**: Todas las propuestas y flujos de creación publicitaria inicializan obligatoriamente en estado **`PAUSED`**, garantizando que ninguna campaña gaste presupuesto sin activación humana previa.

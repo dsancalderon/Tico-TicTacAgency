@@ -1,10 +1,13 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { campaignsRouter } from './routes/campaigns.js';
 import { metaRouter } from './routes/meta.js';
 
-dotenv.config();
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.resolve(__dirname, '../../.env'), override: true });
 
 const app = express();
 const PORT = process.env.PORT || 4000;

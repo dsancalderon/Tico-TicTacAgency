@@ -13,7 +13,7 @@ campaignsRouter.post('/generate-strategy', async (req: Request, res: Response) =
       return res.status(400).json({ error: 'El nombre de marca y presupuesto son requeridos' });
     }
 
-    const strategy = generateStrategyFromBrief(brief);
+    const strategy = await generateStrategyFromBrief(brief);
     return res.json({
       success: true,
       strategy
