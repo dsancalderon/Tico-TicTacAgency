@@ -110,6 +110,39 @@
   scrollbar-width: none !important; /* Firefox */
 }
 
+/* Force zero scrollbar for sidebar in all states */
+aside,
+aside *,
+.sidebar-container,
+.sidebar-container * {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+aside::-webkit-scrollbar,
+aside *::-webkit-scrollbar,
+.sidebar-container::-webkit-scrollbar,
+.sidebar-container *::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  max-width: 0 !important;
+  background: transparent !important;
+}
+aside::-webkit-scrollbar-track,
+aside *::-webkit-scrollbar-track,
+.sidebar-container::-webkit-scrollbar-track,
+.sidebar-container *::-webkit-scrollbar-track {
+  display: none !important;
+  background: transparent !important;
+}
+aside::-webkit-scrollbar-thumb,
+aside *::-webkit-scrollbar-thumb,
+.sidebar-container::-webkit-scrollbar-thumb,
+.sidebar-container *::-webkit-scrollbar-thumb {
+  display: none !important;
+  background: transparent !important;
+}
+
 @keyframes pulse-subtle {
   0%, 100% { opacity: 0.9; transform: scale(1); }
   50% { opacity: 1; transform: scale(1.02); }

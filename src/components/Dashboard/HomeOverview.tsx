@@ -116,12 +116,8 @@ export const HomeOverview: React.FC<HomeOverviewProps> = ({
 
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md border border-white/15 text-[11px] font-semibold text-blue-200">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span>Plataforma Activa • {userSession.workspaceName}</span>
-            </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight font-['Outfit']">
-              Hola, {userSession.name} 👋
+              Hola, {userSession.name}
             </h1>
             <p className="text-slate-300 text-xs sm:text-sm max-w-xl leading-relaxed">
               Bienvenido a tu centro de comando publicitario. Aquí tienes el resumen de estado de tu cuenta, los pasos pendientes de configuración y tu saldo de créditos.

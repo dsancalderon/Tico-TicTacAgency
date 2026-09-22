@@ -214,12 +214,14 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         <aside 
           onMouseEnter={() => setIsSidebarHovered(true)}
           onMouseLeave={() => setIsSidebarHovered(false)}
-          className={`hidden md:flex flex-col bg-white border-r border-slate-200/90 fixed left-0 top-20 bottom-0 z-30 transition-all duration-300 ease-in-out select-none overflow-hidden ${
+          className={`sidebar-container hidden md:flex flex-col bg-white border-r border-slate-200/90 fixed left-0 top-20 bottom-0 z-30 transition-all duration-300 ease-in-out select-none overflow-hidden ${
             isSidebarHovered ? 'w-64 lg:w-72 shadow-2xl' : 'w-20 shadow-xs'
           }`}
         >
           {/* Navigation Items (5 Secciones con iconos Squircle de Tico aumentados, sin barra gris de scroll) */}
-          <div className="flex-1 px-3 py-6 overflow-y-auto no-scrollbar [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden space-y-2.5">
+          <div className={`flex-1 px-3 py-4 space-y-2 select-none no-scrollbar ${
+            isSidebarHovered ? 'overflow-y-auto' : 'overflow-hidden'
+          }`}>
             {isSidebarHovered && (
               <div className="px-3 pb-2 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest animate-in fade-in duration-200">
                 Secciones
