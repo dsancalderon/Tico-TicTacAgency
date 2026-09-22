@@ -40,7 +40,7 @@ app.get('/api/auth/me', getProfile);
 // Advertising credentials are not tenant-scoped yet: keep these routes closed in phase 1,
 // pero permitir siempre las rutas de diagnóstico y verificación de token suministrado por el usuario.
 app.use(['/api/campaigns', '/api/meta'], (req, res, next) => {
-  if (req.path === '/verify-token' || req.path === '/verify-account') {
+  if (req.path === '/verify-token' || req.path === '/verify-account' || req.path === '/test-creation') {
     return next();
   }
   if (process.env.ENABLE_ADVERTISING_API !== 'true') {

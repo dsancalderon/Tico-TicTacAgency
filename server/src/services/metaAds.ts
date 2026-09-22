@@ -278,6 +278,310 @@ export async function verifyMetaAdAccount(token: string, rawAccountId: string) {
  * Si cuenta con credenciales reales, crea la entidad real en estado PAUSED.
  * Si está en desarrollo sin token, emite un resultado sandbox transparente.
  */
+/**
+ * Ejecuta una prueba predeterminada en Meta Ads (Campaña, AdSet y opcionalmente Anuncio con Creativo)
+ * en estado PAUSED para validar la conectividad sin invocar la API del Agente IA (0 costo de tokens).
+ */
+export async function deployMetaTestCampaign(params: {
+  token?: string;
+  adAccountId: string;
+  pageId?: string;
+  brandName?: string;
+}) {
+  const token = params.token || process.env.META_ACCESS_TOKEN;
+  const rawAccountId = params.adAccountId || process.env.META_AD_ACCOUNT_ID;
+  const brandName = params.brandName || 'TicTac Performance';
+
+  // Parámetros publicitarios predeterminados (Activos fijos, 0 llamadas a IA)
+  const defaultHeadline = 'TICO Performance | Automatización & Pauta Digital';
+  const defaultPrimaryText = '🚀 Impulsa el crecimiento de tu marca con estrategias de alto rendimiento. Campaña de prueba generada automáticamente por TICO Performance para verificar la integración oficial con Meta Marketing API.';
+  const defaultDescription = 'Verificación oficial de conexión publicitaria en modo PAUSED.';
+  const defaultCta = 'LEARN_MORE';
+  const defaultImageUrl = 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=1200&auto=format&fit=crop&q=80';
+  const defaultLink = 'https://tictacagency.co';
+
+  // Si no hay credenciales reales, simulación sandbox transparente
+  if (!token || !rawAccountId || token.includes('your_') || rawAccountId.includes('your_') || token.startsWith('EAAB_Demo')) {
+    const mockCmpId = `meta_cmp_${Date.now()}_sandbox`;
+    return {
+      success: true,
+      mode: 'mock_sandbox',
+      status: 'PAUSED',
+      campaignId: mockCmpId,
+      adsetId: `meta_adset_${Date.now()}_sandbox`,
+      adId: `meta_ad_${Date.now()}_sandbox`,
+      creativeId: `meta_cr_${Date.now()}_sandbox`,
+      adsManagerUrl: `https://adsmanager.facebook.com/adsmanager/manage/campaigns?act=${rawAccountId?.replace('act_', '') || 'sandbox'}`,
+      message: 'Prueba predeterminada completada en Modo Sandbox (Campaña, Conjunto y Anuncio simulados en PAUSED sin costo de IA).',
+      steps: {
+        campaign: { success: true, id: mockCmpId },
+        adSet: { success: true, id: `meta_adset_${Date.now()}_sandbox` },
+        creative: { success: true, id: `meta_cr_${Date.now()}_sandbox` },
+        ad: { success: true, id: `meta_ad_${Date.now()}_sandbox` }
+      },
+      details: {
+        brandName,
+        objective: 'OUTCOME_TRAFFIC',
+        headline: defaultHeadline,
+        primaryText: defaultPrimaryText,
+        callToAction: defaultCta,
+        imageUrl: defaultImageUrl,
+        targeting: { countries: ['CO'], ageRange: '18 - 65' },
+        budget: '$5.00 USD / Diario (PAUSED)'
+      }
+    };
+  }
+
+  const accountId = rawAccountId.startsWith('act_') ? rawAccountId : `act_${rawAccountId}`;
+  const numericAccountId = accountId.replace('act_', '');
+  const cleanToken = token.trim();
+
+  // 1. Consultar metadatos de la cuenta para detectar divisa, presupuesto mínimo y posibles páginas
+  let accountCurrency = 'USD';
+  let minDailyBudget = 200; // 2.00 USD en centavos por defecto
+  let detectedPageId = params.pageId;
+
+  try {
+    const accRes = await fetch(
+      `${GRAPH_BASE_URL}/${accountId}?fields=currency,min_daily_budget,promote_pages{id,name}&access_token=${encodeURIComponent(cleanToken)}`
+    );
+    const accData = await accRes.json() as any;
+    if (accData && !accData.error) {
+      accountCurrency = accData.currency || 'USD';
+      if (accData.min_daily_budget) {
+        minDailyBudget = Number(accData.min_daily_budget);
+      } else if (accountCurrency === 'COP') {
+        minDailyBudget = 1000000; // 10.000 COP
+      } else {
+        minDailyBudget = 500; // 5.00 USD
+      }
+
+      if (!detectedPageId && accData.promote_pages?.data?.[0]?.id) {
+        detectedPageId = accData.promote_pages.data[0].id;
+      }
+    }
+  } catch {
+    // Continuar con valores por defecto si falla la consulta preliminar
+  }
+
+  // Si aún no hay página, intentar consultar /me/accounts
+  if (!detectedPageId) {
+    try {
+      const pageRes = await fetch(`${GRAPH_BASE_URL}/me/accounts?fields=id,name&access_token=${encodeURIComponent(cleanToken)}`);
+      const pageData = await pageRes.json() as any;
+      if (pageData?.data?.[0]?.id) {
+        detectedPageId = pageData.data[0].id;
+      }
+    } catch {
+      // Continuar
+    }
+  }
+
+  const steps: {
+    campaign: { success: boolean; id?: string; error?: string };
+    adSet: { success: boolean; id?: string; error?: string };
+    creative: { success: boolean; id?: string; error?: string };
+    ad: { success: boolean; id?: string; error?: string };
+  } = {
+    campaign: { success: false },
+    adSet: { success: false },
+    creative: { success: false },
+    ad: { success: false }
+  };
+
+  const countries = accountCurrency === 'COP' ? ['CO'] : (accountCurrency === 'MXN' ? ['MX'] : ['CO', 'US']);
+
+  try {
+    // PASO 1: Crear Campaña en PAUSED (Objetivo de Tráfico para máxima compatibilidad)
+    const campaignPayload = {
+      name: `[TICO-TEST] ${brandName} - Verificación de Conexión (PAUSED)`,
+      objective: 'OUTCOME_TRAFFIC',
+      status: 'PAUSED',
+      special_ad_categories: ['NONE'],
+      access_token: cleanToken
+    };
+
+    const cmpRes = await fetch(`${GRAPH_BASE_URL}/${accountId}/campaigns`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(campaignPayload)
+    });
+    const cmpData = await cmpRes.json() as any;
+
+    if (!cmpRes.ok || cmpData.error) {
+      const errMessage = cmpData.error?.message || 'Error al crear la campaña de prueba en Meta Ads';
+      return {
+        success: false,
+        mode: 'live_api',
+        status: 'FAILED',
+        error: errMessage,
+        rawError: cmpData.error,
+        message: `Fallo en Meta Graph API al crear la Campaña: ${errMessage}`,
+        steps
+      };
+    }
+
+    const campaignId = cmpData.id;
+    steps.campaign = { success: true, id: campaignId };
+
+    // PASO 2: Crear Conjunto de Anuncios (AdSet) con segmentación predeterminada en PAUSED
+    let adsetId: string | undefined;
+    try {
+      const adsetPayload = {
+        name: `[TICO-TEST] Conjunto de Prueba - Segmentación Predeterminada`,
+        campaign_id: campaignId,
+        optimization_goal: 'LINK_CLICKS',
+        billing_event: 'IMPRESSIONS',
+        daily_budget: minDailyBudget,
+        bid_strategy: 'LOWEST_COST_WITHOUT_CAP',
+        targeting: {
+          geo_locations: {
+            countries
+          },
+          age_min: 18,
+          age_max: 65
+        },
+        status: 'PAUSED',
+        access_token: cleanToken
+      };
+
+      const adsetRes = await fetch(`${GRAPH_BASE_URL}/${accountId}/adsets`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(adsetPayload)
+      });
+      const adsetData = await adsetRes.json() as any;
+
+      if (adsetRes.ok && adsetData.id) {
+        adsetId = adsetData.id;
+        steps.adSet = { success: true, id: adsetId };
+      } else {
+        steps.adSet = { success: false, error: adsetData.error?.message };
+      }
+    } catch (e: any) {
+      steps.adSet = { success: false, error: e.message };
+    }
+
+    // PASO 3: Si se cuenta con Fanpage (Página de Facebook), crear Creativo con Imagen y Anuncio en PAUSED
+    let creativeId: string | undefined;
+    let adId: string | undefined;
+
+    if (detectedPageId && adsetId) {
+      try {
+        const creativePayload = {
+          name: `[TICO-TEST] Creativo de Muestra - ${brandName}`,
+          object_story_spec: {
+            page_id: detectedPageId,
+            link_data: {
+              message: defaultPrimaryText,
+              link: defaultLink,
+              name: defaultHeadline,
+              description: defaultDescription,
+              picture: defaultImageUrl,
+              call_to_action: {
+                type: defaultCta,
+                value: { link: defaultLink }
+              }
+            }
+          },
+          access_token: cleanToken
+        };
+
+        const crRes = await fetch(`${GRAPH_BASE_URL}/${accountId}/adcreatives`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(creativePayload)
+        });
+        const crData = await crRes.json() as any;
+
+        if (crRes.ok && crData.id) {
+          creativeId = crData.id;
+          steps.creative = { success: true, id: creativeId };
+
+          // Crear el anuncio
+          const adPayload = {
+            name: `[TICO-TEST] Anuncio de Muestra (PAUSED)`,
+            adset_id: adsetId,
+            creative: { creative_id: creativeId },
+            status: 'PAUSED',
+            access_token: cleanToken
+          };
+
+          const adRes = await fetch(`${GRAPH_BASE_URL}/${accountId}/ads`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(adPayload)
+          });
+          const adData = await adRes.json() as any;
+
+          if (adRes.ok && adData.id) {
+            adId = adData.id;
+            steps.ad = { success: true, id: adId };
+          } else {
+            steps.ad = { success: false, error: adData.error?.message };
+          }
+        } else {
+          steps.creative = { success: false, error: crData.error?.message };
+        }
+      } catch (e: any) {
+        steps.creative = { success: false, error: e.message };
+      }
+    } else if (!detectedPageId) {
+      steps.creative = {
+        success: false,
+        error: 'Sin Fanpage asociada: Para crear anuncios con creativos visuales, vincula una Página de Facebook en Meta Business Suite.'
+      };
+    }
+
+    const adsManagerUrl = `https://adsmanager.facebook.com/adsmanager/manage/campaigns?act=${numericAccountId}`;
+
+    let successMsg = `¡Prueba oficial exitosa en Meta Ads! Campaña creada (ID: ${campaignId}) en estado PAUSED.`;
+    if (adsetId && adId) {
+      successMsg = `¡Estructura publicitaria completa creada en Meta Ads (Campaña, Conjunto y Anuncio con creativo)! Todo en estado PAUSED (0 gasto).`;
+    } else if (adsetId) {
+      successMsg = `¡Campaña y Conjunto de anuncios creados en Meta Ads (PAUSED)! Para adjuntar el anuncio visual final, asigna una Página de Facebook a tu usuario en Meta Business Suite.`;
+    }
+
+    return {
+      success: true,
+      mode: 'live_api',
+      status: 'PAUSED',
+      campaignId,
+      adsetId,
+      creativeId,
+      adId,
+      pageId: detectedPageId,
+      adsManagerUrl,
+      message: successMsg,
+      steps,
+      details: {
+        brandName,
+        objective: 'OUTCOME_TRAFFIC',
+        headline: defaultHeadline,
+        primaryText: defaultPrimaryText,
+        callToAction: defaultCta,
+        imageUrl: defaultImageUrl,
+        targeting: { countries, ageRange: '18 - 65', objective: 'Clics en el enlace' },
+        budget: `${minDailyBudget / 100} ${accountCurrency} / Diario (En PAUSED, sin gasto)`
+      }
+    };
+  } catch (error: any) {
+    return {
+      success: false,
+      mode: 'live_api',
+      status: 'FAILED',
+      error: error.message,
+      message: `Error de conexión con Meta Graph API: ${error.message}`,
+      steps
+    };
+  }
+}
+
+/**
+ * Despliega una campaña a Meta Ads mediante Graph API oficial.
+ * Si cuenta con credenciales reales, crea la entidad real en estado PAUSED.
+ * Si está en desarrollo sin token, emite un resultado sandbox transparente.
+ */
 export async function deployMetaCampaign(
   payload: MetaCampaignPayload, 
   customToken?: string, 
@@ -287,7 +591,7 @@ export async function deployMetaCampaign(
   const rawAccountId = customAccountId || process.env.META_AD_ACCOUNT_ID;
 
   // Si no hay credenciales reales en .env ni enviadas en la petición, modo sandbox explícito
-  if (!token || !rawAccountId || token.includes('your_') || rawAccountId.includes('your_')) {
+  if (!token || !rawAccountId || token.includes('your_') || rawAccountId.includes('your_') || token.startsWith('EAAB_Demo')) {
     return {
       success: true,
       mode: 'mock_sandbox',
@@ -300,7 +604,6 @@ export async function deployMetaCampaign(
   const accountId = rawAccountId.startsWith('act_') ? rawAccountId : `act_${rawAccountId}`;
 
   try {
-    // Llamada REAL a Meta Graph API para crear la campaña en estado PAUSED
     const response = await fetch(`${GRAPH_BASE_URL}/${accountId}/campaigns`, {
       method: 'POST',
       headers: {

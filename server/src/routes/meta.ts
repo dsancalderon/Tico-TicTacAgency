@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { verifyMetaToken, verifyMetaAdAccount, deployMetaCampaign } from '../services/metaAds.js';
+import { verifyMetaToken, verifyMetaAdAccount, deployMetaCampaign, deployMetaTestCampaign } from '../services/metaAds.js';
 
 export const metaRouter = Router();
 
@@ -46,25 +46,27 @@ metaRouter.post('/verify-account', async (req: Request, res: Response) => {
   }
 });
 
-// Endpoint para realizar una prueba real de creación de campaña en PAUSED
+// Endpoint para realizar una prueba real de creación de campaña en PAUSED (sin consumo de IA)
 metaRouter.post('/test-creation', async (req: Request, res: Response) => {
   try {
     const token = req.body.token || process.env.META_ACCESS_TOKEN;
     const adAccountId = req.body.adAccountId || process.env.META_AD_ACCOUNT_ID;
-    const brandName = req.body.brandName || 'TicTac Test Brand';
+    const brandName = req.body.brandName || 'TicTac Performance';
+    const pageId = req.body.pageId;
 
-    const result = await deployMetaCampaign({
-      name: `[TICO-TEST] ${brandName} - Verificación de Conexión (PAUSED)`,
-      objective: 'OUTCOME_LEADS',
-      dailyBudget: 10,
-      currency: 'USD',
-      targeting: { interests: ['Comercio'] },
-      creative: {
-        headline: 'Prueba de Conexión TICO',
-        primaryText: 'Campaña de prueba creada para validar conectividad con Meta Graph API.',
-        callToAction: 'LEARN_MORE'
-      }
-    }, token, adAccountId);
+    if (!token && !process.env.META_ACCESS_TOKEN) {
+      return res.status(400).json({ success: false, error: 'Token de acceso no suministrado.' });
+    }
+    if (!adAccountId && !process.env.META_AD_ACCOUNT_ID) {
+      return res.status(400).json({ success: false, error: 'ID de cuenta publicitaria no suministrado.' });
+    }
+
+    const result = await deployMetaTestCampaign({
+      token,
+      adAccountId,
+      pageId,
+      brandName
+    });
 
     return res.json(result);
   } catch (error: any) {
