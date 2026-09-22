@@ -7,6 +7,7 @@ import {
   Key
 } from 'lucide-react';
 import { TicoIconConnections } from './TicoNavIcons';
+import { MetaBrandLogo, GoogleBrandLogo } from '../BrandLogos';
 
 interface UnifiedConnectionsProps {
   metaState: MetaConnectionState;
@@ -116,7 +117,7 @@ export const UnifiedConnections: React.FC<UnifiedConnectionsProps> = ({
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              <span className="w-2 h-2 rounded-full bg-blue-600" />
+              <MetaBrandLogo className="w-4 h-4 shrink-0" />
               <span>Meta Ads</span>
               {metaState.status === 'ready_to_deploy' && (
                 <span className="w-2 h-2 rounded-full bg-emerald-500" />
@@ -132,7 +133,7 @@ export const UnifiedConnections: React.FC<UnifiedConnectionsProps> = ({
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              <span className="w-2 h-2 rounded-full bg-red-500" />
+              <GoogleBrandLogo className="w-4 h-4 shrink-0" />
               <span>Google Ads</span>
               {googleState.isConnected && (
                 <span className="w-2 h-2 rounded-full bg-emerald-500" />
@@ -152,8 +153,8 @@ export const UnifiedConnections: React.FC<UnifiedConnectionsProps> = ({
             }`}
           >
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs">
-                M
+              <div className="w-10 h-10 rounded-2xl bg-blue-50 border border-blue-200/80 flex items-center justify-center shrink-0 shadow-2xs">
+                <MetaBrandLogo className="w-5 h-5" />
               </div>
               <div>
                 <div className="text-xs font-bold text-slate-900">Meta Marketing API (v21.0)</div>
@@ -183,8 +184,8 @@ export const UnifiedConnections: React.FC<UnifiedConnectionsProps> = ({
             }`}
           >
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-red-100 text-red-600 flex items-center justify-center font-bold text-xs">
-                G
+              <div className="w-10 h-10 rounded-2xl bg-white border border-slate-200 flex items-center justify-center shrink-0 shadow-2xs">
+                <GoogleBrandLogo className="w-5 h-5" />
               </div>
               <div>
                 <div className="text-xs font-bold text-slate-900">Google Ads API (v17)</div>
@@ -233,7 +234,10 @@ export const UnifiedConnections: React.FC<UnifiedConnectionsProps> = ({
           <div className="bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-8 shadow-xs space-y-6">
             <div className="flex items-center justify-between pb-4 border-b border-slate-100">
               <div>
-                <h3 className="text-lg font-extrabold text-slate-900 font-['Outfit'] flex items-center gap-2">
+                <h3 className="text-lg font-extrabold text-slate-900 font-['Outfit'] flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-white border border-slate-200/90 flex items-center justify-center shadow-2xs">
+                    <GoogleBrandLogo className="w-4 h-4" />
+                  </div>
                   <span>Conexión con Google Ads API</span>
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">

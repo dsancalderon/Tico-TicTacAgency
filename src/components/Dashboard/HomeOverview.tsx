@@ -18,6 +18,7 @@ import {
   TicoIconAgent, 
   TicoIconDashboards 
 } from './TicoNavIcons';
+import { MetaBrandLogo, GoogleBrandLogo } from '../BrandLogos';
 
 interface HomeOverviewProps {
   userSession: UserSession;
@@ -130,9 +131,12 @@ export const HomeOverview: React.FC<HomeOverviewProps> = ({
           {/* Quick Metrics Header Pill */}
           <div className="flex flex-wrap items-center gap-3">
             {/* Meta Status */}
-            <div className="px-4 py-3 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
-              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Meta Ads API</span>
-              <div className="flex items-center gap-1.5 mt-0.5">
+            <div className="px-4 py-2.5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
+              <div className="flex items-center gap-1.5 mb-1">
+                <MetaBrandLogo className="w-3.5 h-3.5 shrink-0" />
+                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Meta Ads API</span>
+              </div>
+              <div className="flex items-center gap-1.5">
                 <span className={`w-2 h-2 rounded-full ${
                   metaState.status === 'ready_to_deploy' ? 'bg-emerald-400' :
                   metaState.status === 'connected_needs_perms' ? 'bg-amber-400' : 'bg-slate-400'
@@ -145,9 +149,12 @@ export const HomeOverview: React.FC<HomeOverviewProps> = ({
             </div>
 
             {/* Google Status */}
-            <div className="px-4 py-3 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
-              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Google Ads</span>
-              <div className="flex items-center gap-1.5 mt-0.5">
+            <div className="px-4 py-2.5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
+              <div className="flex items-center gap-1.5 mb-1">
+                <GoogleBrandLogo className="w-3.5 h-3.5 shrink-0" />
+                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Google Ads</span>
+              </div>
+              <div className="flex items-center gap-1.5">
                 <span className={`w-2 h-2 rounded-full ${googleState?.isConnected ? 'bg-emerald-400' : 'bg-slate-400'}`} />
                 <span className="text-xs font-bold">
                   {googleState?.isConnected ? 'Conectado' : 'Pendiente'}
@@ -222,6 +229,8 @@ export const HomeOverview: React.FC<HomeOverviewProps> = ({
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
+                        {step.platform === 'meta' && <MetaBrandLogo className="w-4 h-4 shrink-0" />}
+                        {step.platform === 'google' && <GoogleBrandLogo className="w-4 h-4 shrink-0" />}
                         <span className={`text-sm font-bold ${step.isCompleted ? 'text-slate-900' : 'text-slate-800'}`}>
                           {step.title}
                         </span>

@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { TicoLogo } from '../TicoLogo';
+import { TicoMascot } from '../TicoMascot';
 import { CreditsWidget } from './CreditsWidget';
 import { 
   LogOut, 
-  Share2, 
   Menu, 
   X,
   ChevronRight
 } from 'lucide-react';
+import { MetaBrandLogo, GoogleBrandLogo } from '../BrandLogos';
 import { forceResetScroll } from '../../utils/scrollLock';
 import type { UserSession, MetaConnectionState, GoogleConnectionState, CreditTransaction, DashboardTab } from '../../types';
 import { 
@@ -46,6 +47,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   children
 }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isSidebarHovered, setIsSidebarHovered] = useState(false);
 
   useEffect(() => {
     forceResetScroll();
@@ -109,18 +111,36 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
       {/* ========================================================================= */}
       {/* 1. SIDEBAR IZQUIERDO DESKTOP (STICKY)                                     */}
       {/* ========================================================================= */}
-      <aside className="hidden md:flex flex-col w-64 lg:w-72 bg-white border-r border-slate-200/90 sticky top-0 h-screen z-30 shrink-0">
-        
-        {/* Brand Logo Header */}
-        <div className="h-20 px-6 flex items-center justify-between border-b border-slate-100">
-          <TicoLogo size="md" showPoweredBy={false} scale={0.8} />
+      <aside 
+        onMouseEnter={() => setIsSidebarHovered(true)}
+        onMouseLeave={() => setIsSidebarHovered(false)}
+        className={`hidden md:flex flex-col bg-white border-r border-slate-200/90 sticky top-0 h-screen z-30 shrink-0 transition-all duration-300 ease-in-out ${
+          isSidebarHovered ? 'w-64 lg:w-72 shadow-xl' : 'w-20 shadow-2xs'
+        }`}
+      >
+        {/* Brand Logo Header: Expandido muestra logo completo, Colapsado muestra silueta de Tico */}
+        <div className="h-20 px-3 flex items-center justify-center border-b border-slate-100 overflow-hidden transition-all duration-300">
+          {isSidebarHovered ? (
+            <div className="w-full flex items-center justify-between px-3 animate-in fade-in duration-200">
+              <TicoLogo size="md" showPoweredBy={false} scale={0.8} />
+            </div>
+          ) : (
+            <div 
+              className="w-10 h-10 rounded-2xl bg-slate-950 flex items-center justify-center shadow-xs cursor-pointer hover:scale-105 transition-transform animate-in zoom-in-95 duration-200" 
+              title="TICO — Powered by TicTac Agency"
+            >
+              <TicoMascot className="w-6 h-6" />
+            </div>
+          )}
         </div>
 
         {/* Navigation Items (5 Secciones con iconos Squircle de Tico) */}
-        <div className="flex-1 px-4 py-6 overflow-y-auto space-y-1.5">
-          <div className="px-3 pb-2 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">
-            Menú de Plataforma
-          </div>
+        <div className="flex-1 px-3 py-6 overflow-y-auto space-y-2">
+          {isSidebarHovered && (
+            <div className="px-3 pb-2 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest animate-in fade-in duration-200">
+              Menú de Plataforma
+            </div>
+          )}
 
           {navItems.map((item) => {
             const Icon = item.icon;
@@ -131,85 +151,118 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                 key={item.id}
                 type="button"
                 onClick={() => onSelectTab(item.id)}
-                className={`w-full group flex items-center justify-between px-3.5 py-3 rounded-2xl text-left transition-all cursor-pointer ${
+                title={!isSidebarHovered ? `${item.label} — ${item.description}` : undefined}
+                className={`w-full group flex items-center rounded-2xl text-left transition-all cursor-pointer relative ${
+                  isSidebarHovered
+                    ? 'px-3.5 py-3 justify-between'
+                    : 'px-0 py-3 justify-center'
+                } ${
                   isActive
                     ? 'bg-slate-950 text-white shadow-sm font-bold'
                     : 'text-slate-600 hover:text-slate-950 hover:bg-slate-100/80 font-semibold'
                 }`}
               >
-                <div className="flex items-center gap-3 min-w-0">
+                <div className={`flex items-center ${isSidebarHovered ? 'gap-3 min-w-0' : 'justify-center'}`}>
                   <div
-                    className={`shrink-0 transition-transform group-hover:scale-110 ${
+                    className={`shrink-0 transition-transform group-hover:scale-110 flex items-center justify-center ${
+                      !isSidebarHovered ? 'w-10 h-10' : ''
+                    } ${
                       isActive ? 'text-white' : 'text-slate-500 group-hover:text-slate-900'
                     }`}
                   >
                     <Icon className="w-5 h-5" />
                   </div>
-                  <div className="truncate">
-                    <div className="text-xs tracking-tight truncate leading-tight">
-                      {item.label}
+
+                  {isSidebarHovered && (
+                    <div className="truncate animate-in fade-in duration-200">
+                      <div className="text-xs tracking-tight truncate leading-tight">
+                        {item.label}
+                      </div>
+                      <div className="text-[10px] truncate text-slate-400">
+                        {item.description}
+                      </div>
                     </div>
-                    <div
-                      className={`text-[10px] truncate ${
-                        isActive ? 'text-slate-400' : 'text-slate-400'
-                      }`}
-                    >
-                      {item.description}
-                    </div>
-                  </div>
+                  )}
                 </div>
 
-                <div className="flex items-center gap-1.5 shrink-0 ml-2">
-                  {item.badge && (
+                {isSidebarHovered ? (
+                  <div className="flex items-center gap-1.5 shrink-0 ml-2 animate-in fade-in duration-200">
+                    {item.badge && (
+                      <span
+                        className={`px-1.5 py-0.5 rounded-md text-[9px] font-extrabold border ${
+                          isActive 
+                            ? 'bg-white/20 text-white border-white/30' 
+                            : item.badgeColor
+                        }`}
+                      >
+                        {item.badge}
+                      </span>
+                    )}
+                    {item.showDot && (
+                      <span
+                        className={`w-2 h-2 rounded-full ${item.dotColor || 'bg-emerald-500'} ${
+                          isActive ? 'ring-2 ring-white/30' : ''
+                        }`}
+                      />
+                    )}
+                  </div>
+                ) : (
+                  item.showDot && (
                     <span
-                      className={`px-1.5 py-0.5 rounded-md text-[9px] font-extrabold border ${
-                        isActive 
-                          ? 'bg-white/20 text-white border-white/30' 
-                          : item.badgeColor
-                      }`}
-                    >
-                      {item.badge}
-                    </span>
-                  )}
-                  {item.showDot && (
-                    <span
-                      className={`w-2 h-2 rounded-full ${item.dotColor || 'bg-emerald-500'} ${
-                        isActive ? 'ring-2 ring-white/30' : ''
-                      }`}
+                      className={`absolute top-2.5 right-2.5 w-2 h-2 rounded-full ${item.dotColor || 'bg-emerald-500'}`}
                     />
-                  )}
-                </div>
+                  )
+                )}
               </button>
             );
           })}
         </div>
 
         {/* Sidebar Footer: Usuario y Cerrar Sesión */}
-        <div className="p-4 border-t border-slate-100 space-y-3 bg-slate-50/50">
-          <div className="flex items-center justify-between p-2.5 rounded-2xl bg-white border border-slate-200/80 shadow-2xs">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-extrabold text-xs shrink-0 shadow-xs">
+        <div className="p-3 border-t border-slate-100 space-y-3 bg-slate-50/50 transition-all duration-300">
+          {isSidebarHovered ? (
+            <div className="flex items-center justify-between p-2.5 rounded-2xl bg-white border border-slate-200/80 shadow-2xs animate-in fade-in duration-200">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-extrabold text-xs shrink-0 shadow-xs">
+                  {userSession.name?.charAt(0).toUpperCase() || 'U'}
+                </div>
+                <div className="truncate">
+                  <div className="text-xs font-bold text-slate-900 truncate leading-tight">
+                    {userSession.name}
+                  </div>
+                  <div className="text-[10px] text-slate-500 truncate">
+                    {userSession.workspaceName}
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={onLogout}
+                title="Cerrar Sesión"
+                className="p-1.5 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-2 py-1 animate-in fade-in duration-200">
+              <div 
+                className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-extrabold text-xs shadow-xs"
+                title={`${userSession.name} (${userSession.workspaceName})`}
+              >
                 {userSession.name?.charAt(0).toUpperCase() || 'U'}
               </div>
-              <div className="truncate">
-                <div className="text-xs font-bold text-slate-900 truncate leading-tight">
-                  {userSession.name}
-                </div>
-                <div className="text-[10px] text-slate-500 truncate">
-                  {userSession.workspaceName}
-                </div>
-              </div>
+              <button
+                type="button"
+                onClick={onLogout}
+                title="Cerrar Sesión"
+                className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
             </div>
-
-            <button
-              type="button"
-              onClick={onLogout}
-              title="Cerrar Sesión"
-              className="p-1.5 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
-          </div>
+          )}
         </div>
       </aside>
 
@@ -330,7 +383,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                 }`}
                 title="Ver estado de conexión con Meta Ads API"
               >
-                <Share2 className="w-3.5 h-3.5 text-blue-600" />
+                <MetaBrandLogo className="w-3.5 h-3.5 shrink-0" />
                 <span>Meta Ads:</span>
                 <span className="capitalize font-semibold">
                   {metaState.status === 'ready_to_deploy' ? 'Listo' : metaState.status === 'connected_needs_perms' ? 'Permisos' : 'Desconectado'}
@@ -348,7 +401,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                 }`}
                 title="Ver estado de conexión con Google Ads API"
               >
-                <span className={`w-2 h-2 rounded-full ${googleState?.isConnected ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                <GoogleBrandLogo className="w-3.5 h-3.5 shrink-0" />
                 <span>Google:</span>
                 <span className="capitalize font-semibold">
                   {googleState?.isConnected ? 'Conectado' : 'Pendiente'}
