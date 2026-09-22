@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { ClientBriefing, CampaignObjective } from '../types';
 import { Target, DollarSign, Calendar, Globe, Building2, Users, Bot, Sparkles, Wand2 } from 'lucide-react';
 
@@ -6,6 +6,7 @@ interface BriefingFormProps {
   onSubmit: (brief: ClientBriefing) => void;
   isLoading: boolean;
   initialData?: ClientBriefing | null;
+  onDraftChange?: (brief: ClientBriefing) => void;
   submitButtonText?: string;
 }
 
@@ -13,6 +14,7 @@ export const BriefingForm: React.FC<BriefingFormProps> = ({
   onSubmit, 
   isLoading,
   initialData,
+  onDraftChange,
   submitButtonText
 }) => {
   const [formData, setFormData] = useState<ClientBriefing>(initialData || {
@@ -28,6 +30,8 @@ export const BriefingForm: React.FC<BriefingFormProps> = ({
     preferredPlatforms: 'meta',
     additionalNotes: ''
   });
+
+  useEffect(() => { onDraftChange?.(formData); }, [formData, onDraftChange]);
 
   const loadPreset = () => {
     setFormData({

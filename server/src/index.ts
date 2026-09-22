@@ -9,6 +9,7 @@ import { metaRouter } from './routes/meta.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.resolve(__dirname, '../../.env'), override: false });
+dotenv.config({ path: path.resolve(__dirname, '../../.env.local'), override: false });
 
 export const app = express();
 const PORT = process.env.PORT || 4000;

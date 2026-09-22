@@ -66,6 +66,7 @@ export interface GoogleConnectionState {
 }
 
 export interface CreativeAsset {
+  storagePath?: string;
   id: string;
   name: string;
   type: 'image' | 'video';
@@ -123,6 +124,7 @@ export interface MetaAdsStrategy {
 }
 
 export interface GeneratedCampaignStrategy {
+  id?: string;
   briefingId: string;
   brandName: string;
   strategySummary: string;

@@ -8,6 +8,7 @@ import {
   LayoutGrid
 } from 'lucide-react';
 import type { CreativeAsset } from '../../types';
+import { uploadCreative } from '../../services/workspace';
 
 interface CreativeAssignmentProps {
   creatives: CreativeAsset[];
@@ -21,6 +22,8 @@ export const CreativeAssignment: React.FC<CreativeAssignmentProps> = ({
   adHeadlines
 }) => {
   const [selectedRatio, setSelectedRatio] = useState<'1:1' | '9:16'>('1:1');
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   // Creativos predefinidos profesionales para agilizar pruebas
   const samplePresets: CreativeAsset[] = [
@@ -47,22 +50,18 @@ export const CreativeAssignment: React.FC<CreativeAssignmentProps> = ({
     onUpdateCreatives([...creatives, preset]);
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
     const file = files[0];
-    const objectUrl = URL.createObjectURL(file);
-    const newAsset: CreativeAsset = {
-      id: `creative_${Date.now()}`,
-      name: file.name,
-      type: 'image',
-      url: objectUrl,
-      aspectRatio: selectedRatio,
-      assignedAdTitle: adHeadlines[0] || 'Anuncio Principal'
-    };
-
-    onUpdateCreatives([...creatives, newAsset]);
+    e.target.value = '';
+    setUploading(true); setUploadError(null);
+    try {
+      const newAsset = await uploadCreative(file, selectedRatio);
+      onUpdateCreatives([...creatives, { ...newAsset, assignedAdTitle: adHeadlines[0] || 'Anuncio Principal' }]);
+    } catch (error) { setUploadError(error instanceof Error ? error.message : 'No se pudo subir el archivo.'); }
+    finally { setUploading(false); }
   };
 
   const handleRemoveCreative = (id: string) => {
@@ -77,6 +76,8 @@ export const CreativeAssignment: React.FC<CreativeAssignmentProps> = ({
 
   return (
     <div className="rounded-3xl border border-slate-200 bg-white p-6 md:p-8 shadow-sm space-y-6">
+      {uploading && <p role="status" className="text-sm text-indigo-600">Guardando archivo privado…</p>}
+      {uploadError && <p role="alert" className="text-sm text-rose-700">{uploadError}</p>}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-100">
         <div>
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-50 border border-purple-200 text-purple-700 text-xs font-bold mb-2">
@@ -119,7 +120,8 @@ export const CreativeAssignment: React.FC<CreativeAssignmentProps> = ({
             <span>Subir ({selectedRatio})</span>
             <input
               type="file"
-              accept="image/*"
+              accept="image/jpeg,image/png,image/webp"
+              disabled={uploading}
               onChange={handleFileUpload}
               className="hidden"
             />

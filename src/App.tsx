@@ -1,5 +1,6 @@
 import { supabase, loadUserSession } from './services/auth';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { loadWorkspace, saveWorkspace, saveConnection, saveCampaign, restoreStrategy } from './services/workspace';
 import { Header } from './components/Header';
 import { BriefingForm } from './components/BriefingForm';
 import { StrategyPreview } from './components/StrategyPreview';
@@ -44,6 +45,15 @@ export function App() {
 
   // Sesión de Usuario
   const [userSession, setUserSession] = useState<UserSession | null>(null);
+  const [savedBrief, setSavedBrief] = useState<ClientBriefing | null>(null);
+  const [workspaceOwner, setWorkspaceOwner] = useState<string | null>(null);
+  const [workspaceError, setWorkspaceError] = useState<string | null>(null);
+  const [saveStatus, setSaveStatus] = useState('');
+  const [workspaceRetry, setWorkspaceRetry] = useState(0);
+  const activeOwner = useRef<string | null>(null);
+  const saveVersion = useRef(0);
+  const initialMeta = useRef<MetaConnectionState | null>(null);
+  const initialGoogle = useRef<GoogleConnectionState | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [pendingBrief, setPendingBrief] = useState<ClientBriefing | null>(null);
   const [authModalTitle, setAuthModalTitle] = useState<string | undefined>(undefined);
@@ -96,6 +106,63 @@ export function App() {
 
   // Historial de Campañas Desplegadas
   const [deployedCampaignsList, setDeployedCampaignsList] = useState<GeneratedCampaignStrategy[]>([]);
+  const handleStrategyChange = useCallback((updated: GeneratedCampaignStrategy) => {
+    setStrategy(updated);
+    setDeployedCampaignsList(previous => previous.map(item => item.id === updated.id ? updated : item));
+  }, []);
+
+  useEffect(() => {
+    initialMeta.current ??= metaState;
+    initialGoogle.current ??= googleState;
+    const owner = userSession?.id || null;
+    activeOwner.current = owner;
+    setWorkspaceOwner(null); setWorkspaceError(null); setSaveStatus('');
+    setSavedBrief(null); setStrategy(null); setDeployResult(null); setCurrentStep('briefing'); setDashboardTab('home');
+    setDeployedCampaignsList([]); setCreditTransactions([]);
+    setMetaState(initialMeta.current); setGoogleState(initialGoogle.current);
+    if (!owner) return;
+    let cancelled = false;
+    loadWorkspace(owner).then(data => {
+      if (cancelled) return;
+      setSavedBrief(data.draft.briefing); setStrategy(data.draft.strategy);
+      setCurrentStep(data.draft.strategy ? 'strategy' : 'briefing');
+      if (data.meta) setMetaState(data.meta);
+      if (data.google) setGoogleState(data.google);
+      setDeployedCampaignsList(data.campaigns); setCreditTransactions(data.transactions);
+      setUserSession(previous => previous?.id === owner ? { ...previous, credits: data.credits } : previous);
+      setWorkspaceOwner(owner);
+    }).catch(error => { if (!cancelled) setWorkspaceError(error.message); });
+    return () => { cancelled = true; activeOwner.current = null; };
+  }, [userSession?.id, workspaceRetry]);
+
+  useEffect(() => {
+    if (!workspaceOwner || workspaceOwner !== userSession?.id || isLoadingStrategy || isDeploying) return;
+    const owner = workspaceOwner;
+    const version = ++saveVersion.current;
+    setSaveStatus('Guardando…');
+    const timer = window.setTimeout(() => {
+      saveWorkspace(owner, { briefing: savedBrief, strategy, step: currentStep }).then(() => {
+        if (activeOwner.current === owner && version === saveVersion.current) setSaveStatus('Cambios guardados');
+      }).catch(error => {
+        if (activeOwner.current === owner && version === saveVersion.current) setSaveStatus(error.message);
+      });
+    }, 500);
+    return () => window.clearTimeout(timer);
+  }, [workspaceOwner, userSession?.id, savedBrief, strategy, currentStep, isLoadingStrategy, isDeploying]);
+
+  const persistConnection = async (platform: 'meta' | 'google', state: MetaConnectionState | GoogleConnectionState) => {
+    const owner = userSession?.id;
+    if (!owner || workspaceOwner !== owner) return;
+    try {
+      await saveConnection(owner, platform, state);
+      if (activeOwner.current !== owner) return;
+      if (platform === 'meta') setMetaState(state as MetaConnectionState);
+      else setGoogleState(state as GoogleConnectionState);
+      setSaveStatus('Conexión guardada');
+    } catch (error) {
+      if (activeOwner.current === owner) setSaveStatus(error instanceof Error ? error.message : 'No se pudo guardar la conexión.');
+    }
+  };
 
   // Estado de la pantalla de carga animada de Tico
   const [isAppLoaded, setIsAppLoaded] = useState<boolean>(false);
@@ -171,9 +238,17 @@ export function App() {
     // Usuario autenticado: procesar la estrategia de pauta
     setDashboardTab('agent');
     setIsLoadingStrategy(true);
+    const owner = userSession.id;
     try {
+      await saveWorkspace(owner, { briefing: brief, strategy: null, step: 'briefing' });
       const generated = await generateStrategyApi(brief);
-      setStrategy(generated);
+      if (activeOwner.current !== owner) return;
+      const identified = { ...generated, id: crypto.randomUUID() };
+      await saveCampaign(owner, identified);
+      await saveWorkspace(owner, { briefing: brief, strategy: identified, step: 'strategy' });
+      if (activeOwner.current !== owner) return;
+      setSavedBrief(brief); setStrategy(identified);
+      setDeployedCampaignsList(previous => [identified, ...previous]);
       setCurrentStep('strategy');
       const el = document.getElementById('workflow-container');
       if (el) el.scrollIntoView({ behavior: 'smooth' });
@@ -199,12 +274,12 @@ export function App() {
   }, [userSession?.isAuthenticated]);
 
   useEffect(() => {
-    if (userSession && pendingBrief) {
+    if (userSession && workspaceOwner === userSession.id && pendingBrief) {
       const brief = pendingBrief;
       setPendingBrief(null);
       void handleBriefSubmit(brief);
     }
-  }, [userSession, pendingBrief]);
+  }, [userSession, workspaceOwner, pendingBrief]);
 
   useEffect(() => {
     if (!userSession) {
@@ -221,6 +296,10 @@ export function App() {
 
   // Desconexión / Cerrar Sesión
   const handleLogout = async () => {
+    if (workspaceOwner && workspaceOwner === userSession?.id) {
+      try { await saveWorkspace(workspaceOwner, { briefing: savedBrief, strategy, step: currentStep }); }
+      catch { window.alert('No se pudieron guardar tus cambios. Reintenta antes de cerrar sesión.'); return; }
+    }
     const result = await supabase?.auth.signOut({ scope: 'local' });
     if (result?.error) { window.alert('No se pudo cerrar la sesión. Inténtalo de nuevo.'); return; }
     setPendingBrief(null);
@@ -233,40 +312,22 @@ export function App() {
 
   // Aprobación de Campaña y Débito de Créditos
   const handleApproveStrategy = async (strategyToDeploy: GeneratedCampaignStrategy) => {
+    if (!userSession || workspaceOwner !== userSession.id) return;
+    const owner = userSession.id;
     setIsDeploying(true);
-    const cost = strategyToDeploy.creditCost || 5;
 
     try {
       const result = await deployCampaignApi(strategyToDeploy);
+      if (activeOwner.current !== owner) return;
       setDeployResult(result);
       setCurrentStep('deployed');
 
-      // Descontar créditos del usuario
-      if (userSession) {
-        const updatedCredits = Math.max(0, userSession.credits - cost);
-        const updatedSession = { ...userSession, credits: updatedCredits };
-        setUserSession(updatedSession);
-
-        // Registrar transacción de débito
-        const newTx: CreditTransaction = {
-          id: `tx_${Date.now()}`,
-          date: new Date().toISOString(),
-          amount: cost,
-          type: 'debit',
-          description: `Despliegue de campaña en Meta Ads (PAUSED): ${strategyToDeploy.brandName}`
-        };
-        setCreditTransactions((prev) => [newTx, ...prev]);
-
-        // Registrar en historial de campañas
-        setDeployedCampaignsList((prev) => [
-          {
-            ...strategyToDeploy,
-            deployedMetaCampaignId: result.results?.meta?.campaignId,
-            status: 'active'
-          },
-          ...prev
-        ]);
-      }
+      const recorded = { ...strategyToDeploy, deployedMetaCampaignId: result.results?.meta?.campaignId,
+        deployedGoogleCampaignId: result.results?.google?.campaignId, status: 'approved' as const };
+      const id = await saveCampaign(owner, recorded, result);
+      if (activeOwner.current !== owner) return;
+      setStrategy({ ...recorded, id });
+      setDeployedCampaignsList(previous => [{ ...recorded, id }, ...previous.filter(item => item.id !== id)]);
 
       const el = document.getElementById('workflow-container');
       if (el) el.scrollIntoView({ behavior: 'smooth' });
@@ -297,6 +358,15 @@ export function App() {
   // VISTA 1: PLATAFORMA / DASHBOARD AUTENTICADO
   // =========================================================================
   if (userSession?.isAuthenticated) {
+    if (workspaceOwner !== userSession.id) return (
+      <main className="min-h-screen grid place-items-center bg-slate-50 p-6">
+        <div role="status" className="text-center space-y-4">
+          <p>{workspaceError || 'Cargando tu espacio y tus datos…'}</p>
+          {workspaceError && <button className="rounded-full bg-slate-950 text-white px-6 py-2" onClick={() => setWorkspaceRetry(value => value + 1)}>Reintentar</button>}
+          <button className="block mx-auto text-sm underline" onClick={handleLogout}>Cerrar sesión</button>
+        </div>
+      </main>
+    );
     return (
       <DashboardLayout
         userSession={userSession}
@@ -310,6 +380,16 @@ export function App() {
         isCreditsModalOpen={isCreditsModalOpen}
         onCreditsModalOpenChange={setIsCreditsModalOpen}
       >
+        <div className="mb-4 flex gap-3 items-center text-xs text-slate-600">
+          <span role="status">{saveStatus}</span>
+          <button type="button" className="underline" onClick={() => {
+            const owner = userSession.id;
+            setSaveStatus('Guardando…');
+            void saveWorkspace(owner, { briefing: savedBrief, strategy, step: currentStep })
+              .then(() => { if (activeOwner.current === owner) setSaveStatus('Cambios guardados'); })
+              .catch(error => { if (activeOwner.current === owner) setSaveStatus(error.message); });
+          }}>Guardar ahora</button>
+        </div>
         {authNotice && (
           <div role="status" className="mb-6 flex items-center justify-between gap-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-900">
             <span>{authNotice}</span>
@@ -388,6 +468,8 @@ export function App() {
             {/* Dynamic Step Content */}
             {currentStep === 'briefing' && (
               <BriefingForm
+                initialData={savedBrief}
+                onDraftChange={setSavedBrief}
                 onSubmit={handleBriefSubmit}
                 isLoading={isLoadingStrategy}
                 submitButtonText="Formular Plan de Pauta con TICO"
@@ -396,6 +478,8 @@ export function App() {
 
             {currentStep === 'strategy' && strategy && (
               <StrategyPreview
+                key={strategy.id || strategy.briefingId}
+                onChange={handleStrategyChange}
                 strategy={strategy}
                 onApprove={handleApproveStrategy}
                 onBack={() => setCurrentStep('briefing')}
@@ -419,9 +503,9 @@ export function App() {
         {dashboardTab === 'connections' && (
           <UnifiedConnections
             metaState={metaState}
-            onUpdateMetaState={setMetaState}
+            onUpdateMetaState={state => void persistConnection('meta', state)}
             googleState={googleState}
-            onUpdateGoogleState={setGoogleState}
+            onUpdateGoogleState={state => void persistConnection('google', state)}
           />
         )}
 
@@ -431,10 +515,10 @@ export function App() {
             <div className="flex items-center justify-between pb-4 border-b border-slate-100">
               <div>
                 <h3 className="text-xl font-extrabold text-slate-900 font-['Outfit']">
-                  Campañas Orquestadas en Meta Ads
+                  Mis campañas
                 </h3>
                 <p className="text-xs text-slate-500 mt-1">
-                  Listado de entidades creadas en estado <code>PAUSED</code> para activación y control en Meta Ads Manager.
+                  Estrategias y campañas guardadas en tu espacio.
                 </p>
               </div>
               <button
@@ -457,14 +541,21 @@ export function App() {
                       <div className="flex items-center gap-2">
                         <span className="font-bold text-slate-900 text-sm">{c.brandName}</span>
                         <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
-                          PAUSED
+                          {c.deployedMetaCampaignId?.includes('sandbox') || c.deployedGoogleCampaignId?.includes('sandbox') ? 'DEMO' : c.deployedMetaCampaignId || c.deployedGoogleCampaignId ? 'PAUSED' : 'BORRADOR'}
                         </span>
                       </div>
                       <div className="text-xs text-slate-500 mt-0.5">
-                        ID Meta: <code className="font-mono text-slate-700">{c.deployedMetaCampaignId || 'meta_cmp_active'}</code> • Presupuesto: ${c.totalBudget.toLocaleString()} {c.currency}
+                        ID Meta: <code className="font-mono text-slate-700">{c.deployedMetaCampaignId || 'Sin desplegar'}</code> • Presupuesto: ${c.totalBudget.toLocaleString()} {c.currency}
                       </div>
                     </div>
 
+                    <button type="button" className="text-sm font-semibold text-indigo-600" onClick={() => {
+                      const owner = userSession.id;
+                      void restoreStrategy(c).then(restored => {
+                        if (activeOwner.current !== owner) return;
+                        setStrategy(restored); setCurrentStep('strategy'); setDashboardTab('agent');
+                      }).catch(() => setSaveStatus('No se pudo abrir la estrategia. Inténtalo de nuevo.'));
+                    }}>Abrir estrategia</button>
                     <a
                       href="https://adsmanager.facebook.com"
                       target="_blank"
@@ -480,7 +571,7 @@ export function App() {
             ) : (
               <div className="p-10 text-center border border-dashed border-slate-200 rounded-2xl">
                 <FolderKanban className="w-10 h-10 text-slate-300 mx-auto mb-2" />
-                <p className="text-xs font-semibold text-slate-700">No hay campañas desplegadas todavía</p>
+                <p className="text-xs font-semibold text-slate-700">No hay campañas guardadas todavía</p>
                 <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
                   Ve a la sección <strong>"Tico Agent"</strong> para ingresar un brief y formular tu primera campaña publicitaria en pausa.
                 </p>

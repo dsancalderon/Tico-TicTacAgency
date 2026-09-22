@@ -40,8 +40,10 @@ export const getProfile: RequestHandler = async (_req, res) => {
     const { data: profile, error } = await client.from('profiles')
       .select('id,display_name,workspace_name').eq('id', user.id).single();
     if (error) throw error;
+    const { data: credits, error: creditsError } = await client.rpc('my_credit_balance');
+    if (creditsError) throw creditsError;
     res.json({ user: { id: user.id, email: user.email, name: profile.display_name,
-      workspaceName: profile.workspace_name, role: 'brand_manager', credits: 0, isAuthenticated: true } });
+      workspaceName: profile.workspace_name, role: 'brand_manager', credits: Number(credits || 0), isAuthenticated: true } });
   } catch {
     res.status(503).json({ error: 'Perfil no disponible. Verifica la migración de la base de datos.' });
   }

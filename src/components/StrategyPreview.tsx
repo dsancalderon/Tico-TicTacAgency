@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { GeneratedCampaignStrategy, CreativeAsset } from '../types';
 import { 
   CheckCircle2, 
@@ -21,6 +21,7 @@ interface StrategyPreviewProps {
   onBack: () => void;
   isDeploying: boolean;
   userCredits?: number;
+  onChange?: (strategy: GeneratedCampaignStrategy) => void;
 }
 
 export const StrategyPreview: React.FC<StrategyPreviewProps> = ({
@@ -28,9 +29,11 @@ export const StrategyPreview: React.FC<StrategyPreviewProps> = ({
   onApprove,
   onBack,
   isDeploying,
-  userCredits = 50
+  userCredits = 0,
+  onChange
 }) => {
   const [strategy, setStrategy] = useState<GeneratedCampaignStrategy>(initialStrategy);
+  useEffect(() => { onChange?.(strategy); }, [strategy, onChange]);
   const [confirmedTerms, setConfirmedTerms] = useState(false);
   const [activeTab, setActiveTab] = useState<'all' | 'meta' | 'google'>('all');
   const [isEditingCopies, setIsEditingCopies] = useState(false);

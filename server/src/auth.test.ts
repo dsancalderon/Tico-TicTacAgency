@@ -14,6 +14,10 @@ test('API authentication rejects missing/forged tokens and loads only a verified
       user_metadata: { role: 'agency_admin', credits: 100000, display_name: 'Tester' } });
   });
   auth.post('/rest/v1/profiles', (_req, res) => { res.status(201).end(); });
+  auth.post('/rest/v1/rpc/my_credit_balance', (req, res) => {
+    assert.equal(req.headers.authorization, 'Bearer valid-test-token');
+    res.json(12);
+  });
   auth.get('/rest/v1/profiles', (req, res) => {
     assert.equal(req.query.id, 'eq.user-a');
     assert.equal(req.headers.authorization, 'Bearer valid-test-token');
@@ -38,7 +42,7 @@ test('API authentication rejects missing/forged tokens and loads only a verified
     assert.equal(response.headers.get('cache-control'), 'no-store');
     const { user } = await response.json() as { user: { id: string; credits: number; role: string } };
     assert.equal(user.id, 'user-a');
-    assert.equal(user.credits, 0);
+    assert.equal(user.credits, 12);
     assert.equal(user.role, 'brand_manager');
     delete process.env.SUPABASE_URL;
     assert.equal((await fetch(url, { headers: { Authorization: 'Bearer valid-test-token' } })).status, 503);

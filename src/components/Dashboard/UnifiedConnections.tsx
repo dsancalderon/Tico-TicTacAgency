@@ -51,24 +51,20 @@ export const UnifiedConnections: React.FC<UnifiedConnectionsProps> = ({
 
     setTimeout(() => {
       const updated: GoogleConnectionState = {
-        isConnected: true,
-        status: 'connected',
-        customerId: inputCustomerId || '782-901-4451',
-        customerName: 'TicTac Performance — Google Ads Search Hub',
-        mccId: inputMccId || '912-340-1099',
-        developerTokenStatus: 'approved',
-        conversionActionId: 'conv_gads_99182',
+        isConnected: false,
+        status: 'needs_auth',
+        customerId: inputCustomerId.trim(),
+        customerName: '',
+        mccId: inputMccId.trim(),
+        developerTokenStatus: 'pending',
         diagnostics: [
-          'Conexión exitosa con Google Ads API v17.',
-          `Cuenta de cliente vinculada: ${inputCustomerId || '782-901-4451'} (Moneda: USD).`,
-          'Acceso verificado para campañas Search y Performance Max (PMax).',
-          'Acción de conversión principal sincronizada correctamente.'
+          'Datos de cuenta registrados. La autorización de Google Ads está pendiente.'
         ]
       };
       setGoogleState(updated);
       onUpdateGoogleState?.(updated);
       setIsConnectingGoogle(false);
-      setGoogleSuccessNotice('¡Cuenta de Google Ads vinculada correctamente!');
+      setGoogleSuccessNotice('Datos listos para guardar. Falta autorizar Google Ads.');
     }, 900);
   };
 
