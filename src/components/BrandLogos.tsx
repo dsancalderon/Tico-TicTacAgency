@@ -1,4 +1,4 @@
-import React, { useId } from 'react';
+import React from 'react';
 
 interface BrandLogoProps extends React.SVGProps<SVGSVGElement> {
   className?: string;
@@ -6,45 +6,21 @@ interface BrandLogoProps extends React.SVGProps<SVGSVGElement> {
 }
 
 /**
- * Logotipo oficial de Meta (Loop infinito con gradiente azul Meta)
+ * Logotipo oficial de Meta exactamente igual al provisto por el usuario
  */
 export const MetaBrandLogo: React.FC<BrandLogoProps> = ({
   className = 'w-5 h-5',
-  size = 20,
+  size,
   ...props
 }) => {
-  const rawId = useId().replace(/:/g, '');
-  const gradId = `meta-brand-grad-${rawId}`;
-
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className={className}
-      {...props}
-    >
-      <defs>
-        <linearGradient
-          id={gradId}
-          x1="1"
-          y1="3"
-          x2="23"
-          y2="21"
-          gradientUnits="userSpaceOnUse"
-        >
-          <stop offset="0%" stopColor="#0866FF" />
-          <stop offset="45%" stopColor="#0081FB" />
-          <stop offset="100%" stopColor="#0064E0" />
-        </linearGradient>
-      </defs>
-      <path
-        d="M12.001 7.427C9.79 3.96 6.804 2.5 4.341 2.5 1.706 2.5 0 4.417 0 7.502c0 4.148 3.01 8.847 6.447 11.516 1.848 1.433 3.868 2.188 5.554 2.232 1.686-.044 3.706-.799 5.554-2.232C20.99 16.349 24 11.65 24 7.502 24 4.417 22.294 2.5 19.659 2.5c-2.463 0-5.449 1.46-7.658 4.927zm0 8.093c-1.58-.337-3.056-1.282-4.328-2.73-2.158-2.456-3.52-5.748-3.52-7.55 0-1.464.717-2.247 1.847-2.247 1.616 0 3.626 1.432 5.097 4.095l.904 1.642.904-1.642c1.471-2.663 3.481-4.095 5.097-4.095 1.13 0 1.847.783 1.847 2.247 0 1.802-1.362 5.094-3.52 7.55-1.272 1.448-2.748 2.393-4.328 2.73z"
-        fill={`url(#${gradId})`}
-      />
-    </svg>
+    <img
+      src="/meta-logo-transparent.png"
+      alt="Meta"
+      className={`object-contain inline-block shrink-0 ${className}`}
+      style={size ? { width: size, height: size } : undefined}
+      {...(props as any)}
+    />
   );
 };
 

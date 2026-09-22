@@ -10,8 +10,8 @@ interface IconProps extends React.SVGProps<SVGSVGElement> {
  * Marco squircle con nodo central de hogar y bienvenida.
  */
 export const TicoIconHome: React.FC<IconProps> = ({
-  className = 'w-5 h-5',
-  size = 20,
+  className = 'w-6 h-6',
+  size = 24,
   ...props
 }) => (
   <svg
@@ -58,8 +58,8 @@ export const TicoIconHome: React.FC<IconProps> = ({
  * Cabeza squircle de Tico con su antena icónica, anillo y mirada amigable.
  */
 export const TicoIconAgent: React.FC<IconProps> = ({
-  className = 'w-5 h-5',
-  size = 20,
+  className = 'w-6 h-6',
+  size = 24,
   ...props
 }) => (
   <svg
@@ -116,8 +116,8 @@ export const TicoIconAgent: React.FC<IconProps> = ({
  * Dos squircles interconectados con puente de datos.
  */
 export const TicoIconConnections: React.FC<IconProps> = ({
-  className = 'w-5 h-5',
-  size = 20,
+  className = 'w-6 h-6',
+  size = 24,
   ...props
 }) => (
   <svg
@@ -170,8 +170,8 @@ export const TicoIconConnections: React.FC<IconProps> = ({
  * Squircles apilados en perspectiva representando campañas y conjuntos de anuncios.
  */
 export const TicoIconCampaigns: React.FC<IconProps> = ({
-  className = 'w-5 h-5',
-  size = 20,
+  className = 'w-6 h-6',
+  size = 24,
   ...props
 }) => (
   <svg
@@ -229,8 +229,8 @@ export const TicoIconCampaigns: React.FC<IconProps> = ({
  * Squircle con barras de telemetría y métricas de rendimiento en tiempo real.
  */
 export const TicoIconDashboards: React.FC<IconProps> = ({
-  className = 'w-5 h-5',
-  size = 20,
+  className = 'w-6 h-6',
+  size = 24,
   ...props
 }) => (
   <svg
