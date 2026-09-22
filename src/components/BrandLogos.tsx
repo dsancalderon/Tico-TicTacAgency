@@ -1,8 +1,11 @@
 import React from 'react';
+import metaLogoUrl from '../assets/meta-logo-transparent.png';
 
-interface BrandLogoProps extends React.SVGProps<SVGSVGElement> {
+export interface BrandLogoProps {
   className?: string;
   size?: number;
+  style?: React.CSSProperties;
+  title?: string;
 }
 
 /**
@@ -11,14 +14,29 @@ interface BrandLogoProps extends React.SVGProps<SVGSVGElement> {
 export const MetaBrandLogo: React.FC<BrandLogoProps> = ({
   className = 'w-5 h-5',
   size,
+  style,
+  title,
   ...props
 }) => {
   return (
     <img
-      src="/meta-logo-transparent.png"
-      alt="Meta"
-      className={`object-contain inline-block shrink-0 ${className}`}
-      style={size ? { width: size, height: size } : undefined}
+      src={metaLogoUrl}
+      alt={title || 'Meta'}
+      title={title}
+      className={`object-contain inline-block shrink-0 select-none ${className}`}
+      style={{
+        ...(size ? { width: size, height: size } : {}),
+        ...style
+      }}
+      loading="eager"
+      onError={(e) => {
+        const target = e.currentTarget;
+        if (!target.src.includes('meta-logo-transparent.png')) {
+          target.src = '/meta-logo-transparent.png';
+        } else if (!target.src.includes('meta-logo.png')) {
+          target.src = '/meta-logo.png';
+        }
+      }}
       {...(props as any)}
     />
   );
@@ -30,6 +48,8 @@ export const MetaBrandLogo: React.FC<BrandLogoProps> = ({
 export const GoogleBrandLogo: React.FC<BrandLogoProps> = ({
   className = 'w-5 h-5',
   size = 20,
+  style,
+  title,
   ...props
 }) => {
   return (
@@ -40,8 +60,10 @@ export const GoogleBrandLogo: React.FC<BrandLogoProps> = ({
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className={className}
-      {...props}
+      style={style}
+      {...(props as any)}
     >
+      {title && <title>{title}</title>}
       <path
         d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"
         fill="#4285F4"
