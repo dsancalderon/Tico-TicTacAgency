@@ -389,7 +389,7 @@ export async function testMetaCreationClientDirect(
   const countries = accountCurrency === 'COP' ? ['CO'] : (accountCurrency === 'MXN' ? ['MX'] : ['CO', 'US']);
 
   try {
-    // 1. Crear Campaña
+    // 1. Crear Campaña (is_adset_budget_sharing_enabled: false requerido por Meta para presupuestos a nivel de adset)
     const cmpRes = await fetch(`https://graph.facebook.com/v21.0/${accountId}/campaigns`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -398,6 +398,7 @@ export async function testMetaCreationClientDirect(
         objective: 'OUTCOME_TRAFFIC',
         status: 'PAUSED',
         special_ad_categories: ['NONE'],
+        is_adset_budget_sharing_enabled: false,
         access_token: cleanToken
       })
     });

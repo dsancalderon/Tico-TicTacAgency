@@ -392,12 +392,13 @@ export async function deployMetaTestCampaign(params: {
   const countries = accountCurrency === 'COP' ? ['CO'] : (accountCurrency === 'MXN' ? ['MX'] : ['CO', 'US']);
 
   try {
-    // PASO 1: Crear Campaña en PAUSED (Objetivo de Tráfico para máxima compatibilidad)
+    // PASO 1: Crear Campaña en PAUSED (is_adset_budget_sharing_enabled: false requerido por Meta)
     const campaignPayload = {
       name: `[TICO-TEST] ${brandName} - Verificación de Conexión (PAUSED)`,
       objective: 'OUTCOME_TRAFFIC',
       status: 'PAUSED',
       special_ad_categories: ['NONE'],
+      is_adset_budget_sharing_enabled: false,
       access_token: cleanToken
     };
 
@@ -614,6 +615,7 @@ export async function deployMetaCampaign(
         objective: payload.objective || 'OUTCOME_LEADS',
         status: 'PAUSED',
         special_ad_categories: ['NONE'],
+        is_adset_budget_sharing_enabled: false,
         access_token: token
       })
     });
