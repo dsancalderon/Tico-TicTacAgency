@@ -482,8 +482,8 @@ export function App() {
         backendOnline={backendOnline}
         userSession={userSession}
         onOpenLogin={() => {
-          setAuthModalTitle('Acceso a la Plataforma TICO');
-          setAuthModalSubtitle('Ingresa tus credenciales para administrar tus planes y campañas publicitarias.');
+          setAuthModalTitle('Inicia sesión');
+          setAuthModalSubtitle(undefined);
           setIsAuthModalOpen(true);
         }}
         onGoToPlatform={() => setDashboardTab('studio')}
@@ -568,8 +568,8 @@ export function App() {
             <button
               type="button"
               onClick={() => {
-                setAuthModalTitle('Acceso a la Plataforma TICO');
-                setAuthModalSubtitle('Ingresa con tu cuenta y correo confirmado para acceder al dashboard.');
+                setAuthModalTitle('Inicia sesión');
+                setAuthModalSubtitle(undefined);
                 setIsAuthModalOpen(true);
               }}
               className="w-full sm:w-auto inline-flex items-center justify-center px-8 py-3.5 sm:py-4 rounded-full border border-slate-300 hover:border-slate-400 bg-white hover:bg-slate-50 text-slate-800 font-semibold text-sm sm:text-base transition-all shadow-2xs cursor-pointer gap-2"
