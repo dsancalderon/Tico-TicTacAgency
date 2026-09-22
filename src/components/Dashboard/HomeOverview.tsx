@@ -10,7 +10,6 @@ import {
   CheckCircle2, 
   ArrowRight, 
   Sparkles, 
-  Zap, 
   Layers,
   Clock
 } from 'lucide-react';
@@ -155,18 +154,6 @@ export const HomeOverview: React.FC<HomeOverviewProps> = ({
                 <span className="text-xs font-bold">
                   {googleState?.isConnected ? 'Conectado' : 'Pendiente'}
                 </span>
-              </div>
-            </div>
-
-            {/* Créditos en Header */}
-            <div 
-              onClick={onOpenCreditsModal}
-              className="px-4 py-3 rounded-2xl bg-amber-400/10 border border-amber-400/20 backdrop-blur-md cursor-pointer hover:bg-amber-400/20 transition-all"
-            >
-              <span className="text-[10px] text-amber-300 font-bold uppercase tracking-wider block">Créditos IA</span>
-              <div className="flex items-center gap-1.5 mt-0.5 text-amber-400 font-black text-xs font-['Outfit']">
-                <Zap className="w-3.5 h-3.5 fill-amber-400" />
-                <span>{userSession.credits} disponibles</span>
               </div>
             </div>
           </div>
