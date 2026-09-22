@@ -7,14 +7,23 @@ interface CreditsWidgetProps {
   credits: number;
   transactions: CreditTransaction[];
   onAddCredits: (amount: number) => void;
+  isOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
 }
 
 export const CreditsWidget: React.FC<CreditsWidgetProps> = ({
   credits,
   transactions,
-  onAddCredits
+  onAddCredits,
+  isOpen,
+  onOpenChange
 }) => {
-  const [showModal, setShowModal] = useState(false);
+  const [internalShowModal, setInternalShowModal] = useState(false);
+  const showModal = isOpen !== undefined ? isOpen : internalShowModal;
+  const setShowModal = (val: boolean) => {
+    if (onOpenChange) onOpenChange(val);
+    setInternalShowModal(val);
+  };
   useScrollLock(showModal);
 
   return (

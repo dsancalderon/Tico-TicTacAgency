@@ -7,13 +7,17 @@ import { DeploymentConsole } from './components/DeploymentConsole';
 import { TicoLogo } from './components/TicoLogo';
 import { AuthModal } from './components/AuthModal';
 import { DashboardLayout } from './components/Dashboard/DashboardLayout';
-import { MetaConnectDiagnostic } from './components/Dashboard/MetaConnectDiagnostic';
+import { HomeOverview } from './components/Dashboard/HomeOverview';
+import { UnifiedConnections } from './components/Dashboard/UnifiedConnections';
+import { AssetDashboard } from './components/Dashboard/AssetDashboard';
 import type {
   ClientBriefing,
   GeneratedCampaignStrategy,
   UserSession,
   MetaConnectionState,
-  CreditTransaction
+  GoogleConnectionState,
+  CreditTransaction,
+  DashboardTab
 } from './types';
 import { checkBackendHealth, generateStrategyApi, deployCampaignApi } from './services/api';
 import {
@@ -46,8 +50,22 @@ export function App() {
   const [authModalSubtitle, setAuthModalSubtitle] = useState<string | undefined>(undefined);
   const [authNotice, setAuthNotice] = useState<string | null>(null);
 
-  // Estado de Navegación del Dashboard
-  const [dashboardTab, setDashboardTab] = useState<'studio' | 'meta-connect' | 'campaigns'>('studio');
+  // Estado de Navegación del Dashboard (5 Secciones)
+  const [dashboardTab, setDashboardTab] = useState<DashboardTab>('home');
+  const [isCreditsModalOpen, setIsCreditsModalOpen] = useState<boolean>(false);
+
+  // Estado de Conexión de Google Ads
+  const [googleState, setGoogleState] = useState<GoogleConnectionState>({
+    isConnected: false,
+    status: 'disconnected',
+    customerId: '',
+    customerName: '',
+    mccId: '',
+    developerTokenStatus: 'approved',
+    diagnostics: [
+      'Google Ads API desconectado. Ingresa tu Customer ID (CID) para orquestar pauta en Google Search y PMax.'
+    ]
+  });
 
   // Estado de Conexión de Meta Ads
   // Estado de Conexión con Meta Ads API (inicializado en desconectado según requerimiento)
@@ -151,6 +169,7 @@ export function App() {
     }
 
     // Usuario autenticado: procesar la estrategia de pauta
+    setDashboardTab('agent');
     setIsLoadingStrategy(true);
     try {
       const generated = await generateStrategyApi(brief);
@@ -190,7 +209,7 @@ export function App() {
   useEffect(() => {
     if (!userSession) {
       setStrategy(null); setDeployResult(null); setDeployedCampaignsList([]);
-      setCreditTransactions([]); setCurrentStep('briefing'); setDashboardTab('studio');
+      setCreditTransactions([]); setCurrentStep('briefing'); setDashboardTab('home');
       setMetaState(previous => ({
         ...previous, isConnected: false, status: 'disconnected',
         userAccessToken: '', adAccountId: '', adAccountName: '', businessManagerId: '',
@@ -282,20 +301,38 @@ export function App() {
       <DashboardLayout
         userSession={userSession}
         metaState={metaState}
+        googleState={googleState}
         creditTransactions={creditTransactions}
         onAddCredits={handleAddCredits}
         onLogout={handleLogout}
         activeTab={dashboardTab}
         onSelectTab={setDashboardTab}
+        isCreditsModalOpen={isCreditsModalOpen}
+        onCreditsModalOpenChange={setIsCreditsModalOpen}
       >
         {authNotice && (
           <div role="status" className="mb-6 flex items-center justify-between gap-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-900">
             <span>{authNotice}</span>
-            <button type="button" onClick={() => setAuthNotice(null)} className="text-emerald-700 hover:text-emerald-950">Cerrar</button>
+            <button type="button" onClick={() => setAuthNotice(null)} className="text-emerald-700 hover:text-emerald-950 cursor-pointer">Cerrar</button>
           </div>
         )}
-        {/* TAB 1: ESTUDIO DE PAUTA (BRIEF, ESTRATEGIA Y DESPLIEGUE) */}
-        {dashboardTab === 'studio' && (
+
+        {/* 1. SECCIÓN INICIO: RESUMEN ESTADO, PASOS PENDIENTES Y CRÉDITOS DISPONIBLES */}
+        {dashboardTab === 'home' && (
+          <HomeOverview
+            userSession={userSession}
+            metaState={metaState}
+            googleState={googleState}
+            creditTransactions={creditTransactions}
+            deployedCampaignsCount={deployedCampaignsList.length}
+            onNavigateTab={setDashboardTab}
+            onOpenCreditsModal={() => setIsCreditsModalOpen(true)}
+            onAddCredits={handleAddCredits}
+          />
+        )}
+
+        {/* 2. SECCIÓN TICO AGENT: APARTADO DE LA IMPLEMENTACIÓN DE CAMPAÑAS CON IA */}
+        {dashboardTab === 'agent' && (
           <div className="space-y-8" id="workflow-container">
             {/* Stepper indicators */}
             <div className="max-w-2xl mx-auto grid grid-cols-3 gap-3 text-left mb-6">
@@ -378,30 +415,32 @@ export function App() {
           </div>
         )}
 
-        {/* TAB 2: CONEXIÓN & DIAGNÓSTICO META ADS */}
-        {dashboardTab === 'meta-connect' && (
-          <MetaConnectDiagnostic
+        {/* 3. SECCIÓN CONEXIONES: CONEXIÓN TANTO DE META COMO DE GOOGLE */}
+        {dashboardTab === 'connections' && (
+          <UnifiedConnections
             metaState={metaState}
             onUpdateMetaState={setMetaState}
+            googleState={googleState}
+            onUpdateGoogleState={setGoogleState}
           />
         )}
 
-        {/* TAB 3: CAMPAÑAS DESPLEGADAS EN PAUSA */}
+        {/* 4. SECCIÓN CAMPAÑAS: APARTADO DE CAMPAÑAS DESPLEGADAS EN PAUSA */}
         {dashboardTab === 'campaigns' && (
-          <div className="bg-white rounded-3xl border border-slate-200 p-6 md:p-8 shadow-sm space-y-6">
+          <div className="bg-white rounded-3xl border border-slate-200/90 p-6 md:p-8 shadow-xs space-y-6">
             <div className="flex items-center justify-between pb-4 border-b border-slate-100">
               <div>
                 <h3 className="text-xl font-extrabold text-slate-900 font-['Outfit']">
                   Campañas Orquestadas en Meta Ads
                 </h3>
                 <p className="text-xs text-slate-500 mt-1">
-                  Listado de entidades creadas en estado <code>PAUSED</code> para activación manual en Meta Ads Manager.
+                  Listado de entidades creadas en estado <code>PAUSED</code> para activación y control en Meta Ads Manager.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => {
-                  setDashboardTab('studio');
+                  setDashboardTab('agent');
                   setCurrentStep('briefing');
                 }}
                 className="px-4 py-2 rounded-full bg-slate-950 hover:bg-slate-800 text-white text-xs font-bold transition-all cursor-pointer"
@@ -443,11 +482,19 @@ export function App() {
                 <FolderKanban className="w-10 h-10 text-slate-300 mx-auto mb-2" />
                 <p className="text-xs font-semibold text-slate-700">No hay campañas desplegadas todavía</p>
                 <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
-                  Ve a la pestaña <strong>"Estudio de Pauta"</strong> para ingresar un brief y crear tu primera campaña en pausa.
+                  Ve a la sección <strong>"Tico Agent"</strong> para ingresar un brief y formular tu primera campaña publicitaria en pausa.
                 </p>
               </div>
             )}
           </div>
+        )}
+
+        {/* 5. SECCIÓN DASHBOARDS: DASHBOARDS CON LOS DATOS ACTUALES DE CADA ACTIVO */}
+        {dashboardTab === 'dashboards' && (
+          <AssetDashboard
+            metaState={metaState}
+            googleState={googleState}
+          />
         )}
       </DashboardLayout>
     );
@@ -486,7 +533,7 @@ export function App() {
           setAuthModalSubtitle(undefined);
           setIsAuthModalOpen(true);
         }}
-        onGoToPlatform={() => setDashboardTab('studio')}
+        onGoToPlatform={() => setDashboardTab('home')}
         onOpenNewCampaign={scrollToBriefing}
       />
 

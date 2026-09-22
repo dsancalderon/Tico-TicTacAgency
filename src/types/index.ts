@@ -1,5 +1,7 @@
 export type AdvertisingPlatform = 'meta' | 'google' | 'both';
 
+export type DashboardTab = 'home' | 'agent' | 'connections' | 'campaigns' | 'dashboards';
+
 export type CampaignObjective = 
   | 'conversions_sales' 
   | 'lead_generation' 
@@ -50,6 +52,17 @@ export interface MetaConnectionState {
   userId?: string;
   userType?: string;
   isRealToken?: boolean;
+}
+
+export interface GoogleConnectionState {
+  isConnected: boolean;
+  status: 'disconnected' | 'needs_auth' | 'connected';
+  customerId?: string;
+  customerName?: string;
+  mccId?: string;
+  developerTokenStatus?: 'approved' | 'test' | 'pending';
+  conversionActionId?: string;
+  diagnostics: string[];
 }
 
 export interface CreativeAsset {
