@@ -40,6 +40,7 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
 
   // Guide State
   const [copiedPermission, setCopiedPermission] = useState<string | null>(null);
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
 
   // Connected State
   const [selectedAccountId, setSelectedAccountId] = useState(metaState.adAccountId || '');
@@ -616,13 +617,13 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
       <div className="bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-8 shadow-xs space-y-6">
         <div className="flex items-center justify-between pb-4 border-b border-slate-100">
           <div>
-            <h3 className="text-lg font-extrabold text-slate-900 font-['Outfit'] flex items-center gap-2.5">
+            <h3 className="text-lg font-extrabold text-[#0a194f] font-['Outfit'] flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-xl bg-white border border-slate-200/90 flex items-center justify-center shadow-2xs">
                 <MetaBrandLogo className="w-4 h-4" />
               </div>
               <span>Conexión con Meta Ads API</span>
             </h3>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <p className="text-xs text-[#0a194f]/80 mt-0.5">
               Conecta tu Token de Usuario del Sistema (System User Token) de Meta Business Manager para orquestar campañas en Facebook e Instagram en estado PAUSED.
             </p>
           </div>
@@ -745,7 +746,7 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
                   )}
                 </div>
 
-                <div className="text-lg sm:text-xl font-extrabold text-slate-900 font-['Outfit'] flex flex-wrap items-center gap-2">
+                <div className="text-lg sm:text-xl font-extrabold text-[#0a194f] font-['Outfit'] flex flex-wrap items-center gap-2">
                   <span>
                     {metaState.adAccountName 
                       ? `${metaState.adAccountName} (${metaState.adAccountId})` 
@@ -1006,11 +1007,11 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
                     Objetivo: Tráfico Web (PAUSED)
                   </span>
                 </div>
-                <h3 className="text-lg sm:text-xl font-extrabold text-slate-900 font-['Outfit'] flex items-center gap-2">
+                <h3 className="text-lg sm:text-xl font-extrabold text-[#0a194f] font-['Outfit'] flex items-center gap-2">
                   <Play className="w-5 h-5 text-emerald-600" />
                   <span>Prueba Oficial de Conexión y Despliegue en Pausa</span>
                 </h3>
-                <p className="text-xs sm:text-sm text-slate-500 max-w-2xl">
+                <p className="text-xs sm:text-sm text-[#0a194f]/80 max-w-2xl">
                   Prueba la comunicación con Meta Graph API creando una campaña en estado <code>PAUSED</code> con copies, segmentación y creativo de muestra. <strong>Esta prueba no llama a ningún modelo de IA para no generar costos por consumo.</strong>
                 </p>
               </div>
@@ -1376,25 +1377,29 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
       {/* ========================================================================= */}
       {/* 2. GUÍA PASO A PASO EN FORMATO DESPLEGABLE (ABAJO)                         */}
       {/* ========================================================================= */}
-      <details className="group border border-slate-200/90 rounded-3xl bg-white shadow-xs overflow-hidden transition-all">
-        <summary className="p-6 cursor-pointer flex items-center justify-between font-extrabold text-slate-900 select-none hover:bg-slate-50/80 transition-colors list-none">
+      <details 
+        onToggle={(e) => setIsGuideOpen(e.currentTarget.open)}
+        className="group border border-slate-200/90 rounded-3xl bg-white shadow-xs overflow-hidden transition-all"
+      >
+        <summary className="p-6 cursor-pointer flex items-center justify-between font-extrabold text-[#0a194f] select-none hover:bg-slate-50/80 transition-colors list-none">
           <div className="flex items-center gap-3.5">
             <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
               <BookOpen className="w-5 h-5" />
             </div>
             <div>
-              <h4 className="text-sm sm:text-base font-extrabold text-slate-900 font-['Outfit']">
+              <h4 className="text-sm sm:text-base font-extrabold text-[#0a194f] font-['Outfit']">
                 Guía Paso a Paso: Cómo obtener tu Token Permanente y Permisos de Meta Ads
               </h4>
-              <p className="text-xs text-slate-500 font-normal mt-0.5">
+              <p className="text-xs text-[#0a194f]/80 font-normal mt-0.5">
                 Haz clic para desplegar u ocultar los 5 apartados oficiales de Meta Developers y Business Manager.
               </p>
             </div>
           </div>
           <div className="flex items-center gap-2 text-xs font-bold text-blue-600 shrink-0">
-            <span className="hidden sm:inline group-open:hidden">Ver guía</span>
-            <span className="hidden sm:inline hidden group-open:inline">Ocultar guía</span>
-            <ChevronDown className="w-5 h-5 text-slate-400 group-open:rotate-180 transition-transform duration-200" />
+            <span className="hidden sm:inline">
+              {isGuideOpen ? 'Ocultar guía' : 'Ver guía'}
+            </span>
+            <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform duration-200 ${isGuideOpen ? 'rotate-180' : ''}`} />
           </div>
         </summary>
         <div className="border-t border-slate-100 p-6 sm:p-8 lg:p-10 space-y-8 bg-slate-900 text-white">
