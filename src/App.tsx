@@ -39,7 +39,6 @@ import {
   FolderKanban,
   FileCheck2,
   Lock,
-  Layers,
   Trash2,
   Pencil,
   X,
@@ -53,7 +52,6 @@ import { forceResetScroll } from './utils/scrollLock';
 export function App() {
   const [backendOnline, setBackendOnline] = useState<boolean>(false);
   const [currentStep, setCurrentStep] = useState<'briefing' | 'strategy' | 'deployed'>('briefing');
-  const [builderMode, setBuilderMode] = useState<'meta_builder' | 'quick_brief'>('meta_builder');
   const [isLoadingStrategy, setIsLoadingStrategy] = useState<boolean>(false);
   const [isDeploying, setIsDeploying] = useState<boolean>(false);
   const [strategy, setStrategy] = useState<GeneratedCampaignStrategy | null>(null);
@@ -472,7 +470,7 @@ export function App() {
       id: draftId,
       briefingId: draftId,
       brandName: payload.brandName?.trim() || 'Borrador sin título',
-      strategySummary: `Borrador de pauta en Meta Ads (${payload.mode === 'single_ad' ? 'Anuncio Individual' : 'Campaña Completa'})`,
+      strategySummary: `Borrador de pauta (${payload.industry ? payload.industry + ' • ' : ''}${payload.mode === 'single_ad' ? 'Anuncio Individual' : 'Campaña Completa'})`,
       totalBudget: payload.totalBudget || (payload.adSets?.reduce((acc, s) => acc + (s.budgetAmount || 0), 0) ?? 0),
       currency: payload.currency || 'USD',
       createdAt: new Date().toISOString(),
@@ -498,48 +496,6 @@ export function App() {
         await saveCampaign(owner, draftStrategy);
       } catch (err) {
         console.error('Error auto-guardando borrador:', err);
-      }
-    }, 800);
-  };
-
-  // Sincronización en tiempo real desde BriefingForm
-  const handleBriefDraftChange = (brief: ClientBriefing) => {
-    setSavedBrief(brief);
-    if (!userSession?.isAuthenticated) return;
-
-    const owner = userSession.id;
-    const draftId = editingDraftId || crypto.randomUUID();
-    if (!editingDraftId) {
-      setEditingDraftId(draftId);
-    }
-
-    const draftStrategy: GeneratedCampaignStrategy = {
-      id: draftId,
-      briefingId: draftId,
-      brandName: brief.brandName?.trim() || 'Borrador sin título',
-      strategySummary: `Borrador rápido (${brief.industry || 'Briefing general'})`,
-      totalBudget: brief.budgetTotal || 0,
-      currency: brief.currency || 'USD',
-      createdAt: new Date().toISOString(),
-      creditCost: 0,
-      creatives: [],
-      complianceChecked: false,
-      status: 'draft',
-    };
-
-    setDeployedCampaignsList(prev => [
-      draftStrategy,
-      ...prev.filter(c => c.id !== draftId)
-    ]);
-
-    if (draftTimer.current) {
-      window.clearTimeout(draftTimer.current);
-    }
-    draftTimer.current = window.setTimeout(async () => {
-      try {
-        await saveCampaign(owner, draftStrategy);
-      } catch (err) {
-        console.error('Error auto-guardando borrador de brief:', err);
       }
     }, 800);
   };
@@ -570,14 +526,14 @@ export function App() {
           console.error('Error al guardar borrador de estrategia:', err);
         }
       } 
-      // 2. Si estamos en fase 1 editando MetaAdBuilderForm
-      else if (builderMode === 'meta_builder' && editingDraftPayload) {
+      // 2. Si estamos en fase 1 editando el formulario unificado
+      else if (editingDraftPayload) {
         const draftId = editingDraftId || crypto.randomUUID();
         const draftStrategy: GeneratedCampaignStrategy = {
           id: draftId,
           briefingId: draftId,
           brandName: editingDraftPayload.brandName?.trim() || 'Borrador sin título',
-          strategySummary: `Borrador de pauta en Meta Ads (${editingDraftPayload.mode === 'single_ad' ? 'Anuncio Individual' : 'Campaña Completa'})`,
+          strategySummary: `Borrador de pauta (${editingDraftPayload.industry ? editingDraftPayload.industry + ' • ' : ''}${editingDraftPayload.mode === 'single_ad' ? 'Anuncio Individual' : 'Campaña Completa'})`,
           totalBudget: editingDraftPayload.totalBudget || (editingDraftPayload.adSets?.reduce((acc, s) => acc + (s.budgetAmount || 0), 0) ?? 0),
           currency: editingDraftPayload.currency || 'USD',
           createdAt: new Date().toISOString(),
@@ -594,34 +550,7 @@ export function App() {
             ...prev.filter(c => c.id !== draftId)
           ]);
         } catch (err) {
-          console.error('Error al guardar borrador de Meta builder:', err);
-        }
-      }
-      // 3. Si estamos en fase 1 con Briefing rápido
-      else if (builderMode === 'quick_brief' && savedBrief) {
-        const draftId = editingDraftId || crypto.randomUUID();
-        const draftStrategy: GeneratedCampaignStrategy = {
-          id: draftId,
-          briefingId: draftId,
-          brandName: savedBrief.brandName?.trim() || 'Borrador sin título',
-          strategySummary: `Borrador rápido (${savedBrief.industry || 'Briefing general'})`,
-          totalBudget: savedBrief.budgetTotal || 0,
-          currency: savedBrief.currency || 'USD',
-          createdAt: new Date().toISOString(),
-          creditCost: 0,
-          creatives: [],
-          complianceChecked: false,
-          status: 'draft',
-        };
-        try {
-          await saveCampaign(owner, draftStrategy);
-          await saveWorkspace(owner, { briefing: savedBrief, strategy: null, step: 'briefing' });
-          setDeployedCampaignsList(prev => [
-            draftStrategy,
-            ...prev.filter(c => c.id !== draftId)
-          ]);
-        } catch (err) {
-          console.error('Error al guardar borrador de brief:', err);
+          console.error('Error al guardar borrador unificado:', err);
         }
       }
     }
@@ -865,66 +794,36 @@ export function App() {
             {/* Dynamic Step Content */}
             {currentStep === 'briefing' && (
               <div className="space-y-6">
-                {/* Switcher de Modos: Meta Ads Builder vs Briefing General */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-2 bg-slate-100/90 rounded-2xl border border-slate-200/90">
-                  <div className="flex flex-wrap items-center gap-2">
+                {editingDraftId && (
+                  <div className="flex items-center justify-between p-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs">
+                    <div className="flex items-center gap-2 font-semibold">
+                      <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" />
+                      <span>Editando borrador guardado en tiempo real</span>
+                    </div>
                     <button
                       type="button"
-                      onClick={() => setBuilderMode('meta_builder')}
-                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
-                        builderMode === 'meta_builder'
-                          ? 'bg-blue-600 text-white shadow-xs'
-                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
-                      }`}
+                      onClick={() => {
+                        setEditingDraftId(null);
+                        setEditingDraftPayload(null);
+                      }}
+                      className="px-3 py-1 rounded-xl bg-white border border-amber-300 text-amber-800 text-[11px] font-bold hover:bg-amber-100 transition cursor-pointer"
                     >
-                      <Share2 className="w-3.5 h-3.5" />
-                      <span>Meta Ads Builder (Campaña / Anuncio con Tico IA)</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setBuilderMode('quick_brief')}
-                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
-                        builderMode === 'quick_brief'
-                          ? 'bg-slate-950 text-white shadow-xs'
-                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
-                      }`}
-                    >
-                      <Layers className="w-3.5 h-3.5" />
-                      <span>Briefing General Rápido (Meta + Google)</span>
+                      Crear nueva campaña desde cero
                     </button>
                   </div>
-
-                  {editingDraftId && (
-                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold self-end sm:self-auto">
-                      <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                      <span>Editando borrador</span>
-                    </div>
-                  )}
-                </div>
-
-                {builderMode === 'meta_builder' ? (
-                  <MetaAdBuilderForm
-                    key={editingDraftId || (editingDraftPayload ? 'draft' : 'new')}
-                    initialData={editingDraftPayload}
-                    metaState={metaState}
-                    onUpdateMetaState={state => void persistConnection('meta', state)}
-                    onSubmit={handleMetaBuilderSubmit}
-                    onDraftChange={handleMetaBuilderDraftChange}
-                    showCloseButton={Boolean(editingDraftId)}
-                    onClose={() => setIsCloseConfirmModalOpen(true)}
-                    isLoading={isLoadingStrategy}
-                  />
-                ) : (
-                  <BriefingForm
-                    initialData={savedBrief}
-                    onDraftChange={handleBriefDraftChange}
-                    onSubmit={handleBriefSubmit}
-                    showCloseButton={Boolean(editingDraftId)}
-                    onClose={() => setIsCloseConfirmModalOpen(true)}
-                    isLoading={isLoadingStrategy}
-                    submitButtonText="Formular Plan de Pauta con TICO"
-                  />
                 )}
+
+                <MetaAdBuilderForm
+                  key={editingDraftId || (editingDraftPayload ? 'draft' : 'new')}
+                  initialData={editingDraftPayload}
+                  metaState={metaState}
+                  onUpdateMetaState={state => void persistConnection('meta', state)}
+                  onSubmit={handleMetaBuilderSubmit}
+                  onDraftChange={handleMetaBuilderDraftChange}
+                  showCloseButton={Boolean(editingDraftId)}
+                  onClose={() => setIsCloseConfirmModalOpen(true)}
+                  isLoading={isLoadingStrategy}
+                />
               </div>
             )}
 
@@ -1019,14 +918,13 @@ export function App() {
                       </div>
 
                       <div className="flex items-center flex-wrap gap-2.5">
-                        {/* Continuar editando si es un borrador de MetaAdBuilder */}
-                        {isDraft && c.metaBuilderPayload && (
+                        {/* Continuar editando si es un borrador */}
+                        {isDraft && (
                           <button
                             type="button"
                             onClick={() => {
                               setEditingDraftId(c.id || null);
                               setEditingDraftPayload(c.metaBuilderPayload || null);
-                              setBuilderMode('meta_builder');
                               setCurrentStep('briefing');
                               setDashboardTab('agent');
                             }}
@@ -1038,7 +936,7 @@ export function App() {
                         )}
 
                         {/* Abrir estrategia si ya cuenta con contenido estratégico */}
-                        {(c.metaAds || c.googleAds || (!c.metaBuilderPayload && isDraft)) && (
+                        {(c.metaAds || c.googleAds) && (
                           <button
                             type="button"
                             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition cursor-pointer"

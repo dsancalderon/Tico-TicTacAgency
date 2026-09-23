@@ -217,8 +217,16 @@ export interface MetaAdFormItem {
 }
 
 export interface MetaBuilderPayload {
-  mode: MetaFormMode;
+  // Contexto y ADN de Marca (Unificado)
   brandName: string;
+  websiteUrl?: string;
+  industry?: string;
+  targetAudience?: string;
+  additionalNotes?: string;
+  preferredPlatforms?: AdvertisingPlatform;
+
+  // Estructura Publicitaria y Meta Marketing API
+  mode: MetaFormMode;
   adAccountId?: string;
   pageId?: string;
   pixelId?: string;

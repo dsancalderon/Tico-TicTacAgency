@@ -760,15 +760,15 @@ export async function generateMetaBuilderStrategyApi(payload: MetaBuilderPayload
       ageMax: payload.specialAdCategory !== 'NONE' ? 65 : 55,
       gender: payload.specialAdCategory !== 'NONE' ? 'all' : 'all',
       interestsSuggested: [
-        `${payload.brandName} Intereses Afines`,
-        'Compradores que interactuaron en Instagram',
+        `${payload.brandName} ${payload.industry || 'Intereses Afines'}`,
+        payload.industry ? `Interesados en ${payload.industry}` : 'Compradores que interactuaron en Instagram',
         'Usuarios con alta interacción comercial'
       ]
     } : s),
     ads: payload.ads.map(a => a.delegateCopysToTico ? {
       ...a,
-      headline: `${payload.brandName} | ${a.conceptAngle || 'Oferta Exclusiva'}`,
-      primaryText: `Descubre todo lo que ${payload.brandName} tiene preparado para ti. Diseñado para potenciar tu experiencia con ${a.conceptAngle?.toLowerCase() || 'los mejores resultados'}. Aprovecha hoy.`,
+      headline: `${payload.brandName} | ${a.conceptAngle || 'Oferta Exclusiva'}`.slice(0, 40),
+      primaryText: `${payload.additionalNotes ? payload.additionalNotes + '. ' : ''}Descubre todo lo que ${payload.brandName} tiene preparado para ti. Diseñado para ${payload.targetAudience || 'potenciar tu experiencia con ' + (a.conceptAngle?.toLowerCase() || 'los mejores resultados')}. Aprovecha hoy.`,
       description: 'Garantía oficial • Asesoría personalizada',
       callToAction: payload.objective === 'OUTCOME_LEADS' ? 'CONTACT_US' : (payload.objective === 'OUTCOME_SALES' ? 'SHOP_NOW' : 'LEARN_MORE')
     } : a)

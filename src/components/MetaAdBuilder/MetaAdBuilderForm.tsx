@@ -16,7 +16,10 @@ import {
   Share2,
   FileText,
   Briefcase,
-  AlertCircle
+  AlertCircle,
+  Building2,
+  Globe,
+  Users
 } from 'lucide-react';
 import type { 
   MetaBuilderPayload, 
@@ -54,8 +57,14 @@ export const MetaAdBuilderForm: React.FC<MetaAdBuilderFormProps> = ({
   // 1. Selector inicial de modo
   const [mode, setMode] = useState<MetaFormMode>(initialData?.mode || 'full_campaign');
 
-  // Metadatos de Campaña
+  // Metadatos y Contexto de Marca (Unificado)
   const [brandName, setBrandName] = useState(initialData?.brandName || 'UrbanFit Athletics');
+  const [websiteUrl, setWebsiteUrl] = useState(initialData?.websiteUrl || 'https://urbanfit.example.com');
+  const [industry, setIndustry] = useState(initialData?.industry || 'Ropa deportiva y fitness de alto rendimiento');
+  const [targetAudience, setTargetAudience] = useState(initialData?.targetAudience || 'Hombres y mujeres de 22 a 45 años interesados en crossfit, running y vida activa');
+  const [additionalNotes, setAdditionalNotes] = useState(initialData?.additionalNotes || 'Nueva colección transpirable y 15% de descuento en la primera orden online');
+
+  // Metadatos de Campaña
   const [campaignName, setCampaignName] = useState(initialData?.campaignName || '[TICO] UrbanFit — Pauta Q1 Performance');
   const [objective, setObjective] = useState(initialData?.objective || 'OUTCOME_SALES');
   const [specialAdCategory, setSpecialAdCategory] = useState<MetaSpecialAdCategory>(initialData?.specialAdCategory || 'NONE');
@@ -304,6 +313,10 @@ export const MetaAdBuilderForm: React.FC<MetaAdBuilderFormProps> = ({
   // Autocompletar Ejemplo
   const handleLoadPreset = () => {
     setBrandName('Nova Glow Cosméticos');
+    setWebsiteUrl('https://novaglow.example.com');
+    setIndustry('Skincare, Cosmética Facial y Belleza Vegana');
+    setTargetAudience('Mujeres de 20 a 48 años interesadas en cuidado facial, sérums hidratantes y bienestar');
+    setAdditionalNotes('15% de descuento en la primera orden con el código GLOW15, envío gratis en compras superiores a $50 y cosmética limpia sin crueldad');
     setCampaignName('[TICO] Nova Glow — Pauta Retargeting & Nuevos Clientes');
     setObjective('OUTCOME_SALES');
     setSpecialAdCategory('NONE');
@@ -364,6 +377,10 @@ export const MetaAdBuilderForm: React.FC<MetaAdBuilderFormProps> = ({
   const getPayload = (): MetaBuilderPayload => ({
     mode,
     brandName,
+    websiteUrl,
+    industry,
+    targetAudience,
+    additionalNotes,
     adAccountId: selectedAccountId || metaState?.adAccountId,
     pageId: activeAccount.pageId || metaState?.pageId,
     pixelId: activeAccount.pixelId || metaState?.pixelId,
@@ -394,6 +411,10 @@ export const MetaAdBuilderForm: React.FC<MetaAdBuilderFormProps> = ({
   }, [
     mode,
     brandName,
+    websiteUrl,
+    industry,
+    targetAudience,
+    additionalNotes,
     campaignName,
     objective,
     specialAdCategory,
@@ -441,14 +462,14 @@ export const MetaAdBuilderForm: React.FC<MetaAdBuilderFormProps> = ({
       <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-6 border-b border-slate-100">
         <div>
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-bold mb-2">
-            <Share2 className="w-3.5 h-3.5" />
-            <span>Meta Ads Campaign Builder • Marketing API v21.0</span>
+            <Bot className="w-3.5 h-3.5 text-blue-600" />
+            <span>Tico Agent • Generador Integral de Pauta Publicitaria con IA</span>
           </div>
           <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight font-['Outfit']">
-            Constructor Avanzado de Pauta
+            Constructor Unificado de Estrategia y Pauta
           </h2>
           <p className="text-xs sm:text-sm text-slate-500 mt-1 max-w-2xl leading-relaxed">
-            Configura una campaña completa o un anuncio individual. Puedes diligenciar los parámetros manualmente o marcar <strong>"Dejar que Tico lo defina"</strong> para formular la pauta con IA.
+            Ingresa el contexto de tu marca y los parámetros publicitarios. <strong>Tico IA</strong> analizará tu propuesta de valor y público objetivo para formular copys persuasivos (fórmulas AIDA/PAS), segmentación óptima y preparar el despliegue en Meta Ads en estado <strong className="text-slate-700">PAUSED</strong>.
           </p>
         </div>
 
@@ -579,11 +600,107 @@ export const MetaAdBuilderForm: React.FC<MetaAdBuilderFormProps> = ({
 
       <form onSubmit={handleSubmit} className="relative z-10 space-y-8">
         {/* ========================================================================= */}
-        {/* SECCIÓN 1: SELECTOR DE MODO (CAMPAÑA COMPLETA vs ANUNCIO INDIVIDUAL)      */}
+        {/* SECCIÓN 1: IDENTIDAD Y CONTEXTO DE LA MARCA (BRIEFING INTEGRAL)           */}
+        {/* ========================================================================= */}
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 space-y-5 shadow-2xs">
+          <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+            <div className="flex items-center gap-2.5">
+              <span className="w-7 h-7 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs">
+                1
+              </span>
+              <div>
+                <h3 className="font-extrabold text-slate-900 text-base font-['Outfit']">
+                  Contexto y ADN de la Marca
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Esta información permite a <strong>Tico IA</strong> estructurar copys persuasivos (fórmulas AIDA/PAS) y segmentaciones hiper-específicas adaptadas a tu negocio.
+                </p>
+              </div>
+            </div>
+            <span className="text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-100 hidden sm:inline-block">
+              Contexto Tico IA
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
+                <Building2 className="w-3.5 h-3.5 text-blue-600" />
+                <span>Nombre de la Marca <span className="text-rose-500">*</span></span>
+              </label>
+              <input
+                type="text"
+                required
+                value={brandName}
+                onChange={(e) => setBrandName(e.target.value)}
+                placeholder="Ej. Nova Glow Cosméticos o UrbanFit"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none font-medium"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
+                <Globe className="w-3.5 h-3.5 text-slate-400" />
+                <span>Sitio Web o Landing Page Destino</span>
+              </label>
+              <input
+                type="url"
+                value={websiteUrl}
+                onChange={(e) => setWebsiteUrl(e.target.value)}
+                placeholder="https://tumarca.com"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none font-medium"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                Industria o Nicho de Mercado <span className="text-rose-500">*</span>
+              </label>
+              <input
+                type="text"
+                required
+                value={industry}
+                onChange={(e) => setIndustry(e.target.value)}
+                placeholder="Ej. Skincare y belleza, E-commerce de moda, Servicios médicos"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none font-medium"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center gap-1.5">
+                <Users className="w-3.5 h-3.5 text-slate-400" />
+                <span>Público Objetivo / Cliente Ideal</span>
+              </label>
+              <input
+                type="text"
+                value={targetAudience}
+                onChange={(e) => setTargetAudience(e.target.value)}
+                placeholder="Ej. Mujeres de 20 a 48 años interesadas en cuidado facial y bienestar"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none font-medium"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1.5">
+              Propuesta de Valor, Ofertas Activas y Directrices de Marca
+            </label>
+            <textarea
+              rows={2}
+              value={additionalNotes}
+              onChange={(e) => setAdditionalNotes(e.target.value)}
+              placeholder="Ej. 15% de descuento primera compra (código GLOW15), envío gratis >$50, garantía de satisfacción, productos 100% veganos..."
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none font-medium"
+            />
+          </div>
+        </div>
+
+        {/* ========================================================================= */}
+        {/* SECCIÓN 2: SELECTOR DE MODO (CAMPAÑA COMPLETA vs ANUNCIO INDIVIDUAL)      */}
         {/* ========================================================================= */}
         <div className="space-y-3">
           <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
-            1. ¿Qué deseas implementar en Meta Ads?
+            2. ¿Qué deseas implementar en Meta Ads?
           </label>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <button
@@ -760,14 +877,14 @@ export const MetaAdBuilderForm: React.FC<MetaAdBuilderFormProps> = ({
         {/* SECCIÓN 3 (SI MODO === 'full_campaign'): NIVEL CAMPAÑA                   */}
         {/* ========================================================================= */}
         {mode === 'full_campaign' && (
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 space-y-6 shadow-2xs">
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 space-y-6 shadow-2xs">
             <div className="flex items-center justify-between pb-4 border-b border-slate-100">
               <div className="flex items-center gap-2.5">
                 <span className="w-7 h-7 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs">
-                  1
+                  3
                 </span>
                 <h3 className="font-extrabold text-slate-900 text-base font-['Outfit']">
-                  Nivel 1: Configuración de la Campaña
+                  Nivel 1: Configuración de la Campaña en Meta
                 </h3>
               </div>
               <span className="text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600">
@@ -775,21 +892,7 @@ export const MetaAdBuilderForm: React.FC<MetaAdBuilderFormProps> = ({
               </span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  Nombre de la Marca <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={brandName}
-                  onChange={(e) => setBrandName(e.target.value)}
-                  placeholder="Ej. UrbanFit Athletics"
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none font-medium"
-                />
-              </div>
-
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1.5">
                   Nombre de la Campaña en Meta <span className="text-rose-500">*</span>
@@ -811,7 +914,7 @@ export const MetaAdBuilderForm: React.FC<MetaAdBuilderFormProps> = ({
                 <select
                   value={objective}
                   onChange={(e) => setObjective(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none font-medium"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-900 focus:bg-white focus:border-blue-600 focus:outline-none font-medium cursor-pointer"
                 >
                   <option value="OUTCOME_SALES">Ventas / Conversiones en Sitio Web</option>
                   <option value="OUTCOME_LEADS">Clientes Potenciales (Leads / WhatsApp / Formularios)</option>
@@ -829,7 +932,7 @@ export const MetaAdBuilderForm: React.FC<MetaAdBuilderFormProps> = ({
                 <select
                   value={specialAdCategory}
                   onChange={(e) => setSpecialAdCategory(e.target.value as MetaSpecialAdCategory)}
-                  className={`w-full border rounded-xl px-4 py-2.5 text-xs font-medium focus:outline-none ${
+                  className={`w-full border rounded-xl px-4 py-2.5 text-xs font-medium focus:outline-none cursor-pointer ${
                     isSpecialCategoryActive ? 'bg-amber-50 border-amber-300 text-amber-900' : 'bg-slate-50 border-slate-200 text-slate-900'
                   }`}
                 >
@@ -959,7 +1062,7 @@ export const MetaAdBuilderForm: React.FC<MetaAdBuilderFormProps> = ({
               <div>
                 <h3 className="text-base font-extrabold text-slate-900 font-['Outfit'] flex items-center gap-2">
                   <span className="w-7 h-7 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center font-bold text-xs">
-                    2
+                    4
                   </span>
                   <span>Nivel 2: Conjuntos de Anuncios ({adSets.length})</span>
                 </h3>
@@ -1062,7 +1165,7 @@ export const MetaAdBuilderForm: React.FC<MetaAdBuilderFormProps> = ({
 
                     {adset.delegateAudienceToTico ? (
                       <p className="text-[11px] text-purple-900 leading-relaxed">
-                        Tico IA formulará los intereses afines, geografía y datos demográficos en base al nicho de <strong>{brandName}</strong> y a las políticas de Meta.
+                        Tico IA formulará los intereses afines, geografía y datos demográficos en base a la industria ({industry || brandName}), al perfil del público objetivo y a las políticas de Meta.
                       </p>
                     ) : (
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
@@ -1126,7 +1229,7 @@ export const MetaAdBuilderForm: React.FC<MetaAdBuilderFormProps> = ({
             <div>
               <h3 className="text-base font-extrabold text-slate-900 font-['Outfit'] flex items-center gap-2">
                 <span className="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xs">
-                  {mode === 'full_campaign' ? '3' : '2'}
+                  {mode === 'full_campaign' ? '5' : '3'}
                 </span>
                 <span>Nivel Anuncios ({mode === 'full_campaign' ? ads.length : '1 Anuncio Individual'})</span>
               </h3>
@@ -1235,7 +1338,7 @@ export const MetaAdBuilderForm: React.FC<MetaAdBuilderFormProps> = ({
 
                   {ad.delegateCopysToTico ? (
                     <p className="text-[11px] text-emerald-900 leading-relaxed">
-                      Tico IA redactará titulares de alto impacto, textos persuasivos (fórmulas AIDA/PAS) y seleccionará el botón de llamada a la acción óptimo para este anuncio.
+                      Tico IA redactará titulares de alto impacto, textos persuasivos (fórmulas AIDA/PAS) basados en tu propuesta de valor y ofertas, y seleccionará el botón de llamada a la acción óptimo.
                     </p>
                   ) : (
                     <div className="space-y-3 pt-2">

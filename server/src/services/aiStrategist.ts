@@ -183,8 +183,12 @@ export async function generateMetaBuilderStrategy(payload: any) {
   const apiKey = process.env.GEMINI_API_KEY;
   const brandName = payload.brandName || 'Marca';
   const mode = payload.mode || 'full_campaign';
+  const websiteUrl = payload.websiteUrl || '';
+  const industry = payload.industry || '';
+  const targetAudience = payload.targetAudience || '';
+  const additionalNotes = payload.additionalNotes || '';
 
-  console.log('[TICO-AI] Procesando estrategia avanzada de MetaAdBuilder para:', brandName, '| Modo:', mode);
+  console.log('[TICO-AI] Procesando estrategia unificada de Meta Ads para:', brandName, '| Industria:', industry || 'N/A', '| Modo:', mode);
 
   // Fallback determinista si no hay clave de Gemini
   const generateFallback = () => {
@@ -197,8 +201,8 @@ export async function generateMetaBuilderStrategy(payload: any) {
           ageMax: payload.specialAdCategory !== 'NONE' ? 65 : 55,
           gender: payload.specialAdCategory !== 'NONE' ? 'all' : 'all',
           interestsSuggested: [
-            `${brandName} nicho comercial`,
-            'Compradores que interactuaron en redes',
+            `${brandName} ${industry || 'nicho comercial'}`,
+            industry ? `Interesados en ${industry}` : 'Compradores que interactuaron en redes',
             'Interés en productos y servicios afines',
             'Usuarios frecuentes de comercio electrónico'
           ]
@@ -210,10 +214,11 @@ export async function generateMetaBuilderStrategy(payload: any) {
     const updatedAds = (payload.ads || []).map((ad: any, idx: number) => {
       if (ad.delegateCopysToTico) {
         const angle = ad.conceptAngle || 'Propuesta de Valor';
+        const hookText = additionalNotes ? `Aprovecha: ${additionalNotes}.` : `Descubre soluciones de alto rendimiento con ${brandName}.`;
         return {
           ...ad,
-          headline: `${brandName} | ${angle}`,
-          primaryText: `Descubre la excelencia con ${brandName}. Formulamos soluciones diseñadas para maximizar tus resultados con ${angle.toLowerCase()}. Conoce más hoy.`,
+          headline: `${brandName} | ${angle}`.slice(0, 40),
+          primaryText: `${hookText} Diseñado para ${targetAudience || 'quienes buscan los mejores resultados'}. ${angle}. Conoce más hoy.`,
           description: 'Calidad garantizada • Atención directa personalizada',
           callToAction: payload.objective === 'OUTCOME_LEADS' ? 'CONTACT_US' : (payload.objective === 'OUTCOME_SALES' ? 'SHOP_NOW' : 'LEARN_MORE')
         };
@@ -222,7 +227,7 @@ export async function generateMetaBuilderStrategy(payload: any) {
     });
 
     return {
-      strategySummary: `Estrategia de Meta Ads optimizada por TICO para ${brandName}. Se configuraron ${updatedAdSets.length} conjunto(s) de anuncios y ${updatedAds.length} variante(s) de anuncio adaptadas a los objetivos de pauta en modo ${mode === 'single_ad' ? 'Anuncio Individual' : 'Campaña Completa'}.`,
+      strategySummary: `Estrategia de Meta Ads optimizada por TICO para ${brandName}${industry ? ` (${industry})` : ''}. Se configuraron ${updatedAdSets.length} conjunto(s) de anuncios y ${updatedAds.length} variante(s) de anuncio adaptadas a los objetivos de pauta en modo ${mode === 'single_ad' ? 'Anuncio Individual' : 'Campaña Completa'}.`,
       enrichedPayload: {
         ...payload,
         adSets: updatedAdSets,
@@ -236,11 +241,17 @@ export async function generateMetaBuilderStrategy(payload: any) {
   }
 
   try {
-    const prompt = `Eres TICO, el estratega senior de pauta en Meta Ads (Facebook & Instagram) de TicTac Agency.
-El usuario ha enviado una configuración publicitaria con algunos bloques delegados ("Dejar que Tico lo defina").
-Analiza la siguiente información y genera las sugerencias óptimas para cada bloque delegado:
+    const prompt = `Eres TICO, el estratega senior de pauta en Meta Ads (Facebook & Instagram) de TicTac Agency Performance.
+El usuario ha enviado una configuración publicitaria integral con datos de contexto de marca y algunos bloques delegados ("Dejar que Tico lo defina").
 
+INFORMACIÓN DE CONTEXTO DE LA MARCA Y NEGOCIO:
 - Marca: ${brandName}
+- Sitio Web o Landing Destino: ${websiteUrl || 'No especificado'}
+- Industria o Nicho: ${industry || 'No especificado'}
+- Público Objetivo / Buyer Persona: ${targetAudience || 'Consumidores afines al sector'}
+- Propuestas de Valor, Ofertas y Notas Clave: ${additionalNotes || 'Enfocarse en beneficios clave de la marca'}
+
+ESTRUCTURA DE IMPLEMENTACIÓN EN META ADS:
 - Modo: ${mode} (${mode === 'single_ad' ? 'Anuncio individual para insertar en campaña existente' : 'Campaña completa nueva'})
 - Objetivo Meta (ODAX): ${payload.objective || 'OUTCOME_LEADS'}
 - Categoría Especial: ${payload.specialAdCategory || 'NONE'} (REGLA: si no es NONE, Meta prohíbe segmentar género y edad; edad debe ser 18-65)
@@ -249,13 +260,13 @@ Analiza la siguiente información y genera las sugerencias óptimas para cada bl
 - Anuncios declarados: ${JSON.stringify(payload.ads || [])}
 
 INSTRUCCIONES CLAVES:
-1. Para cada AdSet donde "delegateAudienceToTico" sea true, debes generar "interestsSuggested" (4 a 6 intereses de alto impacto en Meta Ads), sugerir rango de edad (ageMin, ageMax) y género, respetando estrictamente las restricciones de Categoría Especial si aplica.
-2. Para cada Anuncio donde "delegateCopysToTico" sea true, debes redactar:
+1. Para cada AdSet donde "delegateAudienceToTico" sea true, debes formular "interestsSuggested" (4 a 6 intereses de alto impacto y segmentación detallada en Meta Ads relevantes para la industria "${industry}" y el público objetivo "${targetAudience}"), sugerir rango de edad (ageMin, ageMax) y género, respetando estrictamente las restricciones de Categoría Especial si aplica.
+2. Para cada Anuncio donde "delegateCopysToTico" sea true, debes redactar usando el contexto de la marca, sus ofertas ("${additionalNotes}") y el ángulo de venta ("conceptAngle"):
    - "headline" (máximo 40 caracteres, alto gancho y CTR)
-   - "primaryText" (copy persuasivo estructurado con fórmula AIDA o PAS, con gancho, problema, solución y llamado)
+   - "primaryText" (copy persuasivo de alto impacto estructurado con fórmula AIDA o PAS, apelando a las necesidades de "${targetAudience}" y destacando las ofertas o beneficios diferenciales)
    - "description" (texto de apoyo de 1 línea)
    - "callToAction" (uno de: LEARN_MORE, SHOP_NOW, SIGN_UP, CONTACT_US, WHATSAPP_MESSAGE, GET_OFFER)
-3. Genera un "strategySummary" ejecutivo de 1-2 párrafos explicando los ángulos de venta elegidos.
+3. Genera un "strategySummary" ejecutivo de 1-2 párrafos explicando los ángulos de venta, el enfoque hacia el público objetivo y la estrategia de conversión recomendada.
 
 Responde ÚNICAMENTE un objeto JSON válido con este formato:
 {
