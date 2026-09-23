@@ -5,10 +5,14 @@ import {
   CheckCircle2, 
   ExternalLink, 
   Key,
-  ChevronRight
+  ChevronRight,
+  Sparkles,
+  AlertCircle,
+  Cpu
 } from 'lucide-react';
 import { TicoIconConnections } from './TicoNavIcons';
 import { MetaBrandLogo, GoogleAdsBrandLogo } from '../BrandLogos';
+import { getClientGeminiApiKey, setClientGeminiApiKey, testGeminiConnectionApi } from '../../services/api';
 
 interface UnifiedConnectionsProps {
   metaState: MetaConnectionState;
@@ -23,7 +27,13 @@ export const UnifiedConnections: React.FC<UnifiedConnectionsProps> = ({
   googleState: propGoogleState,
   onUpdateGoogleState
 }) => {
-  const [activePlatform, setActivePlatform] = useState<'meta' | 'google'>('meta');
+  const [activePlatform, setActivePlatform] = useState<'meta' | 'google' | 'gemini'>('meta');
+
+  // Estado para Google Gemini
+  const [geminiKeyInput, setGeminiKeyInput] = useState(getClientGeminiApiKey());
+  const [isTestingGemini, setIsTestingGemini] = useState(false);
+  const [geminiTestResult, setGeminiTestResult] = useState<{ success: boolean; message: string; model?: string } | null>(null);
+  const [geminiSaveNotice, setGeminiSaveNotice] = useState<string | null>(null);
 
   // Estado local para Google Ads si no viene provisto externamente
   const [googleState, setGoogleState] = useState<GoogleConnectionState>(
@@ -84,26 +94,45 @@ export const UnifiedConnections: React.FC<UnifiedConnectionsProps> = ({
     setGoogleSuccessNotice(null);
   };
 
+  const handleSaveGeminiKey = (e: React.FormEvent) => {
+    e.preventDefault();
+    setClientGeminiApiKey(geminiKeyInput.trim());
+    setGeminiSaveNotice('Clave de Gemini guardada correctamente en el navegador.');
+    setTimeout(() => setGeminiSaveNotice(null), 3500);
+  };
+
+  const handleTestGeminiKey = async () => {
+    setIsTestingGemini(true);
+    setGeminiTestResult(null);
+    try {
+      const result = await testGeminiConnectionApi(geminiKeyInput.trim());
+      setGeminiTestResult(result);
+      if (result.success && geminiKeyInput.trim()) {
+        setClientGeminiApiKey(geminiKeyInput.trim());
+      }
+    } finally {
+      setIsTestingGemini(false);
+    }
+  };
+
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
-      {/* Header unificado de Conexiones */}
-      <div className="bg-white rounded-3xl border border-slate-200/90 p-5 sm:p-7 shadow-xs space-y-5">
-        <div className="flex items-center gap-3.5">
-          <div className="w-11 h-11 rounded-2xl bg-blue-50/80 border border-blue-100 flex items-center justify-center text-blue-600 shadow-2xs shrink-0">
-            <TicoIconConnections className="w-6 h-6" />
-          </div>
+    <div className="space-y-6">
+      {/* Encabezado Principal y Selector de Plataforma */}
+      <div className="bg-white rounded-3xl border border-blue-200/90 p-5 sm:p-6 shadow-xs space-y-4">
+        <div className="flex items-center gap-3 pb-3 border-b border-blue-100/70">
+          <TicoIconConnections className="w-8 h-8 shrink-0" />
           <div>
-            <h1 className="text-xl sm:text-2xl font-extrabold text-[#0a194f] font-['Outfit']">
+            <h1 className="text-xl sm:text-2xl font-extrabold text-[#0a194f] tracking-tight font-['Outfit']">
               Centro de Conexiones Publicitarias
             </h1>
             <p className="text-xs sm:text-sm text-[#0a194f]/80 mt-0.5">
-              Conecta tus cuentas de publicidad para gestionar y optimizar tus campañas desde TICO.
+              Conecta tus cuentas de publicidad y el motor de IA para gestionar y optimizar tus campañas desde TICO.
             </p>
           </div>
         </div>
 
-        {/* Tarjetas de Plataformas (Meta Ads primero, Google Ads segundo - tamaño reducido) */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
+        {/* Tarjetas de Plataformas (Meta Ads, Google Ads y Google Gemini IA) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3.5 pt-1">
           {/* Tarjeta 1: Meta Ads (primero) */}
           <button
             type="button"
@@ -152,6 +181,35 @@ export const UnifiedConnections: React.FC<UnifiedConnectionsProps> = ({
                 </div>
                 <p className="text-xs text-[#0a194f]/75 mt-0.5 leading-relaxed truncate sm:whitespace-normal">
                   Conecta tu cuenta de Google Ads para impulsar tus campañas.
+                </p>
+              </div>
+            </div>
+            <ChevronRight className="w-4.5 h-4.5 text-blue-500 shrink-0 ml-2.5 transition-transform group-hover:translate-x-0.5" />
+          </button>
+
+          {/* Tarjeta 3: Google Gemini IA */}
+          <button
+            type="button"
+            onClick={() => setActivePlatform('gemini')}
+            className={`p-4 sm:p-4.5 rounded-2xl border transition-all text-left flex items-center justify-between cursor-pointer group ${
+              activePlatform === 'gemini'
+                ? 'border-blue-500 bg-blue-50/20 ring-2 ring-blue-500/20 shadow-xs'
+                : 'border-blue-300/80 hover:border-blue-400 bg-white hover:bg-slate-50/50'
+            }`}
+          >
+            <div className="flex items-center gap-3.5 min-w-0">
+              <div className="w-9 h-9 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center shrink-0">
+                <Sparkles className="w-5 h-5 text-blue-600" />
+              </div>
+              <div className="min-w-0">
+                <div className="text-sm sm:text-base font-extrabold text-[#0a194f] font-['Outfit'] flex items-center gap-2">
+                  <span>Google Gemini IA</span>
+                  {getClientGeminiApiKey() && (
+                    <span className="w-2 h-2 rounded-full bg-emerald-500" title="Clave activa" />
+                  )}
+                </div>
+                <p className="text-xs text-[#0a194f]/75 mt-0.5 leading-relaxed truncate sm:whitespace-normal">
+                  Motor de IA para formular copys, segmentaciones y pauta.
                 </p>
               </div>
             </div>
@@ -299,6 +357,151 @@ export const UnifiedConnections: React.FC<UnifiedConnectionsProps> = ({
                 <span>Documentación Google Ads API</span>
                 <ExternalLink className="w-3 h-3" />
               </a>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Contenido para Google Gemini IA */}
+      {activePlatform === 'gemini' && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-3xl border border-slate-200/90 p-6 md:p-8 shadow-sm space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-100">
+              <div className="flex items-center gap-3.5">
+                <div className="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-center shrink-0">
+                  <Sparkles className="w-6 h-6 text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900 font-['Outfit'] flex items-center gap-2">
+                    <span>Motor de IA: Google Gemini 3.6 Flash</span>
+                    {getClientGeminiApiKey() ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                        <CheckCircle2 className="w-3 h-3" /> Clave Activa
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                        <AlertCircle className="w-3 h-3" /> No Configurada
+                      </span>
+                    )}
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Utilizado por Tico Agent para redactar textos persuasivos (AIDA/PAS), seleccionar CTAs y optimizar audiencias.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <a
+                  href="https://aistudio.google.com/app/apikey"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-3.5 py-2 rounded-xl border border-slate-200 hover:border-slate-300 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition flex items-center gap-1.5"
+                >
+                  <span>Obtener Clave en Google AI Studio</span>
+                  <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+                </a>
+              </div>
+            </div>
+
+            {/* Formulario de Configuración de Clave */}
+            <form onSubmit={handleSaveGeminiKey} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Clave de API de Google Gemini (Google AI Studio)
+                </label>
+                <div className="relative">
+                  <input
+                    type="password"
+                    value={geminiKeyInput}
+                    onChange={(e) => setGeminiKeyInput(e.target.value)}
+                    placeholder="AQ.Ab8RN6JnRASUYiSuufnns6x..."
+                    className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 text-xs sm:text-sm font-mono text-slate-900 bg-white"
+                  />
+                  <Key className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Tu clave se almacena de forma segura en este navegador y se transmite cifrada para formular tus campañas.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3 pt-2 flex-wrap">
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition shadow-xs cursor-pointer"
+                >
+                  Guardar Clave en Navegador
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleTestGeminiKey}
+                  disabled={isTestingGemini || !geminiKeyInput.trim()}
+                  className="px-5 py-2.5 rounded-xl border border-blue-200 bg-blue-50/80 hover:bg-blue-100 text-blue-700 text-xs font-bold transition flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  {isTestingGemini ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-blue-600/30 border-t-blue-600 rounded-full animate-spin" />
+                      <span>Verificando con Google AI Studio...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+                      <span>⚡ Probar Conexión en Vivo (Generar Petición en Google AI Studio)</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {geminiSaveNotice && (
+                <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>{geminiSaveNotice}</span>
+                </div>
+              )}
+
+              {geminiTestResult && (
+                <div className={`p-4 rounded-2xl border text-xs leading-relaxed ${
+                  geminiTestResult.success 
+                    ? 'bg-emerald-50/80 border-emerald-200 text-emerald-900' 
+                    : 'bg-rose-50/80 border-rose-200 text-rose-900'
+                }`}>
+                  <div className="flex items-start gap-2.5">
+                    {geminiTestResult.success ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    ) : (
+                      <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                    )}
+                    <div>
+                      <div className="font-bold">
+                        {geminiTestResult.success ? 'Conexión Exitosa con Google Gemini' : 'Fallo en la Verificación'}
+                      </div>
+                      <div className="mt-0.5">{geminiTestResult.message}</div>
+                      {geminiTestResult.success && (
+                        <div className="mt-2 text-[11px] text-emerald-700 font-medium">
+                          💡 Puedes ingresar a tu consola de Google AI Studio y verás la petición registrada con timestamp de hoy.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </form>
+
+            {/* Tarjeta del Stack Tecnológico & Despliegue en Vercel */}
+            <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-3">
+              <div className="flex items-center gap-2 text-xs font-bold text-slate-800 uppercase tracking-wide">
+                <Cpu className="w-4 h-4 text-blue-600" />
+                <span>Configuración de Variables de Entorno en Vercel</span>
+              </div>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Esta aplicación está desplegada en <strong>Vercel</strong> con backend/base de datos en <strong>Supabase</strong> y control de versiones en <strong>GitHub</strong>. Para que las funciones del servidor en Vercel invoquen Google Gemini de manera permanente:
+              </p>
+              <ol className="text-xs text-slate-600 space-y-1.5 list-decimal list-inside pl-1">
+                <li>Abre tu proyecto en <strong>Vercel Dashboard</strong>.</li>
+                <li>Ve a <strong>Settings &gt; Environment Variables</strong>.</li>
+                <li>Agrega la variable <code className="px-1.5 py-0.5 rounded bg-white border border-slate-300 font-mono text-slate-900">GEMINI_API_KEY</code> con tu clave de Google AI Studio.</li>
+                <li>Realiza un nuevo despliegue o haz push a la rama <code className="px-1.5 py-0.5 rounded bg-white border border-slate-300 font-mono text-slate-900">main</code>.</li>
+              </ol>
             </div>
           </div>
         </div>

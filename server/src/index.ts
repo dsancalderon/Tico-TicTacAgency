@@ -45,6 +45,7 @@ app.get('/api/auth/me', getProfile);
 const allowedPaths = [
   '/generate-strategy',
   '/generate-meta-builder',
+  '/gemini-status',
   '/verify-token',
   '/verify-account',
   '/campaigns-list',

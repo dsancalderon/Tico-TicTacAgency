@@ -767,15 +767,90 @@ function createStrategyFromPayload(
 }
 
 /**
+ * Obtiene la clave de Gemini desde el entorno de Vite o desde el almacenamiento local
+ */
+export function getClientGeminiApiKey(): string {
+  const fromEnv = (import.meta.env.VITE_GEMINI_API_KEY || '').trim();
+  if (fromEnv && !fromEnv.includes('your_')) return fromEnv;
+  if (typeof window !== 'undefined') {
+    const fromStorage = (localStorage.getItem('gemini_api_key') || sessionStorage.getItem('gemini_api_key') || '').trim();
+    if (fromStorage && !fromStorage.includes('your_')) return fromStorage;
+  }
+  return '';
+}
+
+/**
+ * Guarda o elimina la clave de Gemini en el navegador
+ */
+export function setClientGeminiApiKey(key: string): void {
+  if (typeof window !== 'undefined') {
+    const clean = key.trim();
+    if (clean) {
+      localStorage.setItem('gemini_api_key', clean);
+    } else {
+      localStorage.removeItem('gemini_api_key');
+    }
+  }
+}
+
+/**
+ * Realiza un ping en vivo a Google Gemini (Gemini 3.6 Flash) para verificar la clave
+ * y forzar el registro de la petición en el panel de Google AI Studio
+ */
+export async function testGeminiConnectionApi(apiKeyOverride?: string): Promise<{ success: boolean; message: string; model: string }> {
+  const key = (apiKeyOverride || getClientGeminiApiKey()).trim();
+  if (!key) {
+    return {
+      success: false,
+      message: 'No se encontró ninguna clave de Gemini configurada. Ingresa tu API Key de Google AI Studio.',
+      model: 'gemini-3.6-flash'
+    };
+  }
+
+  try {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${encodeURIComponent(key)}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: 'Test de conexión Tico Agent. Responde: Conexión exitosa.' }] }]
+      })
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      const reply = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || 'OK';
+      return {
+        success: true,
+        message: `¡Conexión verificada con Google Gemini! Respuesta: "${reply}". Esta solicitud ya quedó registrada en tu panel de Google AI Studio.`,
+        model: 'gemini-3.6-flash'
+      };
+    } else {
+      const errText = await res.text().catch(() => '');
+      return {
+        success: false,
+        message: `Google Gemini API respondió código ${res.status}: ${errText.slice(0, 150)}`,
+        model: 'gemini-3.6-flash'
+      };
+    }
+  } catch (err: any) {
+    return {
+      success: false,
+      message: `Error de red al conectar con Google Gemini: ${err.message}`,
+      model: 'gemini-3.6-flash'
+    };
+  }
+}
+
+/**
  * Consulta directa a la API de Google Gemini (Gemini 3.6 Flash) desde el navegador
  */
-async function callDirectGeminiStrategy(payload: MetaBuilderPayload): Promise<{
+async function callDirectGeminiStrategy(payload: MetaBuilderPayload, apiKeyOverride?: string): Promise<{
   strategySummary: string;
   enrichedPayload: MetaBuilderPayload;
 }> {
-  const apiKey = (import.meta.env.VITE_GEMINI_API_KEY || '').trim();
+  const apiKey = (apiKeyOverride || getClientGeminiApiKey()).trim();
   if (!apiKey || apiKey.includes('your_')) {
-    throw new Error('No se encontró la clave de API de Gemini configurada (VITE_GEMINI_API_KEY).');
+    throw new Error('No se encontró la clave de API de Gemini configurada (GEMINI_API_KEY / VITE_GEMINI_API_KEY).');
   }
 
   const prompt = `Eres TICO, el agente estratega senior de pauta en Meta Ads (Facebook & Instagram) de TicTac Agency Performance.
@@ -811,7 +886,7 @@ Responde ÚNICAMENTE un JSON válido con este formato:
   }
 }`;
 
-  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${encodeURIComponent(apiKey)}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -904,7 +979,13 @@ export async function generateMetaBuilderStrategyApi(
     return { strategy: mockStrategy, enrichedPayload: mockEnriched };
   }
 
-  // 2. Petición real a la API (Botón principal "Formular Estrategia con Tico IA")
+  const clientGeminiKey = getClientGeminiApiKey();
+  const payloadWithKey = {
+    ...payload,
+    geminiApiKey: clientGeminiKey || undefined
+  };
+
+  // 2. Petición real al backend en Vercel (/api/campaigns/generate-meta-builder)
   let backendError: string | null = null;
 
   try {
@@ -912,7 +993,7 @@ export async function generateMetaBuilderStrategyApi(
     const res = await fetch(`${API_BASE_URL}/campaigns/generate-meta-builder`, {
       method: 'POST',
       headers,
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payloadWithKey)
     });
 
     if (res.ok) {
@@ -928,24 +1009,35 @@ export async function generateMetaBuilderStrategyApi(
       backendError = errJson?.error || `Servidor respondió código HTTP ${res.status}: ${res.statusText}`;
     }
   } catch (err: any) {
-    backendError = err?.message || 'Servidor backend no disponible en puerto 4000';
+    backendError = err?.message || 'Servidor backend no disponible';
   }
 
-  // 3. Respaldo directo en cliente: Si el backend está inactivo, llamar a Gemini API en tiempo real
-  console.log('[TICO-AI] Consultando API de Google Gemini directamente desde el cliente...', backendError);
-  try {
-    const directResult = await callDirectGeminiStrategy(payload);
-    const strategy = createStrategyFromPayload(payload, directResult.enrichedPayload, directResult.strategySummary);
-    return { strategy, enrichedPayload: directResult.enrichedPayload };
-  } catch (geminiErr: any) {
-    console.error('[TICO-AI] Error en llamada a Gemini:', geminiErr);
-    throw new Error(
-      `No se pudo formular la estrategia con la API del Agente Tico.\n\n` +
-      `Detalle: ${geminiErr.message}\n` +
-      (backendError ? `Estado del backend: ${backendError}\n\n` : '\n') +
-      `Puedes usar el botón "⚡ Probar con textos predeterminados" si deseas probar el flujo sin conexión a la API.`
-    );
+  // 3. Respaldo directo en cliente: Si el backend en Vercel no respondió o no tiene la clave configurada en su entorno,
+  // invocar directamente a Google Gemini API desde el navegador usando la clave del cliente
+  if (clientGeminiKey) {
+    console.log('[TICO-AI] Conectando directamente con Google Gemini API desde el navegador...', backendError);
+    try {
+      const directResult = await callDirectGeminiStrategy(payload, clientGeminiKey);
+      const strategy = createStrategyFromPayload(payload, directResult.enrichedPayload, directResult.strategySummary);
+      return { strategy, enrichedPayload: directResult.enrichedPayload };
+    } catch (geminiErr: any) {
+      console.error('[TICO-AI] Error en llamada a Gemini:', geminiErr);
+      throw new Error(
+        `Error al consultar la API de Google Gemini en tiempo real: ${geminiErr.message}\n\n` +
+        (backendError ? `Detalle del servidor Vercel: ${backendError}\n\n` : '') +
+        `Usa el botón "⚡ Probar con textos predeterminados" si deseas probar el flujo sin conexión a la API.`
+      );
+    }
   }
+
+  // Si no hay clave configurada ni en Vercel ni en el navegador:
+  throw new Error(
+    (backendError || 'GEMINI_API_KEY no encontrada.') +
+    '\n\nPara solucionar esto:' +
+    '\n1. En Vercel: Ve a Settings > Environment Variables y agrega GEMINI_API_KEY.' +
+    '\n2. En la app: Ve a la pestaña Conexiones y guarda tu clave de Google AI Studio.' +
+    '\n3. O haz clic en "⚡ Probar con textos predeterminados" para continuar en modo simulación.'
+  );
 }
 
 /**
