@@ -45,7 +45,7 @@ import {
   X,
   CheckCircle2,
   Info,
-  HelpCircle
+  Eraser
 } from 'lucide-react';
 import { TicoLoader } from './components/TicoLoader';
 import { forceResetScroll } from './utils/scrollLock';
@@ -1064,57 +1064,49 @@ export function App() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="close-modal-title"
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-md animate-in fade-in duration-150"
           >
-            <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl border border-slate-200 space-y-5 animate-in zoom-in-95 duration-150">
-              <div className="flex items-start justify-between gap-3">
-                <div className="w-11 h-11 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 border border-amber-200/80">
-                  <HelpCircle className="w-6 h-6" />
+            <div className="bg-white rounded-[32px] max-w-[480px] w-full p-8 sm:p-9 shadow-2xl border border-slate-100/80 space-y-6 animate-in zoom-in-95 duration-150">
+              <div className="flex items-start justify-between gap-4">
+                <div className="w-12 h-12 rounded-full bg-[#FEF3C7] flex items-center justify-center text-[#F59E0B] shrink-0">
+                  <Eraser className="w-6 h-6 stroke-[2.2]" />
                 </div>
                 <button
                   type="button"
                   onClick={() => setIsCloseConfirmModalOpen(false)}
-                  className="text-slate-400 hover:text-slate-600 p-1.5 rounded-xl hover:bg-slate-100 transition cursor-pointer"
-                  title="Cerrar modal"
+                  className="text-slate-400 hover:text-slate-600 transition cursor-pointer p-1 -mr-1 -mt-1"
+                  title="Cerrar"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="w-5 h-5 stroke-[2.2]" />
                 </button>
               </div>
 
-              <div>
-                <h3 id="close-modal-title" className="text-lg sm:text-xl font-extrabold text-slate-900 font-['Outfit']">
+              <div className="space-y-3">
+                <h3 id="close-modal-title" className="text-2xl sm:text-[25px] font-black text-[#0F172A] tracking-tight leading-snug font-['Outfit']">
                   ¿Deseas guardar o descartar este borrador?
                 </h3>
-                <p className="text-xs sm:text-sm text-slate-600 mt-2 leading-relaxed">
-                  Puedes guardar el avance actual en la sección <strong>Mis campañas</strong> para retomarlo más adelante, o descartarlo para volver a la fase 1 de Tico Agent.
+                <p className="text-slate-500 text-sm sm:text-[15px] leading-relaxed">
+                  Puedes guardar el avance actual en la sección <strong className="text-slate-700 font-bold">Mis campañas</strong> para retomarlo más adelante, o descartarlo para volver a la fase 1 de Tico Agent.
                 </p>
               </div>
 
-              <div className="flex flex-col sm:flex-row-reverse items-stretch sm:items-center gap-2.5 pt-2">
-                <button
-                  type="button"
-                  onClick={() => void handleSaveDraftAndExitToPhase1()}
-                  className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm transition-all shadow-xs cursor-pointer"
-                >
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>Guardar Borrador</span>
-                </button>
-
+              <div className="grid grid-cols-2 gap-3.5 pt-2">
                 <button
                   type="button"
                   onClick={() => void handleDiscardDraftAndExitToPhase1()}
-                  className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs sm:text-sm transition-all cursor-pointer"
+                  className="w-full flex items-center justify-center gap-2.5 py-3.5 px-4 rounded-full bg-[#FFF1F2] hover:bg-rose-100 text-[#E11D48] border border-[#FFE4E6] font-bold text-sm tracking-wide transition-all shadow-xs cursor-pointer active:scale-98"
                 >
-                  <Trash2 className="w-4 h-4" />
+                  <Trash2 className="w-4 h-4 stroke-[2.2]" />
                   <span>Descartar</span>
                 </button>
 
                 <button
                   type="button"
-                  onClick={() => setIsCloseConfirmModalOpen(false)}
-                  className="flex items-center justify-center px-4 py-2.5 rounded-xl bg-white hover:bg-slate-100 text-slate-600 border border-slate-200 font-semibold text-xs sm:text-sm transition cursor-pointer"
+                  onClick={() => void handleSaveDraftAndExitToPhase1()}
+                  className="w-full flex items-center justify-center gap-2.5 py-3.5 px-4 rounded-full bg-gradient-to-r from-[#0080FF] to-[#8B5CF6] hover:opacity-95 text-white font-bold text-sm tracking-wide transition-all shadow-md shadow-indigo-500/25 cursor-pointer active:scale-98"
                 >
-                  <span>Cancelar</span>
+                  <CheckCircle2 className="w-4 h-4 stroke-[2.2]" />
+                  <span>Guardar borrador</span>
                 </button>
               </div>
             </div>
