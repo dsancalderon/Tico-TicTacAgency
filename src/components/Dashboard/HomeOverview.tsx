@@ -17,7 +17,7 @@ import {
   TicoIconAgent, 
   TicoIconDashboards 
 } from './TicoNavIcons';
-import { MetaBrandLogo, GoogleBrandLogo } from '../BrandLogos';
+import { MetaBrandLogo, GoogleBrandLogo, TicoCoinIcon } from '../BrandLogos';
 
 interface HomeOverviewProps {
   userSession: UserSession;
@@ -339,6 +339,7 @@ export const HomeOverview: React.FC<HomeOverviewProps> = ({
           <div className="bg-white rounded-3xl border border-slate-200/90 p-6 shadow-xs space-y-6">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-extrabold text-[#0a194f] font-['Outfit'] flex items-center gap-2">
+                <TicoCoinIcon className="w-5 h-5 drop-shadow-2xs" />
                 <span>Créditos Disponibles</span>
               </h3>
             </div>
@@ -358,7 +359,8 @@ export const HomeOverview: React.FC<HomeOverviewProps> = ({
                 <div className="text-xs font-semibold text-blue-100 uppercase tracking-wider">
                   Saldo de Cuenta
                 </div>
-                <div className="text-4xl font-black font-['Outfit'] mt-1 flex items-baseline gap-2">
+                <div className="text-4xl font-black font-['Outfit'] mt-1 flex items-center gap-2.5">
+                  <TicoCoinIcon className="w-8 h-8 drop-shadow-md shrink-0" />
                   <span>{userSession.credits}</span>
                   <span className="text-sm font-medium text-blue-100/90">créditos</span>
                 </div>

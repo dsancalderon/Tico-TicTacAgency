@@ -1,5 +1,6 @@
 import React from 'react';
 import metaLogoUrl from '../assets/meta-logo-transparent.png';
+import ticoCoinUrl from '../assets/tico-coin.png';
 
 export interface BrandLogoProps {
   className?: string;
@@ -7,6 +8,38 @@ export interface BrandLogoProps {
   style?: React.CSSProperties;
   title?: string;
 }
+
+/**
+ * Logotipo / Símbolo oficial de Créditos TICO (Moneda Dorada 3D)
+ */
+export const TicoCoinIcon: React.FC<BrandLogoProps> = ({
+  className = 'w-5 h-5',
+  size,
+  style,
+  title = 'Créditos TICO',
+  ...props
+}) => {
+  return (
+    <img
+      src={ticoCoinUrl}
+      alt={title}
+      title={title}
+      className={`object-contain inline-block shrink-0 select-none ${className}`}
+      style={{
+        ...(size ? { width: size, height: size } : {}),
+        ...style
+      }}
+      loading="eager"
+      onError={(e) => {
+        const target = e.currentTarget;
+        if (!target.src.includes('tico-coin.png')) {
+          target.src = '/tico-coin.png';
+        }
+      }}
+      {...(props as any)}
+    />
+  );
+};
 
 /**
  * Logotipo oficial de Meta exactamente igual al provisto por el usuario

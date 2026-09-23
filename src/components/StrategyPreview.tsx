@@ -9,12 +9,12 @@ import {
   ArrowLeft, 
   FileSpreadsheet, 
   Edit3, 
-  Coins, 
   Layers,
   X
 } from 'lucide-react';
 import { exportStrategyToExcel } from '../utils/excelExporter';
 import { CreativeAssignment } from './Dashboard/CreativeAssignment';
+import { TicoCoinIcon } from './BrandLogos';
 
 interface StrategyPreviewProps {
   strategy: GeneratedCampaignStrategy;
@@ -525,7 +525,7 @@ export const StrategyPreview: React.FC<StrategyPreviewProps> = ({
                 Aprobación Formal & Despliegue en Estado PAUSED
               </h3>
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold">
-                <Coins className="w-3.5 h-3.5 text-amber-600" />
+                <TicoCoinIcon className="w-4 h-4 drop-shadow-2xs" />
                 <span>Costo: {creditCost} créditos</span>
               </div>
             </div>
@@ -558,7 +558,7 @@ export const StrategyPreview: React.FC<StrategyPreviewProps> = ({
         {!hasEnoughCredits && (
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs">
             <div className="flex items-center gap-2.5 font-medium">
-              <Coins className="w-5 h-5 text-amber-600 shrink-0" />
+              <TicoCoinIcon className="w-5 h-5 shrink-0 drop-shadow-2xs" />
               <span>
                 <strong>Saldo insuficiente:</strong> Tienes <strong>{userCredits} créditos</strong> y la aprobación requiere <strong>{creditCost} créditos</strong>.
               </span>

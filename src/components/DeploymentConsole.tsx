@@ -1,5 +1,6 @@
 import React from 'react';
-import { CheckCircle2, ExternalLink, RefreshCw, Terminal, Coins, X } from 'lucide-react';
+import { CheckCircle2, ExternalLink, RefreshCw, Terminal, X } from 'lucide-react';
+import { TicoCoinIcon } from './BrandLogos';
 import type { GeneratedCampaignStrategy } from '../types';
 
 interface DeploymentConsoleProps {
@@ -66,7 +67,7 @@ export const DeploymentConsole: React.FC<DeploymentConsoleProps> = ({
       {/* Credit Consumption Summary */}
       <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
         <div className="flex items-center gap-2 text-slate-700">
-          <Coins className="w-4 h-4 text-amber-600" />
+          <TicoCoinIcon className="w-4 h-4 drop-shadow-2xs" />
           <span>Créditos consumidos por despliegue: <strong>-5 créditos</strong></span>
         </div>
         <div className="text-slate-500">
