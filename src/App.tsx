@@ -710,15 +710,40 @@ export function App() {
   // VISTA 1: PLATAFORMA / DASHBOARD AUTENTICADO
   // =========================================================================
   if (userSession?.isAuthenticated) {
-    if (workspaceOwner !== userSession.id) return (
-      <main className="min-h-screen grid place-items-center bg-slate-50 p-6">
-        <div role="status" className="text-center space-y-4">
-          <p>{workspaceError || 'Cargando tu espacio y tus datos…'}</p>
-          {workspaceError && <button className="rounded-full bg-slate-950 text-white px-6 py-2" onClick={() => setWorkspaceRetry(value => value + 1)}>Reintentar</button>}
-          <button className="block mx-auto text-sm underline" onClick={handleLogout}>Cerrar sesión</button>
-        </div>
-      </main>
-    );
+    if (workspaceOwner !== userSession.id) {
+      if (workspaceError) {
+        return (
+          <main className="min-h-screen grid place-items-center bg-slate-50 p-6">
+            <div role="status" className="text-center space-y-4 max-w-sm bg-white p-8 rounded-3xl border border-slate-200 shadow-xl">
+              <p className="text-sm font-semibold text-rose-600">{workspaceError}</p>
+              <button
+                type="button"
+                className="w-full rounded-full bg-slate-950 text-white px-6 py-2.5 text-xs font-bold hover:bg-slate-800 transition cursor-pointer"
+                onClick={() => setWorkspaceRetry(value => value + 1)}
+              >
+                Reintentar
+              </button>
+              <button
+                type="button"
+                className="block mx-auto text-xs text-slate-500 hover:text-slate-900 underline cursor-pointer"
+                onClick={handleLogout}
+              >
+                Cerrar sesión
+              </button>
+            </div>
+          </main>
+        );
+      }
+
+      return (
+        <TicoLoader
+          forceMotion
+          isLoaded={false}
+          minDuration={1000}
+          caption="Cargando tu espacio y tus datos…"
+        />
+      );
+    }
     return (
       <DashboardLayout
         userSession={userSession}
@@ -732,6 +757,16 @@ export function App() {
         isCreditsModalOpen={isCreditsModalOpen}
         onCreditsModalOpenChange={setIsCreditsModalOpen}
       >
+        {/* Pantalla de carga animada inicial de Tico en el Dashboard */}
+        {showLoader && (
+          <TicoLoader
+            forceMotion
+            isLoaded={isAppLoaded && workspaceOwner === userSession.id}
+            minDuration={1200}
+            onFinish={() => setShowLoader(false)}
+            caption="Cargando tu espacio y tus datos…"
+          />
+        )}
         <div className="mb-4 flex gap-3 items-center text-xs text-slate-600">
           <span role="status">{saveStatus}</span>
           <button type="button" className="underline" onClick={() => {

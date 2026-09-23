@@ -10,9 +10,10 @@ export interface TicoLoaderProps {
   minDuration?: number;
   /** Explicit opt-in to full motion, including when the system requests reduced motion. */
   forceMotion?: boolean;
+  caption?: string;
 }
 
-export function TicoLoader({ isLoaded, onFinish, minDuration = 1200, forceMotion = false }: TicoLoaderProps) {
+export function TicoLoader({ isLoaded, onFinish, minDuration = 1200, forceMotion = false, caption = 'Preparando tu espacio' }: TicoLoaderProps) {
   const [phase, setPhase] = useState<LoaderPhase>('loading');
   const started = useRef(0);
   const finish = useRef(onFinish);
@@ -48,7 +49,7 @@ export function TicoLoader({ isLoaded, onFinish, minDuration = 1200, forceMotion
           <div className="tico-loader-shadow" />
         </div>
         <div className="tico-loader-wordmark" aria-hidden="true">tico<span>.</span></div>
-        <p className="tico-loader-caption">Preparando tu espacio</p>
+        <p className="tico-loader-caption">{caption}</p>
         <div className="tico-loader-track" aria-hidden="true"><span /></div>
       </div>
       <div className="tico-loader-signature" aria-hidden="true">TICTAC <span>AGENCY</span></div>
