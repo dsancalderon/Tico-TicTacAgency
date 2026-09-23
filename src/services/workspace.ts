@@ -90,6 +90,12 @@ export async function saveCampaign(userId: string, strategy: GeneratedCampaignSt
   return id;
 }
 
+export async function deleteCampaign(userId: string, campaignId: string) {
+  await assertOwner(userId);
+  const { error } = await requireSupabase().from('campaign_history').delete().eq('id', campaignId).eq('user_id', userId);
+  if (error) throw new Error('No se pudo eliminar la campaña de la base de datos.');
+}
+
 export async function uploadCreative(file: File, aspectRatio: CreativeAsset['aspectRatio']): Promise<CreativeAsset> {
   const db = requireSupabase();
   const { data: session } = await db.auth.getSession();

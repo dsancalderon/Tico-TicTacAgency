@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import type { ClientBriefing, CampaignObjective } from '../types';
-import { Target, DollarSign, Calendar, Globe, Building2, Users, Bot, Sparkles, Wand2 } from 'lucide-react';
+import { Target, DollarSign, Calendar, Globe, Building2, Users, Bot, Sparkles, Wand2, ArrowLeft, Save } from 'lucide-react';
 
 interface BriefingFormProps {
   onSubmit: (brief: ClientBriefing) => void;
   isLoading: boolean;
   initialData?: ClientBriefing | null;
   onDraftChange?: (brief: ClientBriefing) => void;
+  onSaveDraft?: (brief: ClientBriefing) => void;
+  onCancel?: () => void;
   submitButtonText?: string;
 }
 
@@ -15,6 +17,8 @@ export const BriefingForm: React.FC<BriefingFormProps> = ({
   isLoading,
   initialData,
   onDraftChange,
+  onSaveDraft,
+  onCancel,
   submitButtonText
 }) => {
   const [formData, setFormData] = useState<ClientBriefing>(initialData || {
@@ -76,14 +80,34 @@ export const BriefingForm: React.FC<BriefingFormProps> = ({
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={loadPreset}
-          className="self-start sm:self-auto flex items-center gap-2 px-4 py-2 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-all shadow-2xs hover:border-slate-300 cursor-pointer"
-        >
-          <Wand2 className="w-3.5 h-3.5 text-indigo-600" />
-          <span>Autocompletar Ejemplo</span>
-        </button>
+        <div className="flex items-center gap-2.5 self-start sm:self-auto flex-wrap">
+          {(onSaveDraft || onCancel) && (
+            <button
+              type="button"
+              onClick={() => {
+                if (onSaveDraft) {
+                  onSaveDraft(formData);
+                } else if (onCancel) {
+                  onCancel();
+                }
+              }}
+              className="flex items-center gap-2 px-4 py-2 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-all shadow-2xs hover:border-slate-300 cursor-pointer"
+              title="Guardar como borrador y volver a Mis Campañas"
+            >
+              <ArrowLeft className="w-3.5 h-3.5 text-slate-600" />
+              <span>Guardar Borrador y Salir</span>
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={loadPreset}
+            className="flex items-center gap-2 px-4 py-2 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-all shadow-2xs hover:border-slate-300 cursor-pointer"
+          >
+            <Wand2 className="w-3.5 h-3.5 text-indigo-600" />
+            <span>Autocompletar Ejemplo</span>
+          </button>
+        </div>
       </div>
 
       <form onSubmit={handleSubmit} className="relative z-10 mt-8 space-y-6">
@@ -289,11 +313,22 @@ export const BriefingForm: React.FC<BriefingFormProps> = ({
         </div>
 
         {/* Submit CTA */}
-        <div className="pt-2">
+        <div className="pt-2 flex flex-col sm:flex-row items-center gap-3">
+          {onSaveDraft && (
+            <button
+              type="button"
+              disabled={isLoading}
+              onClick={() => onSaveDraft(formData)}
+              className="w-full sm:w-auto py-4 px-6 rounded-full border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold text-sm tracking-wide transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+            >
+              <Save className="w-4 h-4 text-slate-500" />
+              <span>Guardar como Borrador</span>
+            </button>
+          )}
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full py-4 px-6 rounded-full bg-slate-950 hover:bg-slate-800 text-white font-bold text-sm tracking-wide shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2.5 disabled:opacity-50 cursor-pointer"
+            className="flex-1 w-full py-4 px-6 rounded-full bg-slate-950 hover:bg-slate-800 text-white font-bold text-sm tracking-wide shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2.5 disabled:opacity-50 cursor-pointer"
           >
             {isLoading ? (
               <>

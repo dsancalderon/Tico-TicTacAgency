@@ -1,6 +1,6 @@
 import { supabase, loadUserSession } from './services/auth';
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { loadWorkspace, saveWorkspace, saveConnection, saveCampaign, restoreStrategy } from './services/workspace';
+import { loadWorkspace, saveWorkspace, saveConnection, saveCampaign, deleteCampaign, restoreStrategy } from './services/workspace';
 import { Header } from './components/Header';
 import { BriefingForm } from './components/BriefingForm';
 import { MetaAdBuilderForm } from './components/MetaAdBuilder/MetaAdBuilderForm';
@@ -39,7 +39,9 @@ import {
   FolderKanban,
   FileCheck2,
   Lock,
-  Layers
+  Layers,
+  Trash2,
+  Pencil
 } from 'lucide-react';
 import { TicoLoader } from './components/TicoLoader';
 import { forceResetScroll } from './utils/scrollLock';
@@ -52,6 +54,8 @@ export function App() {
   const [isDeploying, setIsDeploying] = useState<boolean>(false);
   const [strategy, setStrategy] = useState<GeneratedCampaignStrategy | null>(null);
   const [deployResult, setDeployResult] = useState<any>(null);
+  const [editingDraftPayload, setEditingDraftPayload] = useState<MetaBuilderPayload | null>(null);
+  const [editingDraftId, setEditingDraftId] = useState<string | null>(null);
 
   // Sesión de Usuario
   const [userSession, setUserSession] = useState<UserSession | null>(null);
@@ -128,6 +132,7 @@ export function App() {
     activeOwner.current = owner;
     setWorkspaceOwner(null); setWorkspaceError(null); setSaveStatus('');
     setSavedBrief(null); setStrategy(null); setDeployResult(null); setCurrentStep('briefing'); setDashboardTab('home');
+    setEditingDraftId(null); setEditingDraftPayload(null);
     setDeployedCampaignsList([]); setCreditTransactions([]);
     setMetaState(initialMeta.current); setGoogleState(initialGoogle.current);
     if (!owner) return;
@@ -294,6 +299,7 @@ export function App() {
   useEffect(() => {
     if (!userSession) {
       setStrategy(null); setDeployResult(null); setDeployedCampaignsList([]);
+      setEditingDraftId(null); setEditingDraftPayload(null);
       setCreditTransactions([]); setCurrentStep('briefing'); setDashboardTab('home');
       setMetaState(previous => ({
         ...previous, isConnected: false, status: 'disconnected',
@@ -405,12 +411,15 @@ export function App() {
     try {
       const { strategy: generated, enrichedPayload } = await generateMetaBuilderStrategyApi(payload);
       if (activeOwner.current !== owner) return;
-      const identified = { ...generated, id: crypto.randomUUID(), metaBuilderPayload: enrichedPayload };
+      const strategyId = editingDraftId || crypto.randomUUID();
+      const identified = { ...generated, id: strategyId, metaBuilderPayload: enrichedPayload };
       await saveCampaign(owner, identified);
       await saveWorkspace(owner, { briefing: savedBrief, strategy: identified, step: 'strategy' });
       if (activeOwner.current !== owner) return;
       setStrategy(identified);
-      setDeployedCampaignsList(previous => [identified, ...previous]);
+      setDeployedCampaignsList(previous => [identified, ...previous.filter(c => c.id !== strategyId)]);
+      setEditingDraftId(null);
+      setEditingDraftPayload(null);
       setCurrentStep('strategy');
       const el = document.getElementById('workflow-container');
       if (el) el.scrollIntoView({ behavior: 'smooth' });
@@ -418,6 +427,108 @@ export function App() {
       window.alert(error instanceof Error ? error.message : 'No se pudo generar la estrategia de Meta Ads.');
     } finally {
       setIsLoadingStrategy(false);
+    }
+  };
+
+  // Guardar Borrador desde MetaAdBuilderForm
+  const handleSaveDraftMetaBuilder = async (payload: MetaBuilderPayload) => {
+    if (!userSession?.isAuthenticated) {
+      setAuthModalTitle('Inicia sesión para guardar tu borrador');
+      setAuthModalSubtitle('Para guardar tus borradores en tu espacio de trabajo, inicia sesión con tu cuenta.');
+      setIsAuthModalOpen(true);
+      return;
+    }
+
+    const owner = userSession.id;
+    const draftId = editingDraftId || crypto.randomUUID();
+    const draftStrategy: GeneratedCampaignStrategy = {
+      id: draftId,
+      briefingId: draftId,
+      brandName: payload.brandName?.trim() || 'Borrador sin título',
+      strategySummary: `Borrador de pauta en Meta Ads (${payload.mode === 'single_ad' ? 'Anuncio Individual' : 'Campaña Completa'})`,
+      totalBudget: payload.totalBudget || (payload.adSets?.reduce((acc, s) => acc + (s.budgetAmount || 0), 0) ?? 0),
+      currency: payload.currency || 'USD',
+      createdAt: new Date().toISOString(),
+      creditCost: 0,
+      creatives: [],
+      complianceChecked: false,
+      status: 'draft',
+      metaBuilderPayload: payload,
+    };
+
+    try {
+      await saveCampaign(owner, draftStrategy);
+      setDeployedCampaignsList(prev => [
+        draftStrategy,
+        ...prev.filter(c => c.id !== draftId)
+      ]);
+      setEditingDraftId(null);
+      setEditingDraftPayload(null);
+      setDashboardTab('campaigns');
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : 'No se pudo guardar el borrador.');
+    }
+  };
+
+  // Guardar Borrador desde BriefingForm
+  const handleSaveDraftBrief = async (brief: ClientBriefing) => {
+    if (!userSession?.isAuthenticated) {
+      setAuthModalTitle('Inicia sesión para guardar tu borrador');
+      setAuthModalSubtitle('Para guardar tus borradores en tu espacio de trabajo, inicia sesión con tu cuenta.');
+      setIsAuthModalOpen(true);
+      return;
+    }
+
+    const owner = userSession.id;
+    const draftId = editingDraftId || crypto.randomUUID();
+    const draftStrategy: GeneratedCampaignStrategy = {
+      id: draftId,
+      briefingId: draftId,
+      brandName: brief.brandName?.trim() || 'Borrador sin título',
+      strategySummary: `Borrador de estrategia general (${brief.industry || 'Briefing rápido'})`,
+      totalBudget: brief.budgetTotal || 0,
+      currency: brief.currency || 'USD',
+      createdAt: new Date().toISOString(),
+      creditCost: 0,
+      creatives: [],
+      complianceChecked: false,
+      status: 'draft',
+    };
+
+    try {
+      await saveCampaign(owner, draftStrategy);
+      await saveWorkspace(owner, { briefing: brief, strategy: null, step: 'briefing' });
+      setDeployedCampaignsList(prev => [
+        draftStrategy,
+        ...prev.filter(c => c.id !== draftId)
+      ]);
+      setEditingDraftId(null);
+      setEditingDraftPayload(null);
+      setDashboardTab('campaigns');
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : 'No se pudo guardar el borrador.');
+    }
+  };
+
+  // Eliminar Campaña o Borrador
+  const handleDeleteCampaign = async (campaignId?: string, campaignName?: string) => {
+    if (!campaignId || !userSession?.isAuthenticated) return;
+    const confirmed = window.confirm(`¿Estás seguro de que deseas eliminar "${campaignName || 'este elemento'}"? Esta acción eliminará el registro de la base de datos de forma permanente.`);
+    if (!confirmed) return;
+
+    try {
+      await deleteCampaign(userSession.id, campaignId);
+      setDeployedCampaignsList(prev => prev.filter(c => c.id !== campaignId));
+      if (strategy?.id === campaignId) {
+        setStrategy(null);
+        setCurrentStep('briefing');
+      }
+      if (editingDraftId === campaignId) {
+        setEditingDraftId(null);
+        setEditingDraftPayload(null);
+      }
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : 'No se pudo eliminar la campaña.');
     }
   };
 
@@ -441,6 +552,8 @@ export function App() {
   const handleResetStudio = () => {
     setStrategy(null);
     setDeployResult(null);
+    setEditingDraftId(null);
+    setEditingDraftPayload(null);
     setCurrentStep('briefing');
   };
 
@@ -597,8 +710,12 @@ export function App() {
 
                 {builderMode === 'meta_builder' ? (
                   <MetaAdBuilderForm
+                    key={editingDraftId || (editingDraftPayload ? 'draft' : 'new')}
+                    initialData={editingDraftPayload}
                     metaState={metaState}
                     onSubmit={handleMetaBuilderSubmit}
+                    onSaveDraft={handleSaveDraftMetaBuilder}
+                    onCancel={() => setDashboardTab('campaigns')}
                     isLoading={isLoadingStrategy}
                   />
                 ) : (
@@ -606,6 +723,8 @@ export function App() {
                     initialData={savedBrief}
                     onDraftChange={setSavedBrief}
                     onSubmit={handleBriefSubmit}
+                    onSaveDraft={handleSaveDraftBrief}
+                    onCancel={() => setDashboardTab('campaigns')}
                     isLoading={isLoadingStrategy}
                     submitButtonText="Formular Plan de Pauta con TICO"
                   />
@@ -656,14 +775,17 @@ export function App() {
                   Mis campañas
                 </h3>
                 <p className="text-xs text-slate-500 mt-1">
-                  Estrategias y campañas guardadas en tu espacio.
+                  Estrategias, borradores y campañas guardadas en tu espacio.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => {
-                  setDashboardTab('agent');
+                  setEditingDraftId(null);
+                  setEditingDraftPayload(null);
+                  setStrategy(null);
                   setCurrentStep('briefing');
+                  setDashboardTab('agent');
                 }}
                 className="px-4 py-2 rounded-full bg-slate-950 hover:bg-slate-800 text-white text-xs font-bold transition-all cursor-pointer"
               >
@@ -673,38 +795,97 @@ export function App() {
 
             {deployedCampaignsList.length > 0 ? (
               <div className="divide-y divide-slate-100">
-                {deployedCampaignsList.map((c, idx) => (
-                  <div key={idx} className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-slate-900 text-sm">{c.brandName}</span>
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
-                          {c.deployedMetaCampaignId?.includes('sandbox') || c.deployedGoogleCampaignId?.includes('sandbox') ? 'DEMO' : c.deployedMetaCampaignId || c.deployedGoogleCampaignId ? 'PAUSED' : 'BORRADOR'}
-                        </span>
+                {deployedCampaignsList.map((c, idx) => {
+                  const isDraft = !c.deployedMetaCampaignId && !c.deployedGoogleCampaignId;
+                  const isDemo = Boolean(c.deployedMetaCampaignId?.includes('sandbox') || c.deployedGoogleCampaignId?.includes('sandbox'));
+                  
+                  return (
+                    <div key={c.id || idx} className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-slate-900 text-sm">{c.brandName || 'Campaña sin nombre'}</span>
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                            isDemo 
+                              ? 'bg-blue-50 text-blue-700 border-blue-200' 
+                              : isDraft 
+                              ? 'bg-amber-50 text-amber-700 border-amber-200' 
+                              : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          }`}>
+                            {isDemo ? 'DEMO' : isDraft ? 'BORRADOR' : 'PAUSED'}
+                          </span>
+                        </div>
+                        <div className="text-xs text-slate-500">
+                          {c.strategySummary && <span className="text-slate-600 font-medium block mb-0.5">{c.strategySummary}</span>}
+                          ID Meta: <code className="font-mono text-slate-700">{c.deployedMetaCampaignId || 'Sin desplegar'}</code> • Presupuesto: ${c.totalBudget ? c.totalBudget.toLocaleString() : '0'} {c.currency || 'USD'}
+                        </div>
                       </div>
-                      <div className="text-xs text-slate-500 mt-0.5">
-                        ID Meta: <code className="font-mono text-slate-700">{c.deployedMetaCampaignId || 'Sin desplegar'}</code> • Presupuesto: ${c.totalBudget.toLocaleString()} {c.currency}
+
+                      <div className="flex items-center flex-wrap gap-2.5">
+                        {/* Continuar editando si es un borrador de MetaAdBuilder */}
+                        {isDraft && c.metaBuilderPayload && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingDraftId(c.id || null);
+                              setEditingDraftPayload(c.metaBuilderPayload || null);
+                              setBuilderMode('meta_builder');
+                              setCurrentStep('briefing');
+                              setDashboardTab('agent');
+                            }}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-indigo-200 bg-indigo-50/80 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold transition cursor-pointer"
+                          >
+                            <Pencil className="w-3.5 h-3.5 text-indigo-600" />
+                            <span>Continuar editando</span>
+                          </button>
+                        )}
+
+                        {/* Abrir estrategia si ya cuenta con contenido estratégico */}
+                        {(c.metaAds || c.googleAds || (!c.metaBuilderPayload && isDraft)) && (
+                          <button
+                            type="button"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition cursor-pointer"
+                            onClick={() => {
+                              const owner = userSession?.id;
+                              if (!owner) return;
+                              void restoreStrategy(c).then(restored => {
+                                if (activeOwner.current !== owner) return;
+                                setStrategy(restored);
+                                setCurrentStep('strategy');
+                                setDashboardTab('agent');
+                              }).catch(() => setSaveStatus('No se pudo abrir la estrategia. Inténtalo de nuevo.'));
+                            }}
+                          >
+                            <span>Abrir estrategia</span>
+                          </button>
+                        )}
+
+                        {/* Enlace a Meta Ads Manager si está desplegada */}
+                        {c.deployedMetaCampaignId && !isDemo && (
+                          <a
+                            href="https://adsmanager.facebook.com"
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-800 hover:underline px-2 py-1"
+                          >
+                            <span>Ads Manager</span>
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
+                        )}
+
+                        {/* Botón Eliminar Borrador / Campaña */}
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteCampaign(c.id, c.brandName)}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 text-xs font-semibold transition cursor-pointer"
+                          title="Eliminar de la base de datos"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                          <span className="hidden sm:inline">Eliminar</span>
+                        </button>
                       </div>
                     </div>
-
-                    <button type="button" className="text-sm font-semibold text-indigo-600" onClick={() => {
-                      const owner = userSession.id;
-                      void restoreStrategy(c).then(restored => {
-                        if (activeOwner.current !== owner) return;
-                        setStrategy(restored); setCurrentStep('strategy'); setDashboardTab('agent');
-                      }).catch(() => setSaveStatus('No se pudo abrir la estrategia. Inténtalo de nuevo.'));
-                    }}>Abrir estrategia</button>
-                    <a
-                      href="https://adsmanager.facebook.com"
-                      target="_blank"
-                      rel="noreferrer"
-                      className="flex items-center gap-1.5 text-xs font-bold text-blue-600 hover:text-blue-800 hover:underline"
-                    >
-                      <span>Abrir en Meta Ads Manager</span>
-                      <ExternalLink className="w-3.5 h-3.5" />
-                    </a>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="p-10 text-center border border-dashed border-slate-200 rounded-2xl">

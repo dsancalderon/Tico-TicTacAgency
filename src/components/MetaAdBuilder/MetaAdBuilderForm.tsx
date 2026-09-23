@@ -11,6 +11,8 @@ import {
   Wand2, 
   RefreshCw, 
   ArrowRight,
+  ArrowLeft,
+  Save,
   Info,
   Share2,
   FileText
@@ -32,13 +34,17 @@ interface MetaAdBuilderFormProps {
   onSubmit: (payload: MetaBuilderPayload) => void;
   isLoading: boolean;
   initialData?: MetaBuilderPayload | null;
+  onSaveDraft?: (payload: MetaBuilderPayload) => void;
+  onCancel?: () => void;
 }
 
 export const MetaAdBuilderForm: React.FC<MetaAdBuilderFormProps> = ({
   metaState,
   onSubmit,
   isLoading,
-  initialData
+  initialData,
+  onSaveDraft,
+  onCancel
 }) => {
   // 1. Selector inicial de modo
   const [mode, setMode] = useState<MetaFormMode>(initialData?.mode || 'full_campaign');
@@ -276,32 +282,31 @@ export const MetaAdBuilderForm: React.FC<MetaAdBuilderFormProps> = ({
     ]);
   };
 
+  const getPayload = (): MetaBuilderPayload => ({
+    mode,
+    brandName,
+    adAccountId: metaState?.adAccountId,
+    pageId: metaState?.pageId,
+    pixelId: metaState?.pixelId,
+    existingCampaignId: mode === 'single_ad' ? selectedCampaignId : undefined,
+    existingCampaignName: mode === 'single_ad' ? existingCampaigns.find(c => c.id === selectedCampaignId)?.name : undefined,
+    existingAdSetId: mode === 'single_ad' ? selectedAdSetId : undefined,
+    existingAdSetName: mode === 'single_ad' ? existingAdSets.find(a => a.id === selectedAdSetId)?.name : undefined,
+    campaignName,
+    objective,
+    specialAdCategory,
+    budgetType,
+    totalBudget,
+    currency,
+    cboDistribution,
+    bidStrategy,
+    adSets: mode === 'full_campaign' ? adSets : [],
+    ads: mode === 'single_ad' ? [ads[0]] : ads
+  });
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-
-    const payload: MetaBuilderPayload = {
-      mode,
-      brandName,
-      adAccountId: metaState?.adAccountId,
-      pageId: metaState?.pageId,
-      pixelId: metaState?.pixelId,
-      existingCampaignId: mode === 'single_ad' ? selectedCampaignId : undefined,
-      existingCampaignName: mode === 'single_ad' ? existingCampaigns.find(c => c.id === selectedCampaignId)?.name : undefined,
-      existingAdSetId: mode === 'single_ad' ? selectedAdSetId : undefined,
-      existingAdSetName: mode === 'single_ad' ? existingAdSets.find(a => a.id === selectedAdSetId)?.name : undefined,
-      campaignName,
-      objective,
-      specialAdCategory,
-      budgetType,
-      totalBudget,
-      currency,
-      cboDistribution,
-      bidStrategy,
-      adSets: mode === 'full_campaign' ? adSets : [],
-      ads: mode === 'single_ad' ? [ads[0]] : ads
-    };
-
-    onSubmit(payload);
+    onSubmit(getPayload());
   };
 
   return (
@@ -325,14 +330,34 @@ export const MetaAdBuilderForm: React.FC<MetaAdBuilderFormProps> = ({
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={handleLoadPreset}
-          className="self-start lg:self-auto flex items-center gap-2 px-4 py-2.5 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-all shadow-2xs cursor-pointer hover:border-slate-300"
-        >
-          <Wand2 className="w-3.5 h-3.5 text-blue-600" />
-          <span>Autocompletar Ejemplo</span>
-        </button>
+        <div className="flex items-center gap-2.5 self-start lg:self-auto flex-wrap">
+          {(onSaveDraft || onCancel) && (
+            <button
+              type="button"
+              onClick={() => {
+                if (onSaveDraft) {
+                  onSaveDraft(getPayload());
+                } else if (onCancel) {
+                  onCancel();
+                }
+              }}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-all shadow-2xs cursor-pointer hover:border-slate-300"
+              title="Guardar como borrador y volver a Mis Campañas"
+            >
+              <ArrowLeft className="w-3.5 h-3.5 text-slate-600" />
+              <span>Guardar Borrador y Salir</span>
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={handleLoadPreset}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-all shadow-2xs cursor-pointer hover:border-slate-300"
+          >
+            <Wand2 className="w-3.5 h-3.5 text-blue-600" />
+            <span>Autocompletar Ejemplo</span>
+          </button>
+        </div>
       </div>
 
       <form onSubmit={handleSubmit} className="relative z-10 space-y-8">
@@ -990,11 +1015,22 @@ export const MetaAdBuilderForm: React.FC<MetaAdBuilderFormProps> = ({
         {/* ========================================================================= */}
         {/* BOTÓN FINAL DE FORMULACIÓN                                               */}
         {/* ========================================================================= */}
-        <div className="pt-4 border-t border-slate-200">
+        <div className="pt-4 border-t border-slate-200 flex flex-col sm:flex-row items-center gap-3">
+          {onSaveDraft && (
+            <button
+              type="button"
+              disabled={isLoading}
+              onClick={() => onSaveDraft(getPayload())}
+              className="w-full sm:w-auto py-4 px-6 rounded-2xl border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold text-sm tracking-wide transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+            >
+              <Save className="w-4 h-4 text-slate-500" />
+              <span>Guardar como Borrador</span>
+            </button>
+          )}
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full py-4 px-6 rounded-2xl bg-slate-950 hover:bg-slate-800 text-white font-bold text-sm tracking-wide shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2.5 disabled:opacity-50 cursor-pointer"
+            className="flex-1 w-full py-4 px-6 rounded-2xl bg-slate-950 hover:bg-slate-800 text-white font-bold text-sm tracking-wide shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2.5 disabled:opacity-50 cursor-pointer"
           >
             {isLoading ? (
               <>
