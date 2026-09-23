@@ -176,7 +176,7 @@ export const HomeOverview: React.FC<HomeOverviewProps> = ({
                   metaState.status === 'connected_needs_perms' ? 'bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.6)]' : 'bg-slate-400'
                 }`} />
                 <span className="text-xs sm:text-sm font-bold text-white tracking-tight">
-                  {metaState.status === 'ready_to_deploy' ? 'Listo Para PAUSED' :
+                  {metaState.status === 'ready_to_deploy' ? 'Listo' :
                    metaState.status === 'connected_needs_perms' ? 'Requiere permisos' : 'Desconectado'}
                 </span>
               </div>
@@ -336,57 +336,45 @@ export const HomeOverview: React.FC<HomeOverviewProps> = ({
               <h3 className="text-base font-extrabold text-slate-900 font-['Outfit'] flex items-center gap-2">
                 <span>Créditos Disponibles</span>
               </h3>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
-                Uso IA & Orquestación
-              </span>
             </div>
 
-            {/* Saldo Card (matching Image 1) */}
+            {/* Saldo Card (compact format matching reference with modern blue gradient) */}
             <div 
-              className="p-6 sm:p-7 rounded-[28px] text-white shadow-xl shadow-blue-600/20 relative overflow-hidden"
+              className="p-5 rounded-2xl text-white shadow-md relative overflow-hidden"
               style={{
-                background: 'linear-gradient(110deg, #0091ff 0%, #2f65f8 48%, #9947ff 100%)'
+                background: 'linear-gradient(135deg, #0084ff 0%, #2563eb 45%, #7c3aed 100%)'
               }}
             >
-              {/* Subtle ambient lighting inside card */}
-              <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-2xl pointer-events-none" />
+              {/* Subtle modern ambient glow */}
+              <div className="absolute -top-10 -right-10 w-48 h-48 bg-white/15 rounded-full blur-2xl pointer-events-none" />
+              <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-purple-500/20 rounded-full blur-2xl pointer-events-none" />
 
               <div className="relative z-10">
-                <div className="text-xs sm:text-[13px] font-black uppercase tracking-wider text-white font-['Outfit']">
-                  SALDO DE CUENTA
+                <div className="text-xs font-semibold text-blue-100 uppercase tracking-wider">
+                  Saldo de Cuenta
                 </div>
-
-                <div className="flex items-baseline gap-2.5 my-3">
-                  <span className="text-5xl sm:text-6xl font-black font-['Outfit'] text-white leading-none tracking-tight">
-                    {userSession.credits}
-                  </span>
-                  <span className="text-xl sm:text-2xl font-black font-['Outfit'] text-amber-300">
-                    créditos
-                  </span>
+                <div className="text-4xl font-black font-['Outfit'] mt-1 flex items-baseline gap-2">
+                  <span>{userSession.credits}</span>
+                  <span className="text-sm font-medium text-blue-100/90">créditos</span>
                 </div>
-
-                <p className="text-xs sm:text-[13px] text-white/95 font-medium leading-relaxed max-w-sm">
+                <p className="text-[11px] text-blue-100/90 mt-2 leading-relaxed">
                   {userSession.credits >= 5 
                     ? `Suficiente para ~${Math.floor(userSession.credits / 5)} despliegues completos en Meta Ads.`
                     : 'Saldo bajo. Recarga para continuar creando campañas.'}
                 </p>
 
-                {/* Horizontal divider */}
-                <div className="h-px w-full bg-white/25 my-5" />
-
-                {/* Pill Buttons */}
-                <div className="flex items-center gap-3">
+                <div className="mt-4 flex items-center justify-between gap-3">
                   <button
                     type="button"
                     onClick={() => onAddCredits(20)}
-                    className="flex-1 py-3 px-5 sm:px-6 rounded-full bg-white hover:bg-slate-50 text-[#1b357e] text-xs sm:text-sm font-black transition-all shadow-md shadow-blue-950/15 cursor-pointer text-center active:scale-[0.98]"
+                    className="flex-1 py-2 px-3 rounded-xl bg-white hover:bg-white/95 text-slate-950 text-xs font-extrabold transition-all shadow-xs cursor-pointer text-center active:scale-[0.98]"
                   >
                     Recargar (+20 cr)
                   </button>
                   <button
                     type="button"
                     onClick={onOpenCreditsModal}
-                    className="py-3 px-6 sm:px-7 rounded-full bg-white/20 hover:bg-white/30 text-white text-xs sm:text-sm font-bold transition-all cursor-pointer backdrop-blur-sm border border-white/10 active:scale-[0.98]"
+                    className="py-2 px-3 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs font-bold transition-all cursor-pointer backdrop-blur-sm active:scale-[0.98]"
                   >
                     Detalles
                   </button>
