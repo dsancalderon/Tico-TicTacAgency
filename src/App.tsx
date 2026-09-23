@@ -368,6 +368,18 @@ export function App() {
       setStrategy({ ...recorded, id });
       setDeployedCampaignsList(previous => [{ ...recorded, id }, ...previous.filter(item => item.id !== id)]);
 
+      const cost = strategyToDeploy.creditCost || 5;
+      setUserSession(prev => prev ? { ...prev, credits: Math.max(0, (prev.credits || 0) - cost) } : null);
+      const debitTx: CreditTransaction = {
+        id: crypto.randomUUID(),
+        date: new Date().toISOString(),
+        amount: cost,
+        type: 'debit',
+        description: `Implementación de campaña: ${strategyToDeploy.brandName} (${cost} créditos)`,
+        campaignId: id
+      };
+      setCreditTransactions(prev => [debitTx, ...prev]);
+
       const el = document.getElementById('workflow-container');
       if (el) el.scrollIntoView({ behavior: 'smooth' });
     } catch (error) {
@@ -409,9 +421,21 @@ export function App() {
     }
   };
 
-  // Recarga de Créditos
-  const handleAddCredits = (_amount: number) => {
-    window.alert('Las recargas estarán disponibles cuando se integre el sistema de créditos.');
+  // Recarga de Créditos (Cortesía / Pruebas en fase actual)
+  const handleAddCredits = (amount: number = 20) => {
+    if (!userSession) return;
+    const addAmount = typeof amount === 'number' && amount > 0 ? amount : 20;
+    const newBalance = (userSession.credits || 0) + addAmount;
+    const newTx: CreditTransaction = {
+      id: crypto.randomUUID(),
+      date: new Date().toISOString(),
+      amount: addAmount,
+      type: 'credit',
+      description: `Recarga de prueba (+${addAmount} créditos TICO)`
+    };
+    setUserSession(prev => prev ? { ...prev, credits: newBalance } : null);
+    setCreditTransactions(prev => [newTx, ...prev]);
+    setIsCreditsModalOpen(false);
   };
 
   const handleResetStudio = () => {
@@ -598,6 +622,7 @@ export function App() {
                 onBack={() => setCurrentStep('briefing')}
                 isDeploying={isDeploying}
                 userCredits={userSession.credits}
+                onAddCredits={handleAddCredits}
               />
             )}
 

@@ -21,6 +21,7 @@ interface StrategyPreviewProps {
   onBack: () => void;
   isDeploying: boolean;
   userCredits?: number;
+  onAddCredits?: (amount?: number) => void;
   onChange?: (strategy: GeneratedCampaignStrategy) => void;
 }
 
@@ -30,6 +31,7 @@ export const StrategyPreview: React.FC<StrategyPreviewProps> = ({
   onBack,
   isDeploying,
   userCredits = 0,
+  onAddCredits,
   onChange
 }) => {
   const [strategy, setStrategy] = useState<GeneratedCampaignStrategy>(initialStrategy);
@@ -537,6 +539,26 @@ export const StrategyPreview: React.FC<StrategyPreviewProps> = ({
             </span>
           </label>
         </div>
+
+        {!hasEnoughCredits && (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs">
+            <div className="flex items-center gap-2.5 font-medium">
+              <Coins className="w-5 h-5 text-amber-600 shrink-0" />
+              <span>
+                <strong>Saldo insuficiente:</strong> Tienes <strong>{userCredits} créditos</strong> y la aprobación requiere <strong>{creditCost} créditos</strong>.
+              </span>
+            </div>
+            {onAddCredits && (
+              <button
+                type="button"
+                onClick={() => onAddCredits(20)}
+                className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition-all shadow-xs cursor-pointer flex items-center justify-center gap-1.5 self-start sm:self-auto"
+              >
+                <span>+ Recargar 20 Créditos de Prueba</span>
+              </button>
+            )}
+          </div>
+        )}
 
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2">
           <div className="text-xs font-semibold text-emerald-700 flex items-center gap-2">
