@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { LogOut } from 'lucide-react';
+import { LogOut, X } from 'lucide-react';
 
 interface LogoutConfirmModalProps {
   isOpen: boolean;
@@ -27,51 +27,67 @@ export const LogoutConfirmModal: React.FC<LogoutConfirmModalProps> = ({
 
   return (
     <div 
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200"
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/30 backdrop-blur-md animate-in fade-in duration-200 overflow-y-auto"
       onClick={onClose}
     >
+      {/* Ambient background glow orbs matching AuthModal aesthetic */}
+      <div className="fixed -top-24 -left-24 w-96 h-96 bg-blue-400/20 rounded-full blur-3xl pointer-events-none" />
+      <div className="fixed -bottom-24 -right-24 w-96 h-96 bg-purple-400/20 rounded-full blur-3xl pointer-events-none" />
+      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-indigo-300/15 rounded-full blur-[100px] pointer-events-none" />
+
+      {/* Glassmorphic Card (identical to AuthModal) */}
       <div 
-        className="bg-white rounded-[32px] sm:rounded-[36px] p-8 sm:p-10 max-w-md w-full shadow-2xl border border-slate-100 text-center relative animate-in zoom-in-95 duration-200"
+        className="relative w-full max-w-[360px] rounded-[30px] bg-white/80 backdrop-blur-2xl border border-white/80 shadow-[0_25px_60px_-15px_rgba(91,103,250,0.25)] p-6 sm:p-7 flex flex-col items-center my-auto transition-all z-10 text-center animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Circular Gradient Icon */}
-        <div 
-          className="w-20 h-20 sm:w-22 sm:h-22 rounded-full mx-auto flex items-center justify-center shadow-xl shadow-blue-500/25"
-          style={{
-            background: 'linear-gradient(135deg, #0066ff 0%, #2563eb 45%, #8b5cf6 100%)'
-          }}
+        {/* Close Button */}
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-200/50 rounded-full transition-colors cursor-pointer z-20"
+          title="Cerrar"
         >
-          <LogOut className="w-9 h-9 sm:w-10 sm:h-10 text-white stroke-[2.3] ml-0.5" />
+          <X className="w-4 h-4" />
+        </button>
+
+        {/* Floating Gradient Icon with Aura */}
+        <div className="relative flex items-center justify-center mb-1">
+          <div className="absolute inset-0 bg-[#5B67FA]/20 rounded-2xl blur-lg transform scale-110 pointer-events-none" />
+          <div 
+            className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center text-white shadow-[0_10px_24px_rgba(91,103,250,0.3)]"
+            style={{
+              background: 'linear-gradient(135deg, #2F80ED 0%, #5B67FA 50%, #A751F1 100%)'
+            }}
+          >
+            <LogOut className="w-7 h-7 text-white stroke-[2.2] ml-0.5" />
+          </div>
         </div>
 
         {/* Title & Description */}
-        <h2 className="text-2xl sm:text-[26px] font-black font-['Outfit'] text-slate-900 tracking-tight mt-6">
+        <h2 className="text-xl sm:text-[22px] font-bold text-slate-800 tracking-tight font-['Outfit'] mt-3">
           ¿Deseas cerrar sesión?
         </h2>
-        <p className="text-slate-500 text-sm sm:text-[15px] font-medium mt-2 leading-relaxed max-w-xs mx-auto">
+        <p className="text-xs sm:text-sm text-slate-500 font-medium mt-1.5 leading-relaxed max-w-[260px] mx-auto">
           Tu sesión se cerrará en este dispositivo.
           <br />
           Podrás volver a ingresar cuando quieras.
         </p>
 
-        {/* Buttons */}
-        <div className="flex items-center justify-center gap-3 sm:gap-4 mt-8 w-full">
+        {/* Action Buttons matching AuthModal forms and colors */}
+        <div className="flex items-center justify-center gap-2.5 mt-6 w-full">
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 py-3 px-6 rounded-full border border-slate-300 hover:border-slate-400 hover:bg-slate-50 text-slate-700 font-bold text-sm sm:text-base transition-all cursor-pointer text-center active:scale-[0.98]"
+            className="flex-1 py-2.5 sm:py-3 px-4 rounded-2xl bg-[#f0f3fa]/90 hover:bg-[#e6ebf7] border border-[#e2e8f5] text-slate-700 font-bold text-xs sm:text-sm transition-all cursor-pointer text-center active:scale-[0.99]"
           >
             Cancelar
           </button>
           <button
             type="button"
             onClick={onConfirm}
-            className="flex-1 py-3 px-6 rounded-full text-white font-bold text-sm sm:text-base shadow-lg shadow-blue-600/25 hover:shadow-blue-600/35 transition-all cursor-pointer flex items-center justify-center gap-2 active:scale-[0.98]"
-            style={{
-              background: 'linear-gradient(90deg, #0066ff 0%, #2563eb 40%, #8b5cf6 100%)'
-            }}
+            className="flex-1 py-2.5 sm:py-3 px-4 rounded-2xl bg-gradient-to-r from-[#2F80ED] via-[#5B67FA] to-[#A751F1] hover:opacity-95 active:scale-[0.99] text-white font-bold text-xs sm:text-sm tracking-wide shadow-[0_10px_24px_rgba(91,103,250,0.35)] hover:shadow-[0_14px_28px_rgba(91,103,250,0.45)] transition-all cursor-pointer flex items-center justify-center gap-1.5"
           >
-            <LogOut className="w-4 h-4 text-white stroke-[2.3]" />
+            <LogOut className="w-4 h-4 text-white stroke-[2.2]" />
             <span>Cerrar sesión</span>
           </button>
         </div>
