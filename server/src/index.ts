@@ -8,7 +8,9 @@ import { campaignsRouter } from './routes/campaigns.js';
 import { metaRouter } from './routes/meta.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-dotenv.config({ path: path.resolve(__dirname, '../../.env'), override: false });
+dotenv.config({ path: path.resolve(__dirname, '../../.env'), override: true });
+dotenv.config({ path: path.resolve(__dirname, '../.env'), override: true });
+dotenv.config({ path: path.resolve(process.cwd(), '.env'), override: true });
 dotenv.config({ path: path.resolve(__dirname, '../../.env.local'), override: false });
 
 export const app = express();
@@ -38,13 +40,24 @@ app.get('/api/health', (req, res) => {
 
 app.use('/api', requireAuth);
 app.get('/api/auth/me', getProfile);
-// Advertising credentials are not tenant-scoped yet: keep these routes closed in phase 1,
-// pero permitir siempre las rutas de diagnóstico y verificación de token suministrado por el usuario.
+// Las rutas de formulación de estrategia con IA (Gemini), diagnóstico de cuentas y listado de campañas/adsets
+// deben estar siempre habilitadas para los usuarios autenticados.
+const allowedPaths = [
+  '/generate-strategy',
+  '/generate-meta-builder',
+  '/verify-token',
+  '/verify-account',
+  '/campaigns-list',
+  '/adsets-list',
+  '/test-creation',
+  '/deploy-builder'
+];
+
 app.use(['/api/campaigns', '/api/meta'], (req, res, next) => {
-  if (req.path === '/verify-token' || req.path === '/verify-account' || req.path === '/test-creation') {
+  if (allowedPaths.includes(req.path)) {
     return next();
   }
-  if (process.env.ENABLE_ADVERTISING_API !== 'true') {
+  if (process.env.ENABLE_ADVERTISING_API !== 'true' && !req.body?.token && !req.body?.userAccessToken) {
     res.status(403).json({ error: 'Integraciones publicitarias pendientes de habilitación por cliente' }); return;
   }
   next();
