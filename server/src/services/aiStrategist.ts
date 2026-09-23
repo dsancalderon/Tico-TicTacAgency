@@ -142,17 +142,14 @@ Debes responder ÚNICAMENTE un objeto JSON válido con las siguientes propiedade
   }` : 'null'}
 }`;
 
-      const candidateModels = [
-        'gemini-2.5-flash',
-        'gemini-2.0-flash',
-        'gemini-1.5-flash',
-        'gemini-1.5-flash-latest',
-        'gemini-1.5-pro'
-      ];
+      const targetModel = 'gemini-3.6-flash';
+      let lastError = '';
+      const maxRetries = 2;
 
-      for (const model of candidateModels) {
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
         try {
-          const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey.trim()}`, {
+          console.log(`[TICO-AI] Invocando ${targetModel} (intento ${attempt}/${maxRetries})...`);
+          const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${apiKey.trim()}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -195,14 +192,23 @@ Debes responder ÚNICAMENTE un objeto JSON válido con las siguientes propiedade
             }
           } else {
             const errText = await res.text().catch(() => '');
-            console.warn(`[TICO-AI] Modelo ${model} retornó ${res.status}:`, errText.slice(0, 100));
-            if (res.status === 503 || res.status === 429) {
-              await new Promise(r => setTimeout(r, 400));
+            lastError = `Gemini API (${targetModel}) respondió error ${res.status}: ${errText.slice(0, 180)}`;
+            console.warn(`[TICO-AI] ${lastError}`);
+            if (attempt < maxRetries && (res.status === 503 || res.status === 429)) {
+              await new Promise(r => setTimeout(r, 1500));
             }
           }
         } catch (mErr: any) {
-          console.warn(`[TICO-AI] Fallo en ${model}:`, mErr.message);
+          lastError = `Fallo de red al invocar ${targetModel}: ${mErr.message}`;
+          console.warn(`[TICO-AI] ${lastError}`);
+          if (attempt < maxRetries) {
+            await new Promise(r => setTimeout(r, 1000));
+          }
         }
+      }
+
+      if (lastError && process.env.NODE_ENV !== 'test') {
+        throw new Error(lastError);
       }
     } catch (err: any) {
       console.error('Error invoking Gemini 3.6 Flash for strategy generation:', err);
@@ -324,20 +330,14 @@ Responde ÚNICAMENTE un objeto JSON válido con este formato:
   "enrichedPayload": { ...el payload recibido pero con los campos delegados rellenados con tus sugerencias }
 }`;
 
-    const candidateModels = [
-      'gemini-2.5-flash',
-      'gemini-2.0-flash',
-      'gemini-1.5-flash',
-      'gemini-1.5-flash-latest',
-      'gemini-1.5-pro'
-    ];
+    const targetModel = 'gemini-3.6-flash';
     let lastError = '';
-    let isHighDemand503 = false;
+    const maxRetries = 2;
 
-    for (const model of candidateModels) {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        console.log(`[TICO-AI] Consultando modelo Gemini: ${model}...`);
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey.trim()}`, {
+        console.log(`[TICO-AI] Consultando modelo Gemini: ${targetModel} (intento ${attempt}/${maxRetries})...`);
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${apiKey.trim()}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -402,30 +402,23 @@ Responde ÚNICAMENTE un objeto JSON válido con este formato:
           }
         } else {
           const errBody = await res.text().catch(() => '');
-          if (res.status === 503) {
-            isHighDemand503 = true;
-          }
-          lastError = `Modelo ${model} retornó ${res.status}: ${errBody.slice(0, 150)}`;
+          lastError = `Modelo ${targetModel} retornó código ${res.status}: ${errBody.slice(0, 180)}`;
           console.warn(`[TICO-AI] ${lastError}`);
-          // Si el modelo específico está saturado, esperar 400ms y probar el siguiente modelo de la lista
-          if (res.status === 503 || res.status === 429) {
-            await new Promise((resolve) => setTimeout(resolve, 400));
+          if (attempt < maxRetries && (res.status === 503 || res.status === 429)) {
+            await new Promise((resolve) => setTimeout(resolve, 1500));
           }
         }
       } catch (err: any) {
-        lastError = `Fallo al invocar ${model}: ${err.message}`;
+        lastError = `Fallo al invocar ${targetModel}: ${err.message}`;
         console.warn(`[TICO-AI] ${lastError}`);
+        if (attempt < maxRetries) {
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
       }
     }
 
-    console.error('[TICO-AI] No se pudo generar la estrategia con ningún modelo:', lastError);
-    if (isHighDemand503) {
-      throw new Error(
-        'Los servidores de Google AI Studio (versión gratuita) están experimentando una saturación temporal de alta demanda (Error 503). ' +
-        'Por favor inténtalo de nuevo en unos segundos, o utiliza el botón inferior "⚡ Probar con textos predeterminados" para continuar sin esperas.'
-      );
-    }
-    throw new Error(`La API de IA no pudo generar la estrategia: ${lastError}`);
+    console.error(`[TICO-AI] No se pudo generar la estrategia con ${targetModel}:`, lastError);
+    throw new Error(`La API de Gemini (${targetModel}) no pudo generar la estrategia: ${lastError}`);
   } catch (err: any) {
     console.error('Error invoking Gemini for MetaAdBuilder:', err.message);
     throw err;
