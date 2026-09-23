@@ -41,7 +41,8 @@ import {
   Lock,
   Layers,
   Trash2,
-  Pencil
+  Pencil,
+  X
 } from 'lucide-react';
 import { TicoLoader } from './components/TicoLoader';
 import { forceResetScroll } from './utils/scrollLock';
@@ -430,8 +431,102 @@ export function App() {
     }
   };
 
-  // Guardar Borrador desde MetaAdBuilderForm
+  const draftTimer = useRef<number | null>(null);
+
+  // Sincronización en tiempo real desde MetaAdBuilderForm
+  const handleMetaBuilderDraftChange = (payload: MetaBuilderPayload) => {
+    setEditingDraftPayload(payload);
+    if (!userSession?.isAuthenticated) return;
+
+    const owner = userSession.id;
+    const draftId = editingDraftId || crypto.randomUUID();
+    if (!editingDraftId) {
+      setEditingDraftId(draftId);
+    }
+
+    const draftStrategy: GeneratedCampaignStrategy = {
+      id: draftId,
+      briefingId: draftId,
+      brandName: payload.brandName?.trim() || 'Borrador sin título',
+      strategySummary: `Borrador de pauta en Meta Ads (${payload.mode === 'single_ad' ? 'Anuncio Individual' : 'Campaña Completa'})`,
+      totalBudget: payload.totalBudget || (payload.adSets?.reduce((acc, s) => acc + (s.budgetAmount || 0), 0) ?? 0),
+      currency: payload.currency || 'USD',
+      createdAt: new Date().toISOString(),
+      creditCost: 0,
+      creatives: [],
+      complianceChecked: false,
+      status: 'draft',
+      metaBuilderPayload: payload,
+    };
+
+    // Actualiza inmediatamente la lista en memoria (Mis Campañas en tiempo real)
+    setDeployedCampaignsList(prev => [
+      draftStrategy,
+      ...prev.filter(c => c.id !== draftId)
+    ]);
+
+    // Persiste en Supabase con debounce de 800ms
+    if (draftTimer.current) {
+      window.clearTimeout(draftTimer.current);
+    }
+    draftTimer.current = window.setTimeout(async () => {
+      try {
+        await saveCampaign(owner, draftStrategy);
+      } catch (err) {
+        console.error('Error auto-guardando borrador:', err);
+      }
+    }, 800);
+  };
+
+  // Sincronización en tiempo real desde BriefingForm
+  const handleBriefDraftChange = (brief: ClientBriefing) => {
+    setSavedBrief(brief);
+    if (!userSession?.isAuthenticated) return;
+
+    const owner = userSession.id;
+    const draftId = editingDraftId || crypto.randomUUID();
+    if (!editingDraftId) {
+      setEditingDraftId(draftId);
+    }
+
+    const draftStrategy: GeneratedCampaignStrategy = {
+      id: draftId,
+      briefingId: draftId,
+      brandName: brief.brandName?.trim() || 'Borrador sin título',
+      strategySummary: `Borrador rápido (${brief.industry || 'Briefing general'})`,
+      totalBudget: brief.budgetTotal || 0,
+      currency: brief.currency || 'USD',
+      createdAt: new Date().toISOString(),
+      creditCost: 0,
+      creatives: [],
+      complianceChecked: false,
+      status: 'draft',
+    };
+
+    setDeployedCampaignsList(prev => [
+      draftStrategy,
+      ...prev.filter(c => c.id !== draftId)
+    ]);
+
+    if (draftTimer.current) {
+      window.clearTimeout(draftTimer.current);
+    }
+    draftTimer.current = window.setTimeout(async () => {
+      try {
+        await saveCampaign(owner, draftStrategy);
+      } catch (err) {
+        console.error('Error auto-guardando borrador de brief:', err);
+      }
+    }, 800);
+  };
+
+  // Guardar Borrador explícito desde MetaAdBuilderForm
   const handleSaveDraftMetaBuilder = async (payload: MetaBuilderPayload) => {
+    if (draftTimer.current) {
+      window.clearTimeout(draftTimer.current);
+      draftTimer.current = null;
+    }
+
     if (!userSession?.isAuthenticated) {
       setAuthModalTitle('Inicia sesión para guardar tu borrador');
       setAuthModalSubtitle('Para guardar tus borradores en tu espacio de trabajo, inicia sesión con tu cuenta.');
@@ -470,8 +565,13 @@ export function App() {
     }
   };
 
-  // Guardar Borrador desde BriefingForm
+  // Guardar Borrador explícito desde BriefingForm
   const handleSaveDraftBrief = async (brief: ClientBriefing) => {
+    if (draftTimer.current) {
+      window.clearTimeout(draftTimer.current);
+      draftTimer.current = null;
+    }
+
     if (!userSession?.isAuthenticated) {
       setAuthModalTitle('Inicia sesión para guardar tu borrador');
       setAuthModalSubtitle('Para guardar tus borradores en tu espacio de trabajo, inicia sesión con tu cuenta.');
@@ -508,6 +608,87 @@ export function App() {
     } catch (error) {
       window.alert(error instanceof Error ? error.message : 'No se pudo guardar el borrador.');
     }
+  };
+
+  // Cerrar formulario y regresar a Mis Campañas (persistiendo el estado en el que quedó)
+  const handleCloseBuilder = async (currentPayload?: MetaBuilderPayload) => {
+    if (draftTimer.current) {
+      window.clearTimeout(draftTimer.current);
+      draftTimer.current = null;
+    }
+
+    const payload = currentPayload || editingDraftPayload;
+    if (userSession?.isAuthenticated && payload) {
+      const owner = userSession.id;
+      const draftId = editingDraftId || crypto.randomUUID();
+      const draftStrategy: GeneratedCampaignStrategy = {
+        id: draftId,
+        briefingId: draftId,
+        brandName: payload.brandName?.trim() || 'Borrador sin título',
+        strategySummary: `Borrador de pauta en Meta Ads (${payload.mode === 'single_ad' ? 'Anuncio Individual' : 'Campaña Completa'})`,
+        totalBudget: payload.totalBudget || (payload.adSets?.reduce((acc, s) => acc + (s.budgetAmount || 0), 0) ?? 0),
+        currency: payload.currency || 'USD',
+        createdAt: new Date().toISOString(),
+        creditCost: 0,
+        creatives: [],
+        complianceChecked: false,
+        status: 'draft',
+        metaBuilderPayload: payload,
+      };
+
+      try {
+        await saveCampaign(owner, draftStrategy);
+        setDeployedCampaignsList(prev => [
+          draftStrategy,
+          ...prev.filter(c => c.id !== draftId)
+        ]);
+        setEditingDraftId(draftId);
+        setEditingDraftPayload(payload);
+      } catch (err) {
+        console.error('Error al guardar borrador al cerrar:', err);
+      }
+    }
+
+    setDashboardTab('campaigns');
+  };
+
+  const handleCloseBrief = async (brief?: ClientBriefing) => {
+    if (draftTimer.current) {
+      window.clearTimeout(draftTimer.current);
+      draftTimer.current = null;
+    }
+
+    const currentBrief = brief || savedBrief;
+    if (userSession?.isAuthenticated && currentBrief) {
+      const owner = userSession.id;
+      const draftId = editingDraftId || crypto.randomUUID();
+      const draftStrategy: GeneratedCampaignStrategy = {
+        id: draftId,
+        briefingId: draftId,
+        brandName: currentBrief.brandName?.trim() || 'Borrador sin título',
+        strategySummary: `Borrador rápido (${currentBrief.industry || 'Briefing general'})`,
+        totalBudget: currentBrief.budgetTotal || 0,
+        currency: currentBrief.currency || 'USD',
+        createdAt: new Date().toISOString(),
+        creditCost: 0,
+        creatives: [],
+        complianceChecked: false,
+        status: 'draft',
+      };
+
+      try {
+        await saveCampaign(owner, draftStrategy);
+        await saveWorkspace(owner, { briefing: currentBrief, strategy: null, step: 'briefing' });
+        setDeployedCampaignsList(prev => [
+          draftStrategy,
+          ...prev.filter(c => c.id !== draftId)
+        ]);
+      } catch (err) {
+        console.error('Error al guardar borrador de brief al cerrar:', err);
+      }
+    }
+
+    setDashboardTab('campaigns');
   };
 
   // Eliminar Campaña o Borrador
@@ -703,9 +884,28 @@ export function App() {
                       <span>Briefing General Rápido (Meta + Google)</span>
                     </button>
                   </div>
-                  <span className="text-[11px] text-slate-500 font-medium px-2">
-                    {builderMode === 'meta_builder' ? 'Jerarquía oficial Campaña → AdSet → Anuncio' : 'Estrategia rápida'}
-                  </span>
+
+                  <div className="flex items-center gap-3 px-2 self-end sm:self-auto flex-wrap">
+                    <span className="text-[11px] text-emerald-600 font-semibold flex items-center gap-1.5 hidden md:flex">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                      <span>Guardado en tiempo real en Mis Campañas</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (builderMode === 'meta_builder') {
+                          void handleCloseBuilder();
+                        } else {
+                          void handleCloseBrief();
+                        }
+                      }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold transition cursor-pointer shadow-2xs"
+                      title="Cerrar formulario y ver campañas"
+                    >
+                      <X className="w-3.5 h-3.5 text-slate-500" />
+                      <span>Cerrar Formulario</span>
+                    </button>
+                  </div>
                 </div>
 
                 {builderMode === 'meta_builder' ? (
@@ -714,17 +914,20 @@ export function App() {
                     initialData={editingDraftPayload}
                     metaState={metaState}
                     onSubmit={handleMetaBuilderSubmit}
+                    onDraftChange={handleMetaBuilderDraftChange}
                     onSaveDraft={handleSaveDraftMetaBuilder}
-                    onCancel={() => setDashboardTab('campaigns')}
+                    onClose={handleCloseBuilder}
+                    onCancel={() => handleCloseBuilder()}
                     isLoading={isLoadingStrategy}
                   />
                 ) : (
                   <BriefingForm
                     initialData={savedBrief}
-                    onDraftChange={setSavedBrief}
+                    onDraftChange={handleBriefDraftChange}
                     onSubmit={handleBriefSubmit}
                     onSaveDraft={handleSaveDraftBrief}
-                    onCancel={() => setDashboardTab('campaigns')}
+                    onClose={handleCloseBrief}
+                    onCancel={() => handleCloseBrief()}
                     isLoading={isLoadingStrategy}
                     submitButtonText="Formular Plan de Pauta con TICO"
                   />

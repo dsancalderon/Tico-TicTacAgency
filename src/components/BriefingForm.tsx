@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { ClientBriefing, CampaignObjective } from '../types';
-import { Target, DollarSign, Calendar, Globe, Building2, Users, Bot, Sparkles, Wand2, ArrowLeft, Save } from 'lucide-react';
+import { Target, DollarSign, Calendar, Globe, Building2, Users, Bot, Sparkles, Wand2, ArrowLeft, Save, X } from 'lucide-react';
 
 interface BriefingFormProps {
   onSubmit: (brief: ClientBriefing) => void;
@@ -8,6 +8,7 @@ interface BriefingFormProps {
   initialData?: ClientBriefing | null;
   onDraftChange?: (brief: ClientBriefing) => void;
   onSaveDraft?: (brief: ClientBriefing) => void;
+  onClose?: (brief?: ClientBriefing) => void;
   onCancel?: () => void;
   submitButtonText?: string;
 }
@@ -18,6 +19,7 @@ export const BriefingForm: React.FC<BriefingFormProps> = ({
   initialData,
   onDraftChange,
   onSaveDraft,
+  onClose,
   onCancel,
   submitButtonText
 }) => {
@@ -53,6 +55,16 @@ export const BriefingForm: React.FC<BriefingFormProps> = ({
     });
   };
 
+  const handleClose = () => {
+    if (onClose) {
+      onClose(formData);
+    } else if (onSaveDraft) {
+      onSaveDraft(formData);
+    } else if (onCancel) {
+      onCancel();
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.brandName || !formData.budgetTotal) return;
@@ -61,6 +73,19 @@ export const BriefingForm: React.FC<BriefingFormProps> = ({
 
   return (
     <div className="bg-white rounded-3xl border border-slate-200/90 p-6 md:p-10 shadow-sm relative overflow-hidden">
+      {/* Botón de Cierre Superior */}
+      {(onClose || onCancel || onSaveDraft) && (
+        <button
+          type="button"
+          onClick={handleClose}
+          className="absolute top-4 right-4 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer text-xs font-semibold"
+          title="Cerrar formulario y ver campañas"
+        >
+          <X className="w-4 h-4 text-slate-500" />
+          <span>Cerrar</span>
+        </button>
+      )}
+
       {/* Decorative subtle background aura */}
       <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-50/70 rounded-full blur-3xl pointer-events-none -z-0" />
       <div className="absolute bottom-0 left-0 w-80 h-80 bg-purple-50/60 rounded-full blur-3xl pointer-events-none -z-0" />
@@ -81,16 +106,22 @@ export const BriefingForm: React.FC<BriefingFormProps> = ({
         </div>
 
         <div className="flex items-center gap-2.5 self-start sm:self-auto flex-wrap">
-          {(onSaveDraft || onCancel) && (
+          {(onClose || onCancel || onSaveDraft) && (
             <button
               type="button"
-              onClick={() => {
-                if (onSaveDraft) {
-                  onSaveDraft(formData);
-                } else if (onCancel) {
-                  onCancel();
-                }
-              }}
+              onClick={handleClose}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-all shadow-2xs hover:border-slate-300 cursor-pointer"
+              title="Cerrar formulario y ver campañas guardadas"
+            >
+              <X className="w-3.5 h-3.5 text-slate-500" />
+              <span>Cerrar</span>
+            </button>
+          )}
+
+          {onSaveDraft && (
+            <button
+              type="button"
+              onClick={() => onSaveDraft(formData)}
               className="flex items-center gap-2 px-4 py-2 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-all shadow-2xs hover:border-slate-300 cursor-pointer"
               title="Guardar como borrador y volver a Mis Campañas"
             >

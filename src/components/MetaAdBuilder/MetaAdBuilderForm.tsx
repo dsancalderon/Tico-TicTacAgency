@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Sparkles, 
   Layers, 
@@ -13,6 +13,7 @@ import {
   ArrowRight,
   ArrowLeft,
   Save,
+  X,
   Info,
   Share2,
   FileText
@@ -34,7 +35,9 @@ interface MetaAdBuilderFormProps {
   onSubmit: (payload: MetaBuilderPayload) => void;
   isLoading: boolean;
   initialData?: MetaBuilderPayload | null;
+  onDraftChange?: (payload: MetaBuilderPayload) => void;
   onSaveDraft?: (payload: MetaBuilderPayload) => void;
+  onClose?: (payload?: MetaBuilderPayload) => void;
   onCancel?: () => void;
 }
 
@@ -43,7 +46,9 @@ export const MetaAdBuilderForm: React.FC<MetaAdBuilderFormProps> = ({
   onSubmit,
   isLoading,
   initialData,
+  onDraftChange,
   onSaveDraft,
+  onClose,
   onCancel
 }) => {
   // 1. Selector inicial de modo
@@ -304,6 +309,42 @@ export const MetaAdBuilderForm: React.FC<MetaAdBuilderFormProps> = ({
     ads: mode === 'single_ad' ? [ads[0]] : ads
   });
 
+  // Notificar cambios en tiempo real
+  const isInitialized = useRef(false);
+  useEffect(() => {
+    if (!isInitialized.current) {
+      isInitialized.current = true;
+      return;
+    }
+    onDraftChange?.(getPayload());
+  }, [
+    mode,
+    brandName,
+    campaignName,
+    objective,
+    specialAdCategory,
+    budgetType,
+    totalBudget,
+    currency,
+    cboDistribution,
+    bidStrategy,
+    selectedCampaignId,
+    selectedAdSetId,
+    adSets,
+    ads,
+  ]);
+
+  const handleClose = () => {
+    const payload = getPayload();
+    if (onClose) {
+      onClose(payload);
+    } else if (onSaveDraft) {
+      onSaveDraft(payload);
+    } else if (onCancel) {
+      onCancel();
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSubmit(getPayload());
@@ -311,6 +352,19 @@ export const MetaAdBuilderForm: React.FC<MetaAdBuilderFormProps> = ({
 
   return (
     <div className="bg-white rounded-3xl border border-slate-200/90 p-6 md:p-10 shadow-sm relative overflow-hidden space-y-8">
+      {/* Botón de Cierre Superior */}
+      {(onClose || onCancel || onSaveDraft) && (
+        <button
+          type="button"
+          onClick={handleClose}
+          className="absolute top-4 right-4 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer text-xs font-semibold"
+          title="Cerrar formulario y ver campañas"
+        >
+          <X className="w-4 h-4 text-slate-500" />
+          <span>Cerrar</span>
+        </button>
+      )}
+
       {/* Aura decorativa */}
       <div className="absolute top-0 right-0 w-96 h-96 bg-blue-50/70 rounded-full blur-3xl pointer-events-none -z-0" />
       <div className="absolute bottom-0 left-0 w-96 h-96 bg-indigo-50/60 rounded-full blur-3xl pointer-events-none -z-0" />
@@ -331,16 +385,22 @@ export const MetaAdBuilderForm: React.FC<MetaAdBuilderFormProps> = ({
         </div>
 
         <div className="flex items-center gap-2.5 self-start lg:self-auto flex-wrap">
-          {(onSaveDraft || onCancel) && (
+          {(onClose || onCancel || onSaveDraft) && (
             <button
               type="button"
-              onClick={() => {
-                if (onSaveDraft) {
-                  onSaveDraft(getPayload());
-                } else if (onCancel) {
-                  onCancel();
-                }
-              }}
+              onClick={handleClose}
+              className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-all shadow-2xs cursor-pointer hover:border-slate-300"
+              title="Cerrar formulario y ver campañas guardadas"
+            >
+              <X className="w-3.5 h-3.5 text-slate-500" />
+              <span>Cerrar</span>
+            </button>
+          )}
+
+          {onSaveDraft && (
+            <button
+              type="button"
+              onClick={() => onSaveDraft(getPayload())}
               className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-all shadow-2xs cursor-pointer hover:border-slate-300"
               title="Guardar como borrador y volver a Mis Campañas"
             >
