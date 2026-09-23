@@ -154,7 +154,7 @@ export const HomeOverview: React.FC<HomeOverviewProps> = ({
 
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2">
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight font-['Outfit'] text-white">
+            <h1 className="text-2xl sm:text-3xl font-normal tracking-tight font-['Outfit'] text-white">
               Hola, {userSession.name}
             </h1>
             <p className="text-blue-100/80 text-xs sm:text-sm max-w-xl leading-relaxed">
@@ -309,7 +309,7 @@ export const HomeOverview: React.FC<HomeOverviewProps> = ({
               <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
                 <TicoIconAgent className="w-5 h-5" />
               </div>
-              <h3 className="text-sm font-extrabold text-slate-900 font-['Outfit'] group-hover:text-indigo-600 transition-colors">
+              <h3 className="text-sm font-extrabold text-[#0a194f] font-['Outfit'] group-hover:text-indigo-600 transition-colors">
                 Lanzar Tico Agent
               </h3>
               <p className="text-xs text-slate-500 mt-1 leading-relaxed">
@@ -324,7 +324,7 @@ export const HomeOverview: React.FC<HomeOverviewProps> = ({
               <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
                 <TicoIconDashboards className="w-5 h-5" />
               </div>
-              <h3 className="text-sm font-extrabold text-slate-900 font-['Outfit'] group-hover:text-blue-600 transition-colors">
+              <h3 className="text-sm font-extrabold text-[#0a194f] font-['Outfit'] group-hover:text-blue-600 transition-colors">
                 Explorar Dashboards de Activos
               </h3>
               <p className="text-xs text-slate-500 mt-1 leading-relaxed">
@@ -338,7 +338,7 @@ export const HomeOverview: React.FC<HomeOverviewProps> = ({
         <div className="space-y-6">
           <div className="bg-white rounded-3xl border border-slate-200/90 p-6 shadow-xs space-y-6">
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-extrabold text-slate-900 font-['Outfit'] flex items-center gap-2">
+              <h3 className="text-base font-extrabold text-[#0a194f] font-['Outfit'] flex items-center gap-2">
                 <span>Créditos Disponibles</span>
               </h3>
             </div>
@@ -389,7 +389,7 @@ export const HomeOverview: React.FC<HomeOverviewProps> = ({
 
             {/* Costos por Acción */}
             <div className="space-y-2.5">
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
+              <span className="text-[11px] font-bold text-[#0a194f] uppercase tracking-wider block">
                 Tarifas de Consumo
               </span>
               <div className="space-y-2 text-xs">
@@ -412,13 +412,13 @@ export const HomeOverview: React.FC<HomeOverviewProps> = ({
 
             {/* Nota Informativa */}
             <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 text-[11px] text-slate-600 leading-relaxed">
-              <strong className="text-slate-900 block mb-0.5">Nota importante:</strong>
+              <strong className="text-[#0a194f] block mb-0.5">Nota importante:</strong>
               Los créditos aplican al software de IA. La inversión publicitaria se factura directamente en tu cuenta de Meta o Google.
             </div>
 
             {/* Últimas Transacciones */}
             <div className="space-y-2 pt-2 border-t border-slate-100">
-              <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+              <div className="flex items-center justify-between text-[11px] font-bold text-[#0a194f] uppercase tracking-wider">
                 <span>Movimientos Recientes</span>
                 <Clock className="w-3 h-3" />
               </div>
