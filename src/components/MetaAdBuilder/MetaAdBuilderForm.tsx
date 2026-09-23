@@ -14,7 +14,9 @@ import {
   X,
   Info,
   Share2,
-  FileText
+  FileText,
+  Briefcase,
+  AlertCircle
 } from 'lucide-react';
 import type { 
   MetaBuilderPayload, 
@@ -30,6 +32,7 @@ import { fetchMetaCampaignsApi, fetchMetaAdSetsApi } from '../../services/api';
 
 interface MetaAdBuilderFormProps {
   metaState?: MetaConnectionState;
+  onUpdateMetaState?: (newState: MetaConnectionState) => void;
   onSubmit: (payload: MetaBuilderPayload) => void;
   isLoading: boolean;
   initialData?: MetaBuilderPayload | null;
@@ -40,6 +43,7 @@ interface MetaAdBuilderFormProps {
 
 export const MetaAdBuilderForm: React.FC<MetaAdBuilderFormProps> = ({
   metaState,
+  onUpdateMetaState,
   onSubmit,
   isLoading,
   initialData,
@@ -63,13 +67,61 @@ export const MetaAdBuilderForm: React.FC<MetaAdBuilderFormProps> = ({
   const [cboDistribution, setCboDistribution] = useState<'auto' | 'manual_limits'>(initialData?.cboDistribution || 'auto');
   const [bidStrategy, setBidStrategy] = useState(initialData?.bidStrategy || 'LOWEST_COST_WITHOUT_CAP');
 
+  // Activos de Meta y Cuenta Activa
+  const availableAccounts = metaState?.availableAccounts || [];
+  const [selectedAccountId, setSelectedAccountId] = useState<string>(
+    metaState?.adAccountId || (availableAccounts[0]?.id ?? '')
+  );
+
+  useEffect(() => {
+    if (metaState?.adAccountId && metaState.adAccountId !== selectedAccountId) {
+      setSelectedAccountId(metaState.adAccountId);
+    }
+  }, [metaState?.adAccountId]);
+
+  const activeAccount = availableAccounts.find(a => a.id === selectedAccountId) || {
+    id: selectedAccountId || metaState?.adAccountId || '',
+    name: metaState?.adAccountName || 'Cuenta Publicitaria Principal',
+    businessName: metaState?.businessManagerName || 'Portafolio Comercial Meta',
+    businessId: metaState?.businessManagerId,
+    currency: 'USD',
+    status: 'ACTIVA',
+    pixelName: metaState?.pixelName,
+    pixelId: metaState?.pixelId,
+    pageName: metaState?.pageName,
+    pageId: metaState?.pageId
+  };
+
+  const handleAccountChange = (newAccId: string) => {
+    setSelectedAccountId(newAccId);
+    const selectedAcc = availableAccounts.find(a => a.id === newAccId);
+    if (selectedAcc && onUpdateMetaState && metaState) {
+      onUpdateMetaState({
+        ...metaState,
+        adAccountId: selectedAcc.id,
+        adAccountName: selectedAcc.name,
+        businessManagerId: selectedAcc.businessId || metaState.businessManagerId,
+        businessManagerName: selectedAcc.businessName || metaState.businessManagerName,
+        pixelId: selectedAcc.pixelId || metaState.pixelId,
+        pixelName: selectedAcc.pixelName || metaState.pixelName,
+        pageId: selectedAcc.pageId || metaState.pageId,
+        pageName: selectedAcc.pageName || metaState.pageName
+      });
+    }
+    if (mode === 'single_ad') {
+      loadCampaigns(newAccId);
+    }
+  };
+
   // Modo Anuncio Individual
-  const [existingCampaigns, setExistingCampaigns] = useState<Array<{ id: string; name: string }>>([]);
+  const [existingCampaigns, setExistingCampaigns] = useState<Array<{ id: string; name: string; status?: string; objective?: string }>>([]);
   const [selectedCampaignId, setSelectedCampaignId] = useState(initialData?.existingCampaignId || '');
-  const [existingAdSets, setExistingAdSets] = useState<Array<{ id: string; name: string }>>([]);
+  const [existingAdSets, setExistingAdSets] = useState<Array<{ id: string; name: string; status?: string; optimization_goal?: string }>>([]);
   const [selectedAdSetId, setSelectedAdSetId] = useState(initialData?.existingAdSetId || '');
   const [isLoadingCampaigns, setIsLoadingCampaigns] = useState(false);
   const [isLoadingAdSets, setIsLoadingAdSets] = useState(false);
+  const [campaignsError, setCampaignsError] = useState<string | null>(null);
+  const [adSetsError, setAdSetsError] = useState<string | null>(null);
 
   // Conjuntos de Anuncios (AdSets dinámicos)
   const defaultAdSet: MetaAdSetFormItem = {
@@ -128,48 +180,74 @@ export const MetaAdBuilderForm: React.FC<MetaAdBuilderFormProps> = ({
   // Carga de campañas existentes en modo Anuncio Individual
   useEffect(() => {
     if (mode === 'single_ad') {
-      loadCampaigns();
+      loadCampaigns(selectedAccountId);
     }
-  }, [mode]);
+  }, [mode, selectedAccountId]);
 
   // Carga de AdSets cuando se selecciona una campaña en modo Anuncio Individual
   useEffect(() => {
     if (mode === 'single_ad' && selectedCampaignId) {
-      loadAdSets(selectedCampaignId);
+      loadAdSets(selectedCampaignId, selectedAccountId);
     }
-  }, [selectedCampaignId, mode]);
+  }, [selectedCampaignId, mode, selectedAccountId]);
 
-  const loadCampaigns = async () => {
+  const loadCampaigns = async (accId?: string) => {
+    const targetAccount = accId || selectedAccountId || metaState?.adAccountId;
     setIsLoadingCampaigns(true);
+    setCampaignsError(null);
     try {
-      const res = await fetchMetaCampaignsApi(metaState?.adAccountId, metaState?.userAccessToken);
-      if (res.campaigns && res.campaigns.length > 0) {
+      const res = await fetchMetaCampaignsApi(targetAccount, metaState?.userAccessToken);
+      if (res.success && res.campaigns) {
         setExistingCampaigns(res.campaigns);
-        if (!selectedCampaignId) {
-          setSelectedCampaignId(res.campaigns[0].id);
+        if (res.campaigns.length > 0) {
+          const keepCurrent = res.campaigns.some((c: { id: string }) => c.id === selectedCampaignId);
+          const nextId = keepCurrent ? selectedCampaignId : res.campaigns[0].id;
+          setSelectedCampaignId(nextId);
+          loadAdSets(nextId, targetAccount);
+        } else {
+          setSelectedCampaignId('');
+          setExistingAdSets([]);
         }
+      } else {
+        setCampaignsError(res.error || 'No se pudieron consultar las campañas de la cuenta publicitaria.');
+        setExistingCampaigns([]);
+        setExistingAdSets([]);
       }
-    } catch (e) {
-      console.error('Error fetching campaigns:', e);
+    } catch (e: any) {
+      setCampaignsError(e?.message || 'Error de conexión al consultar campañas.');
+      setExistingCampaigns([]);
+      setExistingAdSets([]);
     } finally {
       setIsLoadingCampaigns(false);
     }
   };
 
-  const loadAdSets = async (campaignId: string) => {
+  const loadAdSets = async (campaignId: string, accId?: string) => {
+    if (!campaignId) {
+      setExistingAdSets([]);
+      setSelectedAdSetId('');
+      return;
+    }
+    const targetAccount = accId || selectedAccountId || metaState?.adAccountId;
     setIsLoadingAdSets(true);
+    setAdSetsError(null);
     try {
-      const res = await fetchMetaAdSetsApi(campaignId, metaState?.adAccountId, metaState?.userAccessToken);
-      if (res.adSets && res.adSets.length > 0) {
+      const res = await fetchMetaAdSetsApi(campaignId, targetAccount, metaState?.userAccessToken);
+      if (res.success && res.adSets) {
         setExistingAdSets(res.adSets);
-        if (!selectedAdSetId || !res.adSets.some((a: { id: string }) => a.id === selectedAdSetId)) {
-          setSelectedAdSetId(res.adSets[0].id);
+        if (res.adSets.length > 0) {
+          const keepCurrent = res.adSets.some((a: { id: string }) => a.id === selectedAdSetId);
+          setSelectedAdSetId(keepCurrent ? selectedAdSetId : res.adSets[0].id);
+        } else {
+          setSelectedAdSetId('');
         }
       } else {
+        setAdSetsError(res.error || 'No se pudieron consultar los conjuntos de anuncios.');
         setExistingAdSets([]);
       }
-    } catch (e) {
-      console.error('Error fetching ad sets:', e);
+    } catch (e: any) {
+      setAdSetsError(e?.message || 'Error de conexión al consultar conjuntos de anuncios.');
+      setExistingAdSets([]);
     } finally {
       setIsLoadingAdSets(false);
     }
@@ -286,9 +364,9 @@ export const MetaAdBuilderForm: React.FC<MetaAdBuilderFormProps> = ({
   const getPayload = (): MetaBuilderPayload => ({
     mode,
     brandName,
-    adAccountId: metaState?.adAccountId,
-    pageId: metaState?.pageId,
-    pixelId: metaState?.pixelId,
+    adAccountId: selectedAccountId || metaState?.adAccountId,
+    pageId: activeAccount.pageId || metaState?.pageId,
+    pixelId: activeAccount.pixelId || metaState?.pixelId,
     existingCampaignId: mode === 'single_ad' ? selectedCampaignId : undefined,
     existingCampaignName: mode === 'single_ad' ? existingCampaigns.find(c => c.id === selectedCampaignId)?.name : undefined,
     existingAdSetId: mode === 'single_ad' ? selectedAdSetId : undefined,
@@ -324,6 +402,7 @@ export const MetaAdBuilderForm: React.FC<MetaAdBuilderFormProps> = ({
     currency,
     cboDistribution,
     bidStrategy,
+    selectedAccountId,
     selectedCampaignId,
     selectedAdSetId,
     adSets,
@@ -382,6 +461,119 @@ export const MetaAdBuilderForm: React.FC<MetaAdBuilderFormProps> = ({
             <Wand2 className="w-3.5 h-3.5 text-blue-600" />
             <span>Autocompletar Ejemplo</span>
           </button>
+        </div>
+      </div>
+
+      {/* Banner de Activos Vinculados de Meta Marketing API */}
+      <div className="relative z-10 rounded-2xl border border-blue-200/90 bg-gradient-to-r from-blue-50/90 via-indigo-50/50 to-slate-50 p-4 sm:p-5 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-blue-200/60">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-xs">
+              <Share2 className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-extrabold text-slate-900 uppercase tracking-wider">
+                  Activos de Meta Ads Vinculados
+                </span>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                  (metaState?.isRealToken || (metaState?.userAccessToken && !metaState.userAccessToken.startsWith('EAAB_Demo') && !metaState.userAccessToken.includes('your_')))
+                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                    : 'bg-amber-100 text-amber-800 border border-amber-300'
+                }`}>
+                  {(metaState?.isRealToken || (metaState?.userAccessToken && !metaState.userAccessToken.startsWith('EAAB_Demo') && !metaState.userAccessToken.includes('your_')))
+                    ? '● Token Real Live API v21.0'
+                    : '○ Modo Sandbox Demo'}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500">
+                La pauta se desplegará directamente en el portafolio y cuenta publicitaria seleccionados en estado <strong className="text-slate-700">PAUSED</strong>.
+              </p>
+            </div>
+          </div>
+          {metaState?.userName && (
+            <div className="text-right text-[11px] text-slate-500 font-medium">
+              Usuario: <strong className="text-slate-800">{metaState.userName}</strong>
+            </div>
+          )}
+        </div>
+
+        {/* Rejilla de Activos Reales */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {/* 1. Portafolio Comercial / Business Manager */}
+          <div className="bg-white/90 border border-slate-200 rounded-xl p-3 space-y-1">
+            <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 uppercase">
+              <Briefcase className="w-3.5 h-3.5 text-blue-600" />
+              <span>Portafolio Comercial</span>
+            </div>
+            <div className="text-xs font-bold text-slate-900 truncate" title={metaState?.businessManagerName || activeAccount.businessName || 'Meta Business Suite'}>
+              {metaState?.businessManagerName || activeAccount.businessName || 'Meta Business Suite'}
+            </div>
+            <div className="text-[10px] font-mono text-slate-500 truncate">
+              ID: {metaState?.businessManagerId || activeAccount.businessId || 'Principal'}
+            </div>
+          </div>
+
+          {/* 2. Cuenta Publicitaria (con Selector si hay varias) */}
+          <div className="bg-white/90 border border-slate-200 rounded-xl p-3 space-y-1">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 uppercase">
+                <Layers className="w-3.5 h-3.5 text-indigo-600" />
+                <span>Cuenta Publicitaria</span>
+              </div>
+              <span className="text-[9px] font-extrabold px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded">
+                ACTIVA
+              </span>
+            </div>
+            {availableAccounts.length > 1 ? (
+              <select
+                value={selectedAccountId}
+                onChange={(e) => handleAccountChange(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-300 rounded-lg px-2 py-1 text-xs font-bold text-slate-900 focus:outline-none focus:border-blue-600 truncate"
+              >
+                {availableAccounts.map(acc => (
+                  <option key={acc.id} value={acc.id}>
+                    {acc.name} ({acc.id})
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <div className="text-xs font-bold text-slate-900 truncate" title={activeAccount.name}>
+                {activeAccount.name}
+              </div>
+            )}
+            <div className="text-[10px] font-mono text-slate-500 truncate">
+              ID: {selectedAccountId || activeAccount.id || 'No asignada'}
+            </div>
+          </div>
+
+          {/* 3. Fanpage (Página de Facebook) */}
+          <div className="bg-white/90 border border-slate-200 rounded-xl p-3 space-y-1">
+            <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 uppercase">
+              <Share2 className="w-3.5 h-3.5 text-blue-600" />
+              <span>Página de Facebook</span>
+            </div>
+            <div className="text-xs font-bold text-slate-900 truncate" title={activeAccount.pageName || metaState?.pageName || 'Fanpage Vinculada'}>
+              {activeAccount.pageName || metaState?.pageName || 'Fanpage Vinculada'}
+            </div>
+            <div className="text-[10px] font-mono text-slate-500 truncate">
+              ID: {activeAccount.pageId || metaState?.pageId || 'Detectada automáticamente'}
+            </div>
+          </div>
+
+          {/* 4. Pixel de Meta */}
+          <div className="bg-white/90 border border-slate-200 rounded-xl p-3 space-y-1">
+            <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 uppercase">
+              <Target className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Pixel de Meta</span>
+            </div>
+            <div className="text-xs font-bold text-slate-900 truncate" title={activeAccount.pixelName || metaState?.pixelName || 'Pixel de Conversiones'}>
+              {activeAccount.pixelName || metaState?.pixelName || (activeAccount.pixelId || metaState?.pixelId ? 'Pixel Vinculado' : 'Sin Pixel asignado')}
+            </div>
+            <div className="text-[10px] font-mono text-slate-500 truncate">
+              ID: {activeAccount.pixelId || metaState?.pixelId || 'Opcional (Clics)'}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -450,52 +642,115 @@ export const MetaAdBuilderForm: React.FC<MetaAdBuilderFormProps> = ({
         {mode === 'single_ad' && (
           <div className="p-6 rounded-2xl bg-slate-50 border border-slate-200 space-y-5">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200/80">
-              <span className="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+              <div className="flex items-center gap-2">
                 <Target className="w-4 h-4 text-blue-600" />
-                <span>Ubicación del Anuncio en Meta Ads</span>
-              </span>
+                <span className="text-xs font-extrabold text-slate-800 uppercase tracking-wider">
+                  Ubicación del Anuncio en Meta Ads
+                </span>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 font-bold">
+                  {selectedAccountId || activeAccount.id}
+                </span>
+              </div>
               <button
                 type="button"
-                onClick={loadCampaigns}
+                onClick={() => loadCampaigns(selectedAccountId)}
                 disabled={isLoadingCampaigns}
-                className="text-xs text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-1.5 cursor-pointer"
+                className="text-xs text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${isLoadingCampaigns ? 'animate-spin' : ''}`} />
-                <span>Recargar campañas</span>
+                <span>{isLoadingCampaigns ? 'Consultando Meta...' : 'Recargar campañas'}</span>
               </button>
             </div>
+
+            {campaignsError && (
+              <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2.5">
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <div className="font-bold">Aviso de Meta Marketing API al consultar campañas:</div>
+                  <div className="mt-0.5 text-rose-700 leading-relaxed">{campaignsError}</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => loadCampaigns(selectedAccountId)}
+                  className="px-2.5 py-1 bg-white border border-rose-300 rounded-lg text-rose-700 font-bold text-[11px] hover:bg-rose-100 shrink-0"
+                >
+                  Reintentar
+                </button>
+              </div>
+            )}
+
+            {adSetsError && (
+              <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-start gap-2.5">
+                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <div className="font-bold">Aviso sobre conjuntos de anuncios:</div>
+                  <div className="mt-0.5 text-amber-700 leading-relaxed">{adSetsError}</div>
+                </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1.5">
                   Selecciona la Campaña Existente <span className="text-rose-500">*</span>
                 </label>
-                <select
-                  value={selectedCampaignId}
-                  onChange={(e) => setSelectedCampaignId(e.target.value)}
-                  disabled={isLoadingCampaigns || existingCampaigns.length === 0}
-                  className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-blue-600 font-medium"
-                >
-                  {existingCampaigns.map(c => (
-                    <option key={c.id} value={c.id}>{c.name} ({c.id})</option>
-                  ))}
-                </select>
+                {isLoadingCampaigns ? (
+                  <div className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-500 flex items-center gap-2">
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin text-blue-600" />
+                    <span>Cargando campañas reales desde Meta Ads...</span>
+                  </div>
+                ) : existingCampaigns.length === 0 ? (
+                  <div className="p-3 rounded-xl bg-white border border-slate-200 text-xs text-slate-600 space-y-1">
+                    <p className="font-semibold text-slate-800">No se encontraron campañas en esta cuenta publicitaria.</p>
+                    <p className="text-[11px] text-slate-500">Crea una Campaña Completa Nueva primero o verifica los permisos del token.</p>
+                  </div>
+                ) : (
+                  <select
+                    value={selectedCampaignId}
+                    onChange={(e) => {
+                      const newId = e.target.value;
+                      setSelectedCampaignId(newId);
+                      loadAdSets(newId, selectedAccountId);
+                    }}
+                    disabled={isLoadingCampaigns || existingCampaigns.length === 0}
+                    className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-blue-600 font-medium"
+                  >
+                    {existingCampaigns.map(c => (
+                      <option key={c.id} value={c.id}>
+                        [{c.status || 'PAUSED'}] {c.name} {c.objective ? `(${c.objective})` : ''} — ID: {c.id}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1.5">
                   Selecciona el Conjunto de Anuncios Destino <span className="text-rose-500">*</span>
                 </label>
-                <select
-                  value={selectedAdSetId}
-                  onChange={(e) => setSelectedAdSetId(e.target.value)}
-                  disabled={isLoadingAdSets || existingAdSets.length === 0}
-                  className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-blue-600 font-medium"
-                >
-                  {existingAdSets.map(a => (
-                    <option key={a.id} value={a.id}>{a.name} ({a.id})</option>
-                  ))}
-                </select>
+                {isLoadingAdSets ? (
+                  <div className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-500 flex items-center gap-2">
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin text-blue-600" />
+                    <span>Cargando conjuntos de anuncios...</span>
+                  </div>
+                ) : existingAdSets.length === 0 ? (
+                  <div className="p-3 rounded-xl bg-white border border-slate-200 text-xs text-slate-500">
+                    {selectedCampaignId ? 'Esta campaña no contiene conjuntos de anuncios.' : 'Selecciona una campaña primero.'}
+                  </div>
+                ) : (
+                  <select
+                    value={selectedAdSetId}
+                    onChange={(e) => setSelectedAdSetId(e.target.value)}
+                    disabled={isLoadingAdSets || existingAdSets.length === 0}
+                    className="w-full bg-white border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-blue-600 font-medium"
+                  >
+                    {existingAdSets.map(a => (
+                      <option key={a.id} value={a.id}>
+                        [{a.status || 'PAUSED'}] {a.name} {a.optimization_goal ? `(${a.optimization_goal})` : ''} — ID: {a.id}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
             </div>
           </div>

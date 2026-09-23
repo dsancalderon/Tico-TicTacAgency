@@ -349,13 +349,20 @@ export function App() {
     try {
       let result: any;
       if (strategyToDeploy.metaBuilderPayload) {
+        const targetAccountId = strategyToDeploy.metaBuilderPayload.adAccountId || metaState.adAccountId;
         const deployResponse = await deployMetaBuilderApi(
           strategyToDeploy.metaBuilderPayload,
           metaState.userAccessToken,
-          metaState.adAccountId
+          targetAccountId
         );
+
+        if (!deployResponse.success) {
+          window.alert(`Error de Meta Marketing API:\n\n${deployResponse.error || 'Ocurrió un error inesperado al orquestar la campaña en Meta.'}`);
+          return;
+        }
+
         result = {
-          success: deployResponse.success,
+          success: true,
           deployedAt: new Date().toISOString(),
           results: {
             meta: {
@@ -371,6 +378,10 @@ export function App() {
         };
       } else {
         result = await deployCampaignApi(strategyToDeploy);
+        if (!result.success) {
+          window.alert(`Error al desplegar campaña:\n\n${result.error || result.message || 'Error desconocido'}`);
+          return;
+        }
       }
 
       if (activeOwner.current !== owner) return;
@@ -896,6 +907,7 @@ export function App() {
                     key={editingDraftId || (editingDraftPayload ? 'draft' : 'new')}
                     initialData={editingDraftPayload}
                     metaState={metaState}
+                    onUpdateMetaState={state => void persistConnection('meta', state)}
                     onSubmit={handleMetaBuilderSubmit}
                     onDraftChange={handleMetaBuilderDraftChange}
                     showCloseButton={Boolean(editingDraftId)}

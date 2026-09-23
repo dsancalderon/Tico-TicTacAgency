@@ -96,12 +96,24 @@ export const DeploymentConsole: React.FC<DeploymentConsoleProps> = ({
             <div className="space-y-2 text-xs">
               <div className="flex justify-between py-1.5 border-b border-slate-200">
                 <span className="text-slate-500">ID de Campaña Meta:</span>
-                <span className="font-mono text-slate-900 font-bold">{deployResult.results.meta.campaignId}</span>
+                <span className="font-mono text-slate-900 font-bold">{deployResult.results.meta.campaignId || 'Existente'}</span>
               </div>
+              {deployResult.results.meta.adsetId && (
+                <div className="flex justify-between py-1.5 border-b border-slate-200">
+                  <span className="text-slate-500">ID de Conjunto de Anuncios:</span>
+                  <span className="font-mono text-slate-900 font-bold">{deployResult.results.meta.adsetId}</span>
+                </div>
+              )}
+              {deployResult.results.meta.adId && (
+                <div className="flex justify-between py-1.5 border-b border-slate-200">
+                  <span className="text-slate-500">ID de Anuncio Creado:</span>
+                  <span className="font-mono text-slate-900 font-bold">{deployResult.results.meta.adId}</span>
+                </div>
+              )}
               <div className="flex justify-between py-1.5 border-b border-slate-200">
                 <span className="text-slate-500">Estado en Plataforma:</span>
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
-                  {deployResult.results.meta.status || 'PAUSED'}
+                  {deployResult.results.meta.status || 'PAUSED'} (Sin Cobro)
                 </span>
               </div>
               <div className="pt-1 text-slate-600 text-xs leading-relaxed">
@@ -110,12 +122,12 @@ export const DeploymentConsole: React.FC<DeploymentConsoleProps> = ({
             </div>
 
             <a
-              href="https://adsmanager.facebook.com"
+              href={deployResult.results.meta.adsManagerUrl || "https://adsmanager.facebook.com"}
               target="_blank"
               rel="noreferrer"
-              className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-white hover:bg-slate-100 text-xs font-bold text-blue-600 border border-slate-200 transition-colors shadow-2xs"
+              className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-colors shadow-2xs cursor-pointer"
             >
-              <span>Abrir Meta Ads Manager para Activar</span>
+              <span>Abrir en Meta Ads Manager para Activar</span>
               <ExternalLink className="w-3.5 h-3.5" />
             </a>
           </div>

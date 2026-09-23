@@ -611,6 +611,14 @@ export async function fetchMetaCampaignsApi(adAccountId?: string, token?: string
     if (res.ok && data.success) {
       return data;
     }
+    // Si se envió un token real pero hubo error de Meta, retornar el error real
+    if (token && !token.startsWith('EAAB_Demo') && !token.includes('your_') && data?.error) {
+      return {
+        success: false,
+        error: data.error,
+        campaigns: []
+      };
+    }
     return {
       success: true,
       mode: 'mock_sandbox',
@@ -620,7 +628,14 @@ export async function fetchMetaCampaignsApi(adAccountId?: string, token?: string
         { id: 'cmp_demo_103', name: '[TICO] Clientes Potenciales WhatsApp — Campaña Principal', status: 'PAUSED', objective: 'OUTCOME_LEADS' }
       ]
     };
-  } catch {
+  } catch (err: any) {
+    if (token && !token.startsWith('EAAB_Demo') && !token.includes('your_')) {
+      return {
+        success: false,
+        error: err?.message || 'Error de conexión con el servidor al consultar campañas.',
+        campaigns: []
+      };
+    }
     return {
       success: true,
       mode: 'mock_sandbox',
@@ -646,6 +661,13 @@ export async function fetchMetaAdSetsApi(campaignId: string, adAccountId?: strin
     if (res.ok && data.success) {
       return data;
     }
+    if (token && !token.startsWith('EAAB_Demo') && !token.includes('your_') && data?.error) {
+      return {
+        success: false,
+        error: data.error,
+        adSets: []
+      };
+    }
     return {
       success: true,
       mode: 'mock_sandbox',
@@ -654,7 +676,14 @@ export async function fetchMetaAdSetsApi(campaignId: string, adAccountId?: strin
         { id: 'adset_demo_202', name: 'Audiencia Mujeres 22-40 Vida Saludable & Yoga', status: 'PAUSED', optimization_goal: 'LINK_CLICKS' }
       ]
     };
-  } catch {
+  } catch (err: any) {
+    if (token && !token.startsWith('EAAB_Demo') && !token.includes('your_')) {
+      return {
+        success: false,
+        error: err?.message || 'Error de conexión con el servidor al consultar conjuntos de anuncios.',
+        adSets: []
+      };
+    }
     return {
       success: true,
       mode: 'mock_sandbox',

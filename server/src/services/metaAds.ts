@@ -674,10 +674,24 @@ export async function fetchMetaCampaigns(token?: string, rawAccountId?: string) 
   const accountId = rawId.startsWith('act_') ? rawId : `act_${rawId}`;
 
   try {
-    const res = await fetch(
-      `${GRAPH_BASE_URL}/${accountId}/campaigns?fields=id,name,status,objective,effective_status&effective_status=['ACTIVE','PAUSED']&limit=50&access_token=${encodeURIComponent(cleanToken.trim())}`
+    // 1. Intentar consultar con filtro de estados activos y pausados con JSON string URL-encoded
+    const encodedStatus = encodeURIComponent('["ACTIVE","PAUSED"]');
+    let res = await fetch(
+      `${GRAPH_BASE_URL}/${accountId}/campaigns?fields=id,name,status,objective,effective_status&effective_status=${encodedStatus}&limit=100&access_token=${encodeURIComponent(cleanToken.trim())}`
     );
-    const data = await res.json() as any;
+    let data = await res.json() as any;
+
+    // 2. Si hubo error en el filtro de effective_status, intentar sin filtro para traer todas las campañas
+    if (!res.ok || data.error) {
+      const fallbackRes = await fetch(
+        `${GRAPH_BASE_URL}/${accountId}/campaigns?fields=id,name,status,objective,effective_status&limit=100&access_token=${encodeURIComponent(cleanToken.trim())}`
+      );
+      const fallbackData = await fallbackRes.json() as any;
+      if (fallbackRes.ok && !fallbackData.error) {
+        res = fallbackRes;
+        data = fallbackData;
+      }
+    }
 
     if (!res.ok || data.error) {
       return {
@@ -732,10 +746,24 @@ export async function fetchMetaAdSets(token?: string, rawAccountId?: string, cam
   }
 
   try {
-    const res = await fetch(
-      `${GRAPH_BASE_URL}/${accountId}/adsets?campaign_id=${encodeURIComponent(campaignId)}&fields=id,name,status,optimization_goal,daily_budget,lifetime_budget&limit=50&access_token=${encodeURIComponent(cleanToken.trim())}`
+    // 1. Endpoint canónico de Meta Graph API para los adsets de una campaña
+    let res = await fetch(
+      `${GRAPH_BASE_URL}/${encodeURIComponent(campaignId)}/adsets?fields=id,name,status,optimization_goal,daily_budget,lifetime_budget&limit=100&access_token=${encodeURIComponent(cleanToken.trim())}`
     );
-    const data = await res.json() as any;
+    let data = await res.json() as any;
+
+    // 2. Si falla directo en /{campaignId}/adsets, intentar vía /{accountId}/adsets con filtro de campaña
+    if (!res.ok || data.error) {
+      const filterParam = encodeURIComponent(JSON.stringify([{ field: 'campaign.id', operator: 'EQUAL', value: campaignId }]));
+      const altRes = await fetch(
+        `${GRAPH_BASE_URL}/${accountId}/adsets?filtering=${filterParam}&fields=id,name,status,optimization_goal,daily_budget,lifetime_budget&limit=100&access_token=${encodeURIComponent(cleanToken.trim())}`
+      );
+      const altData = await altRes.json() as any;
+      if (altRes.ok && !altData.error) {
+        res = altRes;
+        data = altData;
+      }
+    }
 
     if (!res.ok || data.error) {
       return {
@@ -966,6 +994,7 @@ export async function deployMetaBuilder(
     const adSetsToCreate = (payload.adSets && payload.adSets.length > 0) ? payload.adSets : [
       { id: 'adset_default', name: 'Conjunto Principal - Audiencia Sugerida', countries: ['CO'], ageMin: 18, ageMax: 65, gender: 'all' }
     ];
+    let lastAdSetError = '';
 
     for (const adset of adSetsToCreate) {
       const isSpecialCat = payload.specialAdCategory && payload.specialAdCategory !== 'NONE';
@@ -983,16 +1012,46 @@ export async function deployMetaBuilder(
         targeting.genders = adset.gender === 'men' ? [1] : [2];
       }
 
+      let optGoal = adset.optimizationGoal || 'LINK_CLICKS';
+      const promotedObject: any = {};
+
+      if (payload.objective === 'OUTCOME_LEADS') {
+        if (payload.pixelId) {
+          optGoal = 'OFFSITE_CONVERSIONS';
+          promotedObject.pixel_id = payload.pixelId;
+          promotedObject.custom_event_type = 'LEAD';
+        } else if (pageId) {
+          optGoal = 'LEAD_GENERATION';
+          promotedObject.page_id = pageId;
+        } else {
+          optGoal = 'LINK_CLICKS';
+        }
+      } else if (payload.objective === 'OUTCOME_SALES') {
+        if (payload.pixelId) {
+          optGoal = 'OFFSITE_CONVERSIONS';
+          promotedObject.pixel_id = payload.pixelId;
+          promotedObject.custom_event_type = 'PURCHASE';
+        } else {
+          optGoal = 'LINK_CLICKS';
+        }
+      } else if (payload.objective === 'OUTCOME_TRAFFIC') {
+        optGoal = 'LINK_CLICKS';
+      }
+
       const adsetBody: any = {
         name: `[TICO-SET] ${adset.name || 'Conjunto de Anuncios'}`,
         campaign_id: campaignId,
-        optimization_goal: adset.optimizationGoal || 'LINK_CLICKS',
+        optimization_goal: optGoal,
         billing_event: 'IMPRESSIONS',
         bid_strategy: payload.bidStrategy || 'LOWEST_COST_WITHOUT_CAP',
         targeting,
         status: 'PAUSED',
         access_token: cleanToken
       };
+
+      if (Object.keys(promotedObject).length > 0) {
+        adsetBody.promoted_object = promotedObject;
+      }
 
       // Si es ABO, se asigna presupuesto individual al conjunto
       if (!isCBO) {
@@ -1010,6 +1069,7 @@ export async function deployMetaBuilder(
       if (adsetRes.ok && adsetData.id) {
         createdAdSets.push({ formId: adset.id, metaId: adsetData.id, name: adset.name });
       } else {
+        lastAdSetError = adsetData.error?.message || adsetRes.statusText;
         console.warn(`Error creating adset ${adset.name}:`, adsetData.error);
       }
     }
@@ -1017,7 +1077,7 @@ export async function deployMetaBuilder(
     if (createdAdSets.length === 0) {
       return {
         success: false,
-        error: 'La campaña fue creada en Meta pero falló la creación de los conjuntos de anuncios. Revisa las reglas de segmentación y presupuesto.'
+        error: `La campaña fue creada en Meta (ID: ${campaignId}) pero falló la creación de los conjuntos de anuncios: ${lastAdSetError || 'Revisa segmentación y presupuesto.'}`
       };
     }
 
@@ -1026,6 +1086,7 @@ export async function deployMetaBuilder(
     const adsToCreate = (payload.ads && payload.ads.length > 0) ? payload.ads : [
       { id: 'ad_1', adSetId: createdAdSets[0].formId, name: 'Anuncio Principal', headline: 'Propuesta de Valor', primaryText: 'Descubre nuestros servicios.' }
     ];
+    let lastAdError = '';
 
     for (const ad of adsToCreate) {
       // Buscar adset destino correspondiente
@@ -1081,11 +1142,22 @@ export async function deployMetaBuilder(
 
         if (adRes.ok && adData.id) {
           createdAds.push({ name: ad.name, metaId: adData.id, creativeId });
+        } else {
+          lastAdError = adData.error?.message || adRes.statusText;
         }
+      } else {
+        lastAdError = crData.error?.message || crRes.statusText;
       }
     }
 
-    const adsManagerUrl = `https://adsmanager.facebook.com/adsmanager/manage/campaigns?act=${numericAccountId}`;
+    if (createdAds.length === 0 && adsToCreate.length > 0) {
+      return {
+        success: false,
+        error: `La campaña y conjuntos fueron creados en Meta (Campaña ID: ${campaignId}), pero falló la creación de los anuncios: ${lastAdError || 'Error de creative o permiso sobre la Fanpage.'}`
+      };
+    }
+
+    const adsManagerUrl = `https://adsmanager.facebook.com/adsmanager/manage/campaigns?act=${numericAccountId}&selected_campaign_ids=${campaignId}`;
 
     return {
       success: true,
