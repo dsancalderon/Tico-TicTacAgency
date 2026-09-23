@@ -223,7 +223,7 @@ export const BriefingForm: React.FC<BriefingFormProps> = ({
                     : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
                 }`}
               >
-                Meta + Google
+                Meta Ads + Google Ads
               </button>
               <button
                 type="button"
@@ -234,7 +234,7 @@ export const BriefingForm: React.FC<BriefingFormProps> = ({
                     : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
                 }`}
               >
-                Solo Google
+                Solo Google Ads
               </button>
             </div>
           </div>

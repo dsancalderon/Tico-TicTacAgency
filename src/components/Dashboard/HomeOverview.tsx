@@ -17,7 +17,7 @@ import {
   TicoIconAgent, 
   TicoIconDashboards 
 } from './TicoNavIcons';
-import { MetaBrandLogo, GoogleBrandLogo, TicoCoinIcon } from '../BrandLogos';
+import { MetaBrandLogo, GoogleAdsBrandLogo, TicoCoinIcon } from '../BrandLogos';
 
 interface HomeOverviewProps {
   userSession: UserSession;
@@ -75,7 +75,7 @@ export const HomeOverview: React.FC<HomeOverviewProps> = ({
         ? `Conectado con cuenta ${googleState.customerId || ''}`
         : 'Integra tu Customer ID o MCC para orquestar pauta omnicanal.',
       isCompleted: Boolean(googleState?.isConnected),
-      actionLabel: googleState?.isConnected ? 'Gestionar' : 'Vincular Google',
+      actionLabel: googleState?.isConnected ? 'Gestionar' : 'Vincular Google Ads',
       tabTarget: 'connections' as DashboardTab,
       platform: 'google'
     },
@@ -185,7 +185,7 @@ export const HomeOverview: React.FC<HomeOverviewProps> = ({
             {/* Google Status */}
             <div className="px-4 py-2.5 rounded-2xl bg-[#0b2158]/75 border border-blue-400/25 backdrop-blur-md shadow-lg shadow-black/10 min-w-[130px]">
               <div className="flex items-center gap-1.5 mb-1.5">
-                <GoogleBrandLogo className="w-3.5 h-3.5 shrink-0" />
+                <GoogleAdsBrandLogo className="w-3.5 h-3.5 shrink-0" />
                 <span className="text-[10px] text-sky-300 font-bold uppercase tracking-wider">Google Ads</span>
               </div>
               <div className="flex items-center gap-2">
@@ -259,7 +259,7 @@ export const HomeOverview: React.FC<HomeOverviewProps> = ({
                     <div>
                       <div className="flex items-center gap-2">
                         {step.platform === 'meta' && <MetaBrandLogo className="w-4 h-4 shrink-0" />}
-                        {step.platform === 'google' && <GoogleBrandLogo className="w-4 h-4 shrink-0" />}
+                        {step.platform === 'google' && <GoogleAdsBrandLogo className="w-4 h-4 shrink-0" />}
                         <span className="text-sm font-bold text-[#0a194f]">
                           {step.title}
                         </span>
@@ -414,7 +414,7 @@ export const HomeOverview: React.FC<HomeOverviewProps> = ({
             {/* Nota Informativa */}
             <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 text-[11px] text-slate-600 leading-relaxed">
               <strong className="text-[#0a194f] block mb-0.5">Nota importante:</strong>
-              Los créditos aplican al software de IA. La inversión publicitaria se factura directamente en tu cuenta de Meta o Google.
+              Los créditos aplican al software de IA. La inversión publicitaria se factura directamente en tu cuenta de Meta Ads o Google Ads.
             </div>
 
             {/* Últimas Transacciones */}

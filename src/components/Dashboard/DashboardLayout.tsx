@@ -7,7 +7,7 @@ import {
   Menu, 
   X
 } from 'lucide-react';
-import { MetaBrandLogo, GoogleBrandLogo } from '../BrandLogos';
+import { MetaBrandLogo, GoogleAdsBrandLogo } from '../BrandLogos';
 import { forceResetScroll } from '../../utils/scrollLock';
 import type { UserSession, MetaConnectionState, GoogleConnectionState, CreditTransaction, DashboardTab } from '../../types';
 import { 
@@ -163,8 +163,8 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
               }`}
               title="Ver estado de conexión con Google Ads API"
             >
-              <GoogleBrandLogo className="w-4 h-4 shrink-0" />
-              <span>Google:</span>
+              <GoogleAdsBrandLogo className="w-4 h-4 shrink-0" />
+              <span>Google Ads:</span>
               <span className="capitalize font-semibold">
                 {googleState?.isConnected ? 'Conectado' : 'Pendiente'}
               </span>

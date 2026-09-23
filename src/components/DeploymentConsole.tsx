@@ -153,7 +153,7 @@ export const DeploymentConsole: React.FC<DeploymentConsoleProps> = ({
 
             <div className="space-y-2 text-xs">
               <div className="flex justify-between py-1.5 border-b border-slate-200">
-                <span className="text-slate-500">ID de Campaña Google:</span>
+                <span className="text-slate-500">ID de Campaña Google Ads:</span>
                 <span className="font-mono text-slate-900 font-bold">{deployResult.results.google.campaignId}</span>
               </div>
               <div className="flex justify-between py-1.5 border-b border-slate-200">

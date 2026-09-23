@@ -204,7 +204,7 @@ export const UnifiedConnections: React.FC<UnifiedConnectionsProps> = ({
                   onClick={handleDisconnectGoogle}
                   className="px-3.5 py-1.5 rounded-full text-xs font-bold text-rose-600 hover:bg-rose-50 border border-rose-200 transition-colors cursor-pointer"
                 >
-                  Desconectar Google
+                  Desconectar Google Ads
                 </button>
               )}
             </div>
