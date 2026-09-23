@@ -28,6 +28,19 @@ export interface CreditTransaction {
   campaignId?: string;
 }
 
+export interface MetaAvailableAccount {
+  id: string;
+  name: string;
+  businessName: string;
+  businessId?: string;
+  currency: string;
+  status: string;
+  pixelName?: string;
+  pixelId?: string;
+  pageName?: string;
+  pageId?: string;
+}
+
 export interface MetaConnectionState {
   isConnected: boolean;
   status: 'disconnected' | 'connected_needs_perms' | 'ready_to_deploy';
@@ -52,6 +65,7 @@ export interface MetaConnectionState {
   userId?: string;
   userType?: string;
   isRealToken?: boolean;
+  availableAccounts?: MetaAvailableAccount[];
 }
 
 export interface GoogleConnectionState {

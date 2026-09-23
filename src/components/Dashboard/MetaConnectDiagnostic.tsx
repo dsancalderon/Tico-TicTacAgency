@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   CheckCircle2, 
   ShieldCheck, 
@@ -18,26 +18,13 @@ import {
   Image as ImageIcon,
   ChevronDown
 } from 'lucide-react';
-import type { MetaConnectionState } from '../../types';
+import type { MetaConnectionState, MetaAvailableAccount as AvailableAccount } from '../../types';
 import { verifyMetaTokenApi, verifyMetaAccountApi, testMetaCreationApi } from '../../services/api';
 import { MetaBrandLogo } from '../BrandLogos';
 
 interface MetaConnectDiagnosticProps {
   metaState: MetaConnectionState;
   onUpdateMetaState: (newState: MetaConnectionState) => void;
-}
-
-interface AvailableAccount {
-  id: string;
-  name: string;
-  businessName: string;
-  businessId?: string;
-  currency: string;
-  status: string;
-  pixelName?: string;
-  pixelId?: string;
-  pageName?: string;
-  pageId?: string;
 }
 
 export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
@@ -56,7 +43,26 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
 
   // Connected State
   const [selectedAccountId, setSelectedAccountId] = useState(metaState.adAccountId || '');
-  const [realAccounts, setRealAccounts] = useState<AvailableAccount[]>([]);
+  const [realAccounts, setRealAccounts] = useState<AvailableAccount[]>(() => {
+    if (metaState.availableAccounts && metaState.availableAccounts.length > 0) {
+      return metaState.availableAccounts;
+    }
+    if (metaState.adAccountId) {
+      return [{
+        id: metaState.adAccountId,
+        name: metaState.adAccountName || 'Cuenta Publicitaria Principal',
+        businessName: metaState.businessManagerName || 'Meta Business Suite',
+        businessId: metaState.businessManagerId,
+        currency: 'USD',
+        status: 'ACTIVA',
+        pixelName: metaState.pixelName,
+        pixelId: metaState.pixelId,
+        pageName: metaState.pageName,
+        pageId: metaState.pageId
+      }];
+    }
+    return [];
+  });
   const [manualAccountId, setManualAccountId] = useState('');
   const [customPageId, setCustomPageId] = useState(metaState.pageId || '');
   const [isVerifyingManualAccount, setIsVerifyingManualAccount] = useState(false);
@@ -68,6 +74,53 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
     message: string;
     details?: any;
   }>({ status: 'idle', message: '' });
+
+  // Sincronizar cuentas automáticamente al montar o si cambia metaState
+  useEffect(() => {
+    if (metaState.availableAccounts && metaState.availableAccounts.length > 0) {
+      setRealAccounts(metaState.availableAccounts);
+    } else if (metaState.adAccountId && realAccounts.length === 0) {
+      const fallbackAcc: AvailableAccount = {
+        id: metaState.adAccountId,
+        name: metaState.adAccountName || 'Cuenta Publicitaria Principal',
+        businessName: metaState.businessManagerName || 'Meta Business Suite',
+        businessId: metaState.businessManagerId,
+        currency: 'USD',
+        status: 'ACTIVA',
+        pixelName: metaState.pixelName,
+        pixelId: metaState.pixelId,
+        pageName: metaState.pageName,
+        pageId: metaState.pageId
+      };
+      setRealAccounts([fallbackAcc]);
+    }
+
+    // Si tiene token y está conectado pero aún no tiene lista de cuentas detallada en metaState, consultarla en segundo plano
+    if (metaState.isConnected && metaState.userAccessToken && (!metaState.availableAccounts || metaState.availableAccounts.length === 0)) {
+      verifyMetaTokenApi(metaState.userAccessToken).then(res => {
+        if (res.success && res.diagnostic?.valid && res.diagnostic.adAccounts && res.diagnostic.adAccounts.length > 0) {
+          const diag = res.diagnostic;
+          const userAccounts: AvailableAccount[] = diag.adAccounts.map((acc: any) => ({
+            id: acc.id,
+            name: acc.name,
+            businessName: acc.business?.name || diag.businesses?.[0]?.name || 'Meta Business Suite',
+            businessId: acc.business?.id || diag.businesses?.[0]?.id,
+            currency: acc.currency || 'USD',
+            status: acc.status === 1 ? 'ACTIVA' : (acc.statusLabel || 'EN_REVISION'),
+            pixelName: acc.pixel?.name,
+            pixelId: acc.pixel?.id,
+            pageName: acc.page?.name || diag.pages?.[0]?.name,
+            pageId: acc.page?.id || diag.pages?.[0]?.id
+          }));
+          setRealAccounts(userAccounts);
+          onUpdateMetaState({
+            ...metaState,
+            availableAccounts: userAccounts
+          });
+        }
+      }).catch(() => {});
+    }
+  }, [metaState.userAccessToken, metaState.isConnected, metaState.adAccountId, metaState.availableAccounts]);
 
   // Default accounts for demonstration / fallback (ONLY in demo mode)
   const defaultAccounts: AvailableAccount[] = [
@@ -191,6 +244,7 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
             pixelName: chosenAcc.pixelName,
             pageId: chosenAcc.pageId || diag.pages?.[0]?.id,
             pageName: chosenAcc.pageName || diag.pages?.[0]?.name,
+            availableAccounts: userAccounts,
             permissions: {
               adsManagement: diag.permissions?.adsManagement ?? true,
               pagesReadEngagement: diag.permissions?.pagesReadEngagement ?? true,
@@ -232,6 +286,7 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
             pixelName: '',
             pageId: diag.pages?.[0]?.id,
             pageName: diag.pages?.[0]?.name,
+            availableAccounts: userAccounts,
             permissions: {
               adsManagement: diag.permissions?.adsManagement ?? true,
               pagesReadEngagement: diag.permissions?.pagesReadEngagement ?? true,
@@ -301,6 +356,7 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
             pixelName: chosen.pixelName || metaState.pixelName,
             pageId: chosen.pageId || metaState.pageId,
             pageName: chosen.pageName || metaState.pageName,
+            availableAccounts: userAccounts,
             diagnostics: [
               ...metaState.diagnostics.filter(d => !d.startsWith('✅ Cuenta publicitaria vinculada:') && !d.startsWith('⚠️ Sin cuentas')),
               `✅ Cuenta publicitaria oficial vinculada: ${chosen.name} (${chosen.id}).`
@@ -374,6 +430,7 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
           pixelName: newAcc.pixelName || metaState.pixelName,
           pageId: newAcc.pageId || metaState.pageId,
           pageName: newAcc.pageName || metaState.pageName,
+          availableAccounts: updated,
           diagnostics: [
             ...metaState.diagnostics.filter(d => !d.startsWith('✅ Cuenta publicitaria') && !d.startsWith('⚠️ Sin cuentas')),
             `✅ Cuenta publicitaria verificada en Meta: ${newAcc.name} (${newAcc.id}).`
@@ -458,6 +515,7 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
         pixelName: acc.pixelName || metaState.pixelName,
         pageId: acc.pageId || metaState.pageId,
         pageName: acc.pageName || metaState.pageName,
+        availableAccounts: realAccounts,
         diagnostics: [
           ...metaState.diagnostics.filter(d => !d.startsWith('✅ Cuenta publicitaria vinculada:')),
           `✅ Cuenta publicitaria vinculada: ${acc.name} (${acc.id}).`
