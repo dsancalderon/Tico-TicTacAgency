@@ -4,10 +4,11 @@ import { MetaConnectDiagnostic } from './MetaConnectDiagnostic';
 import { 
   CheckCircle2, 
   ExternalLink, 
-  Key
+  Key,
+  ChevronRight
 } from 'lucide-react';
-import { TicoIconConnections } from './TicoNavIcons';
-import { MetaBrandLogo, GoogleBrandLogo } from '../BrandLogos';
+import { TicoIconAgent } from './TicoNavIcons';
+import { MetaBrandLogo, GoogleAdsBrandLogo } from '../BrandLogos';
 
 interface UnifiedConnectionsProps {
   metaState: MetaConnectionState;
@@ -86,118 +87,76 @@ export const UnifiedConnections: React.FC<UnifiedConnectionsProps> = ({
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       {/* Header unificado de Conexiones */}
-      <div className="bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-7 shadow-xs">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-100">
-          <div className="flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
-              <TicoIconConnections className="w-6 h-6" />
-            </div>
-            <div>
-              <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 font-['Outfit']">
-                Centro de Conexiones Publicitarias
-              </h1>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Conecta y diagnostica tus credenciales de API para <strong>Meta Ads</strong> y <strong>Google Ads</strong> en un solo lugar.
-              </p>
-            </div>
+      <div className="bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-8 shadow-xs space-y-6">
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-blue-50/80 border border-blue-100 flex items-center justify-center text-blue-600 shadow-2xs shrink-0">
+            <TicoIconAgent className="w-7 h-7" />
           </div>
-
-          {/* Selector de Plataforma (Meta vs Google) */}
-          <div className="inline-flex p-1.5 rounded-2xl bg-slate-100 border border-slate-200/80 self-start md:self-auto">
-            <button
-              type="button"
-              onClick={() => setActivePlatform('meta')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                activePlatform === 'meta'
-                  ? 'bg-white text-slate-900 shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <MetaBrandLogo className="w-4 h-4 shrink-0" />
-              <span>Meta Ads</span>
-              {metaState.status === 'ready_to_deploy' && (
-                <span className="w-2 h-2 rounded-full bg-emerald-500" />
-              )}
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setActivePlatform('google')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                activePlatform === 'google'
-                  ? 'bg-white text-slate-900 shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <GoogleBrandLogo className="w-4 h-4 shrink-0" />
-              <span>Google Ads</span>
-              {googleState.isConnected && (
-                <span className="w-2 h-2 rounded-full bg-emerald-500" />
-              )}
-            </button>
+          <div>
+            <h1 className="text-xl sm:text-2xl font-extrabold text-slate-900 font-['Outfit']">
+              Centro de Conexiones Publicitarias
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-500 mt-1">
+              Conecta tus cuentas de publicidad para gestionar y optimizar tus campañas desde TICO.
+            </p>
           </div>
         </div>
 
-        {/* Resumen de Estado Rápido */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-5">
-          <div 
-            onClick={() => setActivePlatform('meta')}
-            className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
-              activePlatform === 'meta'
-                ? 'border-blue-500/40 bg-blue-50/40'
-                : 'border-slate-200/80 bg-slate-50/60 hover:bg-slate-50'
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-blue-50 border border-blue-200/80 flex items-center justify-center shrink-0 shadow-2xs">
-                <MetaBrandLogo className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="text-xs font-bold text-slate-900">Meta Marketing API (v21.0)</div>
-                <div className="text-[11px] text-slate-500">
-                  {metaState.status === 'ready_to_deploy'
-                    ? `Activo: ${metaState.adAccountName || metaState.adAccountId || 'Cuenta Vinculada'}`
-                    : metaState.status === 'connected_needs_perms'
-                    ? 'Permisos incompletos'
-                    : 'Desconectado'}
-                </div>
-              </div>
-            </div>
-            <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold ${
-              metaState.status === 'ready_to_deploy' ? 'bg-emerald-100 text-emerald-800' :
-              metaState.status === 'connected_needs_perms' ? 'bg-amber-100 text-amber-800' : 'bg-slate-200 text-slate-600'
-            }`}>
-              {metaState.status === 'ready_to_deploy' ? 'LISTO' : metaState.status === 'connected_needs_perms' ? 'PERMISOS' : 'INACTIVO'}
-            </span>
-          </div>
-
-          <div 
+        {/* Tarjetas de Plataformas (Google Ads & Meta Ads) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+          {/* Tarjeta Google Ads */}
+          <button
+            type="button"
             onClick={() => setActivePlatform('google')}
-            className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between ${
+            className={`p-5 sm:p-6 rounded-2xl border transition-all text-left flex items-center justify-between cursor-pointer group ${
               activePlatform === 'google'
-                ? 'border-red-500/40 bg-red-50/30'
-                : 'border-slate-200/80 bg-slate-50/60 hover:bg-slate-50'
+                ? 'border-blue-500 bg-blue-50/20 ring-2 ring-blue-500/20 shadow-xs'
+                : 'border-blue-300/80 hover:border-blue-400 bg-white hover:bg-slate-50/50'
             }`}
           >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-white border border-slate-200 flex items-center justify-center shrink-0 shadow-2xs">
-                <GoogleBrandLogo className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="text-xs font-bold text-slate-900">Google Ads API (v17)</div>
-                <div className="text-[11px] text-slate-500">
-                  {googleState.isConnected
-                    ? `CID: ${googleState.customerId} • ${googleState.customerName || 'Conectado'}`
-                    : 'Pendiente de vinculación'}
+            <div className="flex items-center gap-4 sm:gap-5 min-w-0">
+              <GoogleAdsBrandLogo className="w-12 h-12 shrink-0 drop-shadow-xs" />
+              <div className="min-w-0">
+                <div className="text-base sm:text-lg font-extrabold text-slate-900 font-['Outfit'] flex items-center gap-2">
+                  <span>Google Ads</span>
+                  {googleState.isConnected && (
+                    <span className="w-2 h-2 rounded-full bg-emerald-500" title="Conectado" />
+                  )}
                 </div>
+                <p className="text-xs text-slate-500 mt-0.5 leading-relaxed truncate sm:whitespace-normal">
+                  Conecta tu cuenta de Google Ads para impulsar tus campañas.
+                </p>
               </div>
             </div>
-            <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold ${
-              googleState.isConnected ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'
-            }`}>
-              {googleState.isConnected ? 'CONECTADO' : 'PENDIENTE'}
-            </span>
-          </div>
+            <ChevronRight className="w-5 h-5 text-blue-500 shrink-0 ml-3 transition-transform group-hover:translate-x-0.5" />
+          </button>
+
+          {/* Tarjeta Meta Ads */}
+          <button
+            type="button"
+            onClick={() => setActivePlatform('meta')}
+            className={`p-5 sm:p-6 rounded-2xl border transition-all text-left flex items-center justify-between cursor-pointer group ${
+              activePlatform === 'meta'
+                ? 'border-blue-500 bg-blue-50/20 ring-2 ring-blue-500/20 shadow-xs'
+                : 'border-blue-300/80 hover:border-blue-400 bg-white hover:bg-slate-50/50'
+            }`}
+          >
+            <div className="flex items-center gap-4 sm:gap-5 min-w-0">
+              <MetaBrandLogo className="w-12 h-12 shrink-0 object-contain drop-shadow-xs" />
+              <div className="min-w-0">
+                <div className="text-base sm:text-lg font-extrabold text-slate-900 font-['Outfit'] flex items-center gap-2">
+                  <span>Meta Ads</span>
+                  {metaState.status === 'ready_to_deploy' && (
+                    <span className="w-2 h-2 rounded-full bg-emerald-500" title="Listo para desplegar" />
+                  )}
+                </div>
+                <p className="text-xs text-slate-500 mt-0.5 leading-relaxed truncate sm:whitespace-normal">
+                  Conecta tu cuenta de Meta Ads para gestionar tus campañas.
+                </p>
+              </div>
+            </div>
+            <ChevronRight className="w-5 h-5 text-blue-500 shrink-0 ml-3 transition-transform group-hover:translate-x-0.5" />
+          </button>
         </div>
       </div>
 
@@ -232,7 +191,7 @@ export const UnifiedConnections: React.FC<UnifiedConnectionsProps> = ({
               <div>
                 <h3 className="text-lg font-extrabold text-slate-900 font-['Outfit'] flex items-center gap-2.5">
                   <div className="w-8 h-8 rounded-xl bg-white border border-slate-200/90 flex items-center justify-center shadow-2xs">
-                    <GoogleBrandLogo className="w-4 h-4" />
+                    <GoogleAdsBrandLogo className="w-5 h-5" />
                   </div>
                   <span>Conexión con Google Ads API</span>
                 </h3>
