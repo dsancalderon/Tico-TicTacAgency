@@ -208,21 +208,26 @@ export const HomeOverview: React.FC<HomeOverviewProps> = ({
         <div className="lg:col-span-2 space-y-6">
           <div className="bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-7 shadow-xs">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-100">
-              <div>
-                <h2 className="text-lg font-extrabold text-slate-900 font-['Outfit'] flex items-center gap-2">
-                  <span>Pasos Pendientes & Onboarding</span>
-                  <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 font-sans">
-                    {completedStepsCount}/{steps.length} completados
-                  </span>
-                </h2>
-                <p className="text-xs text-slate-500 mt-1">
-                  Completa estas configuraciones para aprovechar al máximo la orquestación automatizada de Tico.
-                </p>
+              <div className="flex items-start gap-3.5">
+                <div className="w-10 h-10 rounded-2xl bg-[#edf2ff] text-[#2563eb] flex items-center justify-center shrink-0 mt-0.5">
+                  <CheckCircle2 className="w-5 h-5 stroke-[2.2]" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-extrabold text-[#0a194f] font-['Outfit'] flex items-center gap-2.5">
+                    <span>Pasos Pendientes & Onboarding</span>
+                    <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-[#edf2ff] text-[#2563eb] font-sans">
+                      {completedStepsCount}/{steps.length} completados
+                    </span>
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Completa estas configuraciones para aprovechar al máximo la orquestación automatizada de Tico.
+                  </p>
+                </div>
               </div>
 
               {/* Progress bar visual */}
-              <div className="sm:w-44 space-y-1.5">
-                <div className="flex justify-between text-[11px] font-bold text-slate-700">
+              <div className="sm:w-44 space-y-1.5 shrink-0">
+                <div className="flex justify-between text-[11px] font-bold text-slate-800">
                   <span>Progreso</span>
                   <span>{progressPercentage}%</span>
                 </div>
@@ -236,17 +241,17 @@ export const HomeOverview: React.FC<HomeOverviewProps> = ({
             </div>
 
             {/* Steps List */}
-            <div className="divide-y divide-slate-100 mt-2">
+            <div className="divide-y divide-slate-100/80 mt-2">
               {steps.map((step, idx) => (
                 <div key={step.id} className="py-4.5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 group">
-                  <div className="flex items-start gap-3.5">
-                    <div className="mt-0.5 shrink-0">
+                  <div className="flex items-start sm:items-center gap-3.5">
+                    <div className="shrink-0 mt-0.5 sm:mt-0">
                       {step.isCompleted ? (
-                        <div className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center">
-                          <CheckCircle2 className="w-4 h-4" />
+                        <div className="w-10 h-10 rounded-full bg-[#dcfce7] text-[#16a34a] flex items-center justify-center">
+                          <CheckCircle2 className="w-5 h-5 stroke-[2.2]" />
                         </div>
                       ) : (
-                        <div className="w-6 h-6 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center text-xs font-bold">
+                        <div className="w-10 h-10 rounded-full bg-[#eff4fb] text-slate-700 flex items-center justify-center text-xs font-bold">
                           {idx + 1}
                         </div>
                       )}
@@ -255,11 +260,11 @@ export const HomeOverview: React.FC<HomeOverviewProps> = ({
                       <div className="flex items-center gap-2">
                         {step.platform === 'meta' && <MetaBrandLogo className="w-4 h-4 shrink-0" />}
                         {step.platform === 'google' && <GoogleBrandLogo className="w-4 h-4 shrink-0" />}
-                        <span className={`text-sm font-bold ${step.isCompleted ? 'text-slate-900' : 'text-slate-800'}`}>
+                        <span className="text-sm font-bold text-[#0a194f]">
                           {step.title}
                         </span>
                         {step.isCompleted && (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-[#e6f9ed] text-[#16a34a]">
                             Listo
                           </span>
                         )}
@@ -270,7 +275,7 @@ export const HomeOverview: React.FC<HomeOverviewProps> = ({
                     </div>
                   </div>
 
-                  <div className="shrink-0 pl-9 sm:pl-0">
+                  <div className="shrink-0 pl-13 sm:pl-0">
                     <button
                       type="button"
                       onClick={() => {
@@ -280,14 +285,14 @@ export const HomeOverview: React.FC<HomeOverviewProps> = ({
                           onNavigateTab(step.tabTarget);
                         }
                       }}
-                      className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer ${
+                      className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer active:scale-[0.98] ${
                         step.isCompleted
-                          ? 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                          : 'bg-slate-950 text-white hover:bg-slate-800 shadow-xs'
+                          ? 'bg-[#f0f4f9] hover:bg-[#e2e9f3] text-[#0a194f]'
+                          : 'bg-[#0a2569] hover:bg-[#0f3287] text-white shadow-xs'
                       }`}
                     >
                       <span>{step.actionLabel}</span>
-                      <ArrowRight className="w-3 h-3" />
+                      <ArrowRight className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
