@@ -1,4 +1,4 @@
-import type { ClientBriefing, GeneratedCampaignStrategy } from '../types';
+import type { ClientBriefing, GeneratedCampaignStrategy, MetaBuilderPayload } from '../types';
 
 import { API_BASE_URL, authHeaders } from './auth';
 
@@ -596,4 +596,212 @@ export async function testMetaCreationApi(
     };
   }
 }
+
+/**
+ * Consulta campañas existentes en Meta para el modo Anuncio Individual
+ */
+export async function fetchMetaCampaignsApi(adAccountId?: string, token?: string) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/meta/campaigns-list`, {
+      method: 'POST',
+      headers: await authHeaders(),
+      body: JSON.stringify({ adAccountId, token })
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      return data;
+    }
+    return {
+      success: true,
+      mode: 'mock_sandbox',
+      campaigns: [
+        { id: 'cmp_demo_101', name: '[TICO] UrbanFit — Tráfico Frío Q1 (PAUSED)', status: 'PAUSED', objective: 'OUTCOME_TRAFFIC' },
+        { id: 'cmp_demo_102', name: '[TICO] UrbanFit — Retargeting Carrito (ACTIVE)', status: 'ACTIVE', objective: 'OUTCOME_SALES' },
+        { id: 'cmp_demo_103', name: '[TICO] Clientes Potenciales WhatsApp — Campaña Principal', status: 'PAUSED', objective: 'OUTCOME_LEADS' }
+      ]
+    };
+  } catch {
+    return {
+      success: true,
+      mode: 'mock_sandbox',
+      campaigns: [
+        { id: 'cmp_demo_101', name: '[TICO] UrbanFit — Tráfico Frío Q1 (PAUSED)', status: 'PAUSED', objective: 'OUTCOME_TRAFFIC' },
+        { id: 'cmp_demo_102', name: '[TICO] UrbanFit — Retargeting Carrito (ACTIVE)', status: 'ACTIVE', objective: 'OUTCOME_SALES' }
+      ]
+    };
+  }
+}
+
+/**
+ * Consulta conjuntos de anuncios de una campaña específica en Meta
+ */
+export async function fetchMetaAdSetsApi(campaignId: string, adAccountId?: string, token?: string) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/meta/adsets-list`, {
+      method: 'POST',
+      headers: await authHeaders(),
+      body: JSON.stringify({ campaignId, adAccountId, token })
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      return data;
+    }
+    return {
+      success: true,
+      mode: 'mock_sandbox',
+      adSets: [
+        { id: 'adset_demo_201', name: 'Audiencia Hombres 20-35 Fitness & Crossfit', status: 'PAUSED', optimization_goal: 'OFFSITE_CONVERSIONS' },
+        { id: 'adset_demo_202', name: 'Audiencia Mujeres 22-40 Vida Saludable & Yoga', status: 'PAUSED', optimization_goal: 'LINK_CLICKS' }
+      ]
+    };
+  } catch {
+    return {
+      success: true,
+      mode: 'mock_sandbox',
+      adSets: [
+        { id: 'adset_demo_201', name: 'Audiencia Hombres 20-35 Fitness & Crossfit', status: 'PAUSED', optimization_goal: 'OFFSITE_CONVERSIONS' }
+      ]
+    };
+  }
+}
+
+/**
+ * Formula sugerencias estratégicas con IA para los bloques delegados en MetaAdBuilder
+ */
+export async function generateMetaBuilderStrategyApi(payload: MetaBuilderPayload): Promise<{
+  strategy: GeneratedCampaignStrategy;
+  enrichedPayload: MetaBuilderPayload;
+}> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/campaigns/generate-meta-builder`, {
+      method: 'POST',
+      headers: await authHeaders(),
+      body: JSON.stringify(payload)
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      const enriched = data.enrichedPayload || payload;
+      const strategySummary = data.strategySummary || `Estrategia de Meta Ads formulada por TICO para ${payload.brandName}.`;
+
+      // Armar la entidad GeneratedCampaignStrategy unificada
+      const strategy: GeneratedCampaignStrategy = {
+        briefingId: `meta_brief_${Date.now()}`,
+        brandName: payload.brandName,
+        strategySummary,
+        totalBudget: payload.totalBudget,
+        currency: payload.currency,
+        createdAt: new Date().toISOString(),
+        creditCost: 5,
+        status: 'awaiting_approval',
+        complianceChecked: true,
+        creatives: [],
+        metaAds: {
+          campaignName: enriched.campaignName || `[TICO] ${enriched.brandName} - Meta Ads`,
+          objective: enriched.objective,
+          placements: ['instagram_feed', 'instagram_stories', 'facebook_feed', 'facebook_reels'],
+          interestsAndBehaviors: enriched.adSets?.[0]?.interestsSuggested || [
+            `${payload.brandName} Nicho`,
+            'Compradores que interactuaron',
+            'Usuarios activos en redes sociales'
+          ],
+          primaryTexts: (enriched.ads || []).map((a: any) => a.primaryText || 'Descubre nuestras mejores soluciones.'),
+          headlines: (enriched.ads || []).map((a: any) => a.headline || `${payload.brandName} Oficial`),
+          callToAction: (enriched.ads?.[0]?.callToAction as any) || 'LEARN_MORE',
+          budgetSharePercentage: 100,
+          budgetAmount: payload.totalBudget,
+          dailyBudget: Math.round(payload.totalBudget / 30)
+        },
+        metaBuilderPayload: enriched
+      };
+
+      return { strategy, enrichedPayload: enriched };
+    }
+  } catch (err) {
+    console.warn('Backend call for meta-builder failed, using direct client formulation:', err);
+  }
+
+  // Fallback directo en cliente
+  const fallbackEnriched: MetaBuilderPayload = {
+    ...payload,
+    adSets: payload.adSets.map(s => s.delegateAudienceToTico ? {
+      ...s,
+      countries: s.countries?.length > 0 ? s.countries : ['CO'],
+      ageMin: payload.specialAdCategory !== 'NONE' ? 18 : 22,
+      ageMax: payload.specialAdCategory !== 'NONE' ? 65 : 55,
+      gender: payload.specialAdCategory !== 'NONE' ? 'all' : 'all',
+      interestsSuggested: [
+        `${payload.brandName} Intereses Afines`,
+        'Compradores que interactuaron en Instagram',
+        'Usuarios con alta interacción comercial'
+      ]
+    } : s),
+    ads: payload.ads.map(a => a.delegateCopysToTico ? {
+      ...a,
+      headline: `${payload.brandName} | ${a.conceptAngle || 'Oferta Exclusiva'}`,
+      primaryText: `Descubre todo lo que ${payload.brandName} tiene preparado para ti. Diseñado para potenciar tu experiencia con ${a.conceptAngle?.toLowerCase() || 'los mejores resultados'}. Aprovecha hoy.`,
+      description: 'Garantía oficial • Asesoría personalizada',
+      callToAction: payload.objective === 'OUTCOME_LEADS' ? 'CONTACT_US' : (payload.objective === 'OUTCOME_SALES' ? 'SHOP_NOW' : 'LEARN_MORE')
+    } : a)
+  };
+
+  const strategy: GeneratedCampaignStrategy = {
+    briefingId: `meta_brief_${Date.now()}`,
+    brandName: payload.brandName,
+    strategySummary: `Estrategia formulada por el Agente TICO para ${payload.brandName} en Meta Ads (${payload.mode === 'single_ad' ? 'Anuncio Individual' : 'Campaña Completa'}).`,
+    totalBudget: payload.totalBudget,
+    currency: payload.currency,
+    createdAt: new Date().toISOString(),
+    creditCost: 5,
+    status: 'awaiting_approval',
+    complianceChecked: true,
+    creatives: [],
+    metaAds: {
+      campaignName: fallbackEnriched.campaignName || `[TICO] ${fallbackEnriched.brandName} - Meta Ads`,
+      objective: fallbackEnriched.objective,
+      placements: ['instagram_feed', 'instagram_stories', 'facebook_feed', 'facebook_reels'],
+      interestsAndBehaviors: fallbackEnriched.adSets?.[0]?.interestsSuggested || [
+        `${payload.brandName} Nicho`,
+        'Compradores que interactuaron'
+      ],
+      primaryTexts: fallbackEnriched.ads.map(a => a.primaryText),
+      headlines: fallbackEnriched.ads.map(a => a.headline),
+      callToAction: (fallbackEnriched.ads[0]?.callToAction as any) || 'LEARN_MORE',
+      budgetSharePercentage: 100,
+      budgetAmount: payload.totalBudget,
+      dailyBudget: Math.round(payload.totalBudget / 30)
+    },
+    metaBuilderPayload: fallbackEnriched
+  };
+
+  return { strategy, enrichedPayload: fallbackEnriched };
+}
+
+/**
+ * Despliega la configuración completa del MetaAdBuilder vía API
+ */
+export async function deployMetaBuilderApi(
+  payload: MetaBuilderPayload,
+  token?: string,
+  adAccountId?: string
+) {
+  try {
+    const res = await fetch(`${API_BASE_URL}/meta/deploy-builder`, {
+      method: 'POST',
+      headers: await authHeaders(),
+      body: JSON.stringify({ payload, token, adAccountId })
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      return data;
+    }
+    return data;
+  } catch (err: any) {
+    return {
+      success: false,
+      error: `Error de red al desplegar campaña en Meta: ${err.message}`
+    };
+  }
+}
+
 

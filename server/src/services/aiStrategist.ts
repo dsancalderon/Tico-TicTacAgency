@@ -175,3 +175,121 @@ Debes responder ÚNICAMENTE un objeto JSON válido con las siguientes propiedade
     } : undefined
   };
 }
+
+/**
+ * Formula sugerencias estratégicas con IA (Gemini 3.6 Flash) para los bloques delegados en MetaAdBuilder
+ */
+export async function generateMetaBuilderStrategy(payload: any) {
+  const apiKey = process.env.GEMINI_API_KEY;
+  const brandName = payload.brandName || 'Marca';
+  const mode = payload.mode || 'full_campaign';
+
+  console.log('[TICO-AI] Procesando estrategia avanzada de MetaAdBuilder para:', brandName, '| Modo:', mode);
+
+  // Fallback determinista si no hay clave de Gemini
+  const generateFallback = () => {
+    const updatedAdSets = (payload.adSets || []).map((adset: any, idx: number) => {
+      if (adset.delegateAudienceToTico) {
+        return {
+          ...adset,
+          countries: adset.countries?.length > 0 ? adset.countries : ['CO'],
+          ageMin: payload.specialAdCategory !== 'NONE' ? 18 : 22,
+          ageMax: payload.specialAdCategory !== 'NONE' ? 65 : 55,
+          gender: payload.specialAdCategory !== 'NONE' ? 'all' : 'all',
+          interestsSuggested: [
+            `${brandName} nicho comercial`,
+            'Compradores que interactuaron en redes',
+            'Interés en productos y servicios afines',
+            'Usuarios frecuentes de comercio electrónico'
+          ]
+        };
+      }
+      return adset;
+    });
+
+    const updatedAds = (payload.ads || []).map((ad: any, idx: number) => {
+      if (ad.delegateCopysToTico) {
+        const angle = ad.conceptAngle || 'Propuesta de Valor';
+        return {
+          ...ad,
+          headline: `${brandName} | ${angle}`,
+          primaryText: `Descubre la excelencia con ${brandName}. Formulamos soluciones diseñadas para maximizar tus resultados con ${angle.toLowerCase()}. Conoce más hoy.`,
+          description: 'Calidad garantizada • Atención directa personalizada',
+          callToAction: payload.objective === 'OUTCOME_LEADS' ? 'CONTACT_US' : (payload.objective === 'OUTCOME_SALES' ? 'SHOP_NOW' : 'LEARN_MORE')
+        };
+      }
+      return ad;
+    });
+
+    return {
+      strategySummary: `Estrategia de Meta Ads optimizada por TICO para ${brandName}. Se configuraron ${updatedAdSets.length} conjunto(s) de anuncios y ${updatedAds.length} variante(s) de anuncio adaptadas a los objetivos de pauta en modo ${mode === 'single_ad' ? 'Anuncio Individual' : 'Campaña Completa'}.`,
+      enrichedPayload: {
+        ...payload,
+        adSets: updatedAdSets,
+        ads: updatedAds
+      }
+    };
+  };
+
+  if (!apiKey || apiKey.trim() === '' || apiKey.includes('your_')) {
+    return generateFallback();
+  }
+
+  try {
+    const prompt = `Eres TICO, el estratega senior de pauta en Meta Ads (Facebook & Instagram) de TicTac Agency.
+El usuario ha enviado una configuración publicitaria con algunos bloques delegados ("Dejar que Tico lo defina").
+Analiza la siguiente información y genera las sugerencias óptimas para cada bloque delegado:
+
+- Marca: ${brandName}
+- Modo: ${mode} (${mode === 'single_ad' ? 'Anuncio individual para insertar en campaña existente' : 'Campaña completa nueva'})
+- Objetivo Meta (ODAX): ${payload.objective || 'OUTCOME_LEADS'}
+- Categoría Especial: ${payload.specialAdCategory || 'NONE'} (REGLA: si no es NONE, Meta prohíbe segmentar género y edad; edad debe ser 18-65)
+- Presupuesto: ${payload.totalBudget || 500} ${payload.currency || 'USD'} (Tipo: ${payload.budgetType || 'CBO'})
+- AdSets declarados: ${JSON.stringify(payload.adSets || [])}
+- Anuncios declarados: ${JSON.stringify(payload.ads || [])}
+
+INSTRUCCIONES CLAVES:
+1. Para cada AdSet donde "delegateAudienceToTico" sea true, debes generar "interestsSuggested" (4 a 6 intereses de alto impacto en Meta Ads), sugerir rango de edad (ageMin, ageMax) y género, respetando estrictamente las restricciones de Categoría Especial si aplica.
+2. Para cada Anuncio donde "delegateCopysToTico" sea true, debes redactar:
+   - "headline" (máximo 40 caracteres, alto gancho y CTR)
+   - "primaryText" (copy persuasivo estructurado con fórmula AIDA o PAS, con gancho, problema, solución y llamado)
+   - "description" (texto de apoyo de 1 línea)
+   - "callToAction" (uno de: LEARN_MORE, SHOP_NOW, SIGN_UP, CONTACT_US, WHATSAPP_MESSAGE, GET_OFFER)
+3. Genera un "strategySummary" ejecutivo de 1-2 párrafos explicando los ángulos de venta elegidos.
+
+Responde ÚNICAMENTE un objeto JSON válido con este formato:
+{
+  "strategySummary": "Resumen ejecutivo claro de la estrategia...",
+  "enrichedPayload": { ...el payload recibido pero con los campos delegados rellenados con tus sugerencias }
+}`;
+
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey.trim()}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          responseMimeType: 'application/json',
+          temperature: 0.7
+        }
+      })
+    });
+
+    if (res.ok) {
+      const data = await res.json() as any;
+      const rawJson = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (rawJson) {
+        const parsed = JSON.parse(rawJson);
+        return {
+          strategySummary: parsed.strategySummary || `Estrategia de Meta formulada por TICO para ${brandName}.`,
+          enrichedPayload: parsed.enrichedPayload || payload
+        };
+      }
+    }
+  } catch (err) {
+    console.error('Error invoking Gemini for MetaAdBuilder:', err);
+  }
+
+  return generateFallback();
+}
+

@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { generateStrategyFromBrief } from '../services/aiStrategist.js';
+import { generateStrategyFromBrief, generateMetaBuilderStrategy } from '../services/aiStrategist.js';
 import { deployMetaCampaign } from '../services/metaAds.js';
 import { deployGoogleCampaign } from '../services/googleAds.js';
 
@@ -23,6 +23,27 @@ campaignsRouter.post('/generate-strategy', async (req: Request, res: Response) =
     return res.status(500).json({ error: 'Error al generar la estrategia publicitaria' });
   }
 });
+
+// Endpoint para procesar y enriquecer la configuración del MetaAdBuilder con IA
+campaignsRouter.post('/generate-meta-builder', async (req: Request, res: Response) => {
+  try {
+    const payload = req.body;
+    if (!payload || !payload.brandName) {
+      return res.status(400).json({ error: 'El nombre de marca y la configuración son requeridos.' });
+    }
+
+    const result = await generateMetaBuilderStrategy(payload);
+    return res.json({
+      success: true,
+      strategySummary: result.strategySummary,
+      enrichedPayload: result.enrichedPayload
+    });
+  } catch (error) {
+    console.error('Error generating Meta builder strategy:', error);
+    return res.status(500).json({ error: 'Error al procesar la estrategia de Meta Ads.' });
+  }
+});
+
 
 // Endpoint para desplegar la campaña aprobada a Meta y/o Google Ads
 campaignsRouter.post('/deploy', async (req: Request, res: Response) => {

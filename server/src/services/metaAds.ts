@@ -650,3 +650,461 @@ export async function deployMetaCampaign(
     };
   }
 }
+
+/**
+ * Consulta campañas existentes en una cuenta publicitaria de Meta
+ */
+export async function fetchMetaCampaigns(token?: string, rawAccountId?: string) {
+  const cleanToken = token || process.env.META_ACCESS_TOKEN;
+  const rawId = rawAccountId || process.env.META_AD_ACCOUNT_ID;
+
+  if (!cleanToken || !rawId || cleanToken.includes('your_') || rawId.includes('your_') || cleanToken.startsWith('EAAB_Demo')) {
+    // Retorno demo sandbox
+    return {
+      success: true,
+      mode: 'mock_sandbox',
+      campaigns: [
+        { id: 'cmp_demo_101', name: '[TICO] UrbanFit — Tráfico Frío Q1 (PAUSED)', status: 'PAUSED', objective: 'OUTCOME_TRAFFIC' },
+        { id: 'cmp_demo_102', name: '[TICO] UrbanFit — Retargeting Carrito Abandonado (ACTIVE)', status: 'ACTIVE', objective: 'OUTCOME_SALES' },
+        { id: 'cmp_demo_103', name: '[TICO] Clientes Potenciales WhatsApp — Campaña Principal', status: 'PAUSED', objective: 'OUTCOME_LEADS' }
+      ]
+    };
+  }
+
+  const accountId = rawId.startsWith('act_') ? rawId : `act_${rawId}`;
+
+  try {
+    const res = await fetch(
+      `${GRAPH_BASE_URL}/${accountId}/campaigns?fields=id,name,status,objective,effective_status&effective_status=['ACTIVE','PAUSED']&limit=50&access_token=${encodeURIComponent(cleanToken.trim())}`
+    );
+    const data = await res.json() as any;
+
+    if (!res.ok || data.error) {
+      return {
+        success: false,
+        error: data.error?.message || 'Error al consultar campañas de Meta Ads.',
+        campaigns: []
+      };
+    }
+
+    return {
+      success: true,
+      mode: 'live_api',
+      campaigns: (data.data || []).map((c: any) => ({
+        id: c.id,
+        name: c.name,
+        status: c.status,
+        objective: c.objective
+      }))
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      error: `Error de red al consultar campañas: ${err.message}`,
+      campaigns: []
+    };
+  }
+}
+
+/**
+ * Consulta conjuntos de anuncios de una campaña específica en Meta Ads
+ */
+export async function fetchMetaAdSets(token?: string, rawAccountId?: string, campaignId?: string) {
+  const cleanToken = token || process.env.META_ACCESS_TOKEN;
+  const rawId = rawAccountId || process.env.META_AD_ACCOUNT_ID;
+
+  if (!cleanToken || !rawId || cleanToken.includes('your_') || rawId.includes('your_') || cleanToken.startsWith('EAAB_Demo')) {
+    // Retorno demo sandbox
+    return {
+      success: true,
+      mode: 'mock_sandbox',
+      adSets: [
+        { id: 'adset_demo_201', name: 'Audiencia Hombres 20-35 Fitness & Crossfit', status: 'PAUSED', optimization_goal: 'OFFSITE_CONVERSIONS' },
+        { id: 'adset_demo_202', name: 'Audiencia Mujeres 22-40 Vida Saludable & Yoga', status: 'PAUSED', optimization_goal: 'LINK_CLICKS' },
+        { id: 'adset_demo_203', name: 'Público Amplio (Broad) Advantage+ Colombia', status: 'ACTIVE', optimization_goal: 'OUTCOME_LEADS' }
+      ]
+    };
+  }
+
+  const accountId = rawId.startsWith('act_') ? rawId : `act_${rawId}`;
+  if (!campaignId) {
+    return { success: false, error: 'Se requiere el ID de la campaña para listar sus conjuntos de anuncios.', adSets: [] };
+  }
+
+  try {
+    const res = await fetch(
+      `${GRAPH_BASE_URL}/${accountId}/adsets?campaign_id=${encodeURIComponent(campaignId)}&fields=id,name,status,optimization_goal,daily_budget,lifetime_budget&limit=50&access_token=${encodeURIComponent(cleanToken.trim())}`
+    );
+    const data = await res.json() as any;
+
+    if (!res.ok || data.error) {
+      return {
+        success: false,
+        error: data.error?.message || 'Error al consultar conjuntos de anuncios de Meta.',
+        adSets: []
+      };
+    }
+
+    return {
+      success: true,
+      mode: 'live_api',
+      adSets: (data.data || []).map((a: any) => ({
+        id: a.id,
+        name: a.name,
+        status: a.status,
+        optimization_goal: a.optimization_goal
+      }))
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      error: `Error de red al consultar adsets: ${err.message}`,
+      adSets: []
+    };
+  }
+}
+
+/**
+ * Despliega una estructura avanzada (Campaña Completa o Anuncio Individual) creada con MetaAdBuilder
+ */
+export async function deployMetaBuilder(
+  payload: any,
+  customToken?: string,
+  customAccountId?: string
+) {
+  const token = customToken || process.env.META_ACCESS_TOKEN;
+  const rawAccountId = customAccountId || payload.adAccountId || process.env.META_AD_ACCOUNT_ID;
+  const isSingleAd = payload.mode === 'single_ad';
+
+  if (isSingleAd) {
+    if (!payload.existingCampaignId || !payload.existingAdSetId) {
+      return {
+        success: false,
+        error: 'Se requiere seleccionar la Campaña y el Conjunto de Anuncios existentes donde se insertará el anuncio individual.'
+      };
+    }
+  }
+
+  // Si no hay credenciales reales, simulación sandbox transparente
+  if (
+    !token ||
+    !rawAccountId ||
+    token.includes('your_') ||
+    rawAccountId.includes('your_') ||
+    token.startsWith('EAAB_Demo') ||
+    token.includes('test') ||
+    token.includes('simul') ||
+    token.includes('mock')
+  ) {
+    const mockCmpId = isSingleAd ? payload.existingCampaignId : `meta_cmp_${Date.now()}_builder`;
+    const mockAdSetId = isSingleAd ? payload.existingAdSetId : `meta_adset_${Date.now()}_builder`;
+    const createdAds = (payload.ads || [{ id: 'ad_1', name: 'Anuncio 1' }]).map((a: any, i: number) => ({
+      id: `meta_ad_${Date.now()}_${i}`,
+      name: a.name || `Anuncio ${i + 1}`,
+      creativeId: `meta_cr_${Date.now()}_${i}`
+    }));
+
+    return {
+      success: true,
+      mode: 'mock_sandbox',
+      status: 'PAUSED',
+      campaignId: mockCmpId,
+      adSets: isSingleAd ? [{ id: mockAdSetId }] : (payload.adSets || []).map((s: any, idx: number) => ({ id: `meta_adset_${Date.now()}_${idx}`, name: s.name })),
+      ads: createdAds,
+      adsManagerUrl: `https://adsmanager.facebook.com/adsmanager/manage/campaigns?act=${rawAccountId?.replace('act_', '') || 'sandbox'}`,
+      message: isSingleAd 
+        ? `¡Anuncio registrado en modo sandbox (PAUSED) dentro del conjunto ${mockAdSetId}!`
+        : `¡Estructura completa de campaña (${payload.adSets?.length || 1} AdSet(s), ${payload.ads?.length || 1} Anuncio(s)) creada en modo sandbox (PAUSED)!`
+    };
+  }
+
+  const accountId = rawAccountId.startsWith('act_') ? rawAccountId : `act_${rawAccountId}`;
+  const cleanToken = token.trim();
+  const numericAccountId = accountId.replace('act_', '');
+
+  try {
+    // 1. Detectar Fanpage si no viene en payload
+    let pageId = payload.pageId;
+    if (!pageId) {
+      try {
+        const pRes = await fetch(`${GRAPH_BASE_URL}/me/accounts?fields=id,name&access_token=${encodeURIComponent(cleanToken)}`);
+        const pData = await pRes.json() as any;
+        if (pData?.data?.[0]?.id) {
+          pageId = pData.data[0].id;
+        }
+      } catch {
+        // Ignorar
+      }
+    }
+
+    if (!pageId) {
+      return {
+        success: false,
+        error: 'No se detectó una Fanpage (Página de Facebook) asociada. Meta exige una Fanpage para crear los creativos publicitarios.'
+      };
+    }
+
+    const defaultImageUrl = 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=1200&auto=format&fit=crop&q=80';
+
+    // ==========================================
+    // CASO A: MODO ANUNCIO INDIVIDUAL
+    // ==========================================
+    if (isSingleAd) {
+      const targetAdSetId = payload.existingAdSetId;
+      if (!targetAdSetId) {
+        return { success: false, error: 'Se requiere el ID del Conjunto de Anuncios destino para publicar el anuncio individual.' };
+      }
+
+      const targetAd = payload.ads?.[0] || {
+        name: 'Anuncio Individual Tico',
+        conceptAngle: 'Oferta Directa',
+        destinationUrl: 'https://tictacagency.co',
+        primaryText: 'Descubre las mejores soluciones para tu marca.',
+        headline: 'Oferta Exclusiva',
+        callToAction: 'LEARN_MORE'
+      };
+
+      const creativePayload = {
+        name: `[TICO-CR] ${targetAd.name}`,
+        object_story_spec: {
+          page_id: pageId,
+          link_data: {
+            message: targetAd.primaryText || 'Conoce nuestra propuesta.',
+            link: targetAd.destinationUrl || 'https://tictacagency.co',
+            name: targetAd.headline || targetAd.name,
+            description: targetAd.description || '',
+            picture: targetAd.creativeAsset?.url || defaultImageUrl,
+            call_to_action: {
+              type: targetAd.callToAction || 'LEARN_MORE',
+              value: { link: targetAd.destinationUrl || 'https://tictacagency.co' }
+            }
+          }
+        },
+        access_token: cleanToken
+      };
+
+      const crRes = await fetch(`${GRAPH_BASE_URL}/${accountId}/adcreatives`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(creativePayload)
+      });
+      const crData = await crRes.json() as any;
+
+      if (!crRes.ok || crData.error) {
+        return { success: false, error: `Error al crear AdCreative en Meta: ${crData.error?.message || crRes.statusText}` };
+      }
+
+      const creativeId = crData.id;
+
+      const adPayload = {
+        name: `[TICO] ${targetAd.name}`,
+        adset_id: targetAdSetId,
+        creative: { creative_id: creativeId },
+        status: 'PAUSED',
+        access_token: cleanToken
+      };
+
+      const adRes = await fetch(`${GRAPH_BASE_URL}/${accountId}/ads`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(adPayload)
+      });
+      const adData = await adRes.json() as any;
+
+      if (!adRes.ok || adData.error) {
+        return { success: false, error: `Error al crear el Ad en Meta: ${adData.error?.message || adRes.statusText}` };
+      }
+
+      return {
+        success: true,
+        mode: 'live_api',
+        status: 'PAUSED',
+        campaignId: payload.existingCampaignId,
+        adSetId: targetAdSetId,
+        creativeId,
+        adId: adData.id,
+        adsManagerUrl: `https://adsmanager.facebook.com/adsmanager/manage/campaigns?act=${numericAccountId}`,
+        message: `¡Anuncio individual (${targetAd.name}) creado exitosamente en estado PAUSED dentro de tu conjunto existente!`
+      };
+    }
+
+    // ==========================================
+    // CASO B: MODO CAMPAÑA COMPLETA
+    // ==========================================
+    const isCBO = payload.budgetType === 'CBO';
+    const totalDailyBudgetInCents = payload.totalBudget ? Math.max(200, Math.round(payload.totalBudget * 100)) : 1000;
+
+    // 1. Crear Campaña
+    const campaignBody: any = {
+      name: `[TICO] ${payload.campaignName || payload.brandName + ' - Campaña'}`,
+      objective: payload.objective || 'OUTCOME_LEADS',
+      status: 'PAUSED',
+      special_ad_categories: [payload.specialAdCategory || 'NONE'],
+      is_adset_budget_sharing_enabled: isCBO,
+      access_token: cleanToken
+    };
+
+    if (isCBO) {
+      campaignBody.daily_budget = totalDailyBudgetInCents;
+    }
+
+    const cmpRes = await fetch(`${GRAPH_BASE_URL}/${accountId}/campaigns`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(campaignBody)
+    });
+    const cmpData = await cmpRes.json() as any;
+
+    if (!cmpRes.ok || cmpData.error) {
+      return { success: false, error: `Error al crear Campaña en Meta: ${cmpData.error?.message || cmpRes.statusText}` };
+    }
+
+    const campaignId = cmpData.id;
+
+    // 2. Crear AdSets
+    const createdAdSets: Array<{ formId: string; metaId: string; name: string }> = [];
+    const adSetsToCreate = (payload.adSets && payload.adSets.length > 0) ? payload.adSets : [
+      { id: 'adset_default', name: 'Conjunto Principal - Audiencia Sugerida', countries: ['CO'], ageMin: 18, ageMax: 65, gender: 'all' }
+    ];
+
+    for (const adset of adSetsToCreate) {
+      const isSpecialCat = payload.specialAdCategory && payload.specialAdCategory !== 'NONE';
+      const ageMin = isSpecialCat ? 18 : (adset.ageMin || 18);
+      const ageMax = isSpecialCat ? 65 : (adset.ageMax || 65);
+      const countries = (adset.countries && adset.countries.length > 0) ? adset.countries : ['CO'];
+
+      const targeting: any = {
+        geo_locations: { countries },
+        age_min: ageMin,
+        age_max: ageMax
+      };
+
+      if (!isSpecialCat && adset.gender && adset.gender !== 'all') {
+        targeting.genders = adset.gender === 'men' ? [1] : [2];
+      }
+
+      const adsetBody: any = {
+        name: `[TICO-SET] ${adset.name || 'Conjunto de Anuncios'}`,
+        campaign_id: campaignId,
+        optimization_goal: adset.optimizationGoal || 'LINK_CLICKS',
+        billing_event: 'IMPRESSIONS',
+        bid_strategy: payload.bidStrategy || 'LOWEST_COST_WITHOUT_CAP',
+        targeting,
+        status: 'PAUSED',
+        access_token: cleanToken
+      };
+
+      // Si es ABO, se asigna presupuesto individual al conjunto
+      if (!isCBO) {
+        const adsetBudget = adset.budgetAmount ? Math.max(200, Math.round(adset.budgetAmount * 100)) : Math.round(totalDailyBudgetInCents / adSetsToCreate.length);
+        adsetBody.daily_budget = adsetBudget;
+      }
+
+      const adsetRes = await fetch(`${GRAPH_BASE_URL}/${accountId}/adsets`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(adsetBody)
+      });
+      const adsetData = await adsetRes.json() as any;
+
+      if (adsetRes.ok && adsetData.id) {
+        createdAdSets.push({ formId: adset.id, metaId: adsetData.id, name: adset.name });
+      } else {
+        console.warn(`Error creating adset ${adset.name}:`, adsetData.error);
+      }
+    }
+
+    if (createdAdSets.length === 0) {
+      return {
+        success: false,
+        error: 'La campaña fue creada en Meta pero falló la creación de los conjuntos de anuncios. Revisa las reglas de segmentación y presupuesto.'
+      };
+    }
+
+    // 3. Crear Creativos y Anuncios
+    const createdAds: Array<{ name: string; metaId: string; creativeId: string }> = [];
+    const adsToCreate = (payload.ads && payload.ads.length > 0) ? payload.ads : [
+      { id: 'ad_1', adSetId: createdAdSets[0].formId, name: 'Anuncio Principal', headline: 'Propuesta de Valor', primaryText: 'Descubre nuestros servicios.' }
+    ];
+
+    for (const ad of adsToCreate) {
+      // Buscar adset destino correspondiente
+      const matchedAdSet = createdAdSets.find(s => s.formId === ad.adSetId) || createdAdSets[0];
+      const imageUrl = ad.creativeAsset?.url || defaultImageUrl;
+      const destinationLink = ad.destinationUrl || 'https://tictacagency.co';
+
+      // 3.1 Crear AdCreative
+      const creativeBody = {
+        name: `[TICO-CR] ${ad.name || 'Creativo de Anuncio'}`,
+        object_story_spec: {
+          page_id: pageId,
+          link_data: {
+            message: ad.primaryText || 'Conoce nuestra propuesta exclusiva.',
+            link: destinationLink,
+            name: ad.headline || ad.name || 'Solución Destacada',
+            description: ad.description || '',
+            picture: imageUrl,
+            call_to_action: {
+              type: ad.callToAction || 'LEARN_MORE',
+              value: { link: destinationLink }
+            }
+          }
+        },
+        access_token: cleanToken
+      };
+
+      const crRes = await fetch(`${GRAPH_BASE_URL}/${accountId}/adcreatives`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(creativeBody)
+      });
+      const crData = await crRes.json() as any;
+
+      if (crRes.ok && crData.id) {
+        const creativeId = crData.id;
+
+        // 3.2 Crear Ad
+        const adBody = {
+          name: `[TICO] ${ad.name || 'Anuncio'}`,
+          adset_id: matchedAdSet.metaId,
+          creative: { creative_id: creativeId },
+          status: 'PAUSED',
+          access_token: cleanToken
+        };
+
+        const adRes = await fetch(`${GRAPH_BASE_URL}/${accountId}/ads`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(adBody)
+        });
+        const adData = await adRes.json() as any;
+
+        if (adRes.ok && adData.id) {
+          createdAds.push({ name: ad.name, metaId: adData.id, creativeId });
+        }
+      }
+    }
+
+    const adsManagerUrl = `https://adsmanager.facebook.com/adsmanager/manage/campaigns?act=${numericAccountId}`;
+
+    return {
+      success: true,
+      mode: 'live_api',
+      status: 'PAUSED',
+      campaignId,
+      adSets: createdAdSets,
+      ads: createdAds,
+      adsManagerUrl,
+      message: `¡Campaña completa orquestada con éxito en Meta Ads! Creados: 1 Campaña, ${createdAdSets.length} Conjunto(s) y ${createdAds.length} Anuncio(s). Todo en estado PAUSED (0 gasto imprevisto).`
+    };
+  } catch (error: any) {
+    return {
+      success: false,
+      mode: 'live_api',
+      status: 'FAILED',
+      error: error.message,
+      message: `Fallo durante el despliegue con Meta Marketing API: ${error.message}`
+    };
+  }
+}
+

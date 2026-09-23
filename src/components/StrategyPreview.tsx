@@ -37,13 +37,21 @@ export const StrategyPreview: React.FC<StrategyPreviewProps> = ({
   const [confirmedTerms, setConfirmedTerms] = useState(false);
   const [activeTab, setActiveTab] = useState<'all' | 'meta' | 'google'>('all');
   const [isEditingCopies, setIsEditingCopies] = useState(false);
+  const [activeAdIndex, setActiveAdIndex] = useState(0);
 
   const handleCopyTextChange = (index: number, newText: string) => {
     if (!strategy.metaAds) return;
     const updated = [...strategy.metaAds.primaryTexts];
     updated[index] = newText;
+
+    const updatedBuilderPayload = strategy.metaBuilderPayload ? {
+      ...strategy.metaBuilderPayload,
+      ads: strategy.metaBuilderPayload.ads.map((ad, i) => i === index ? { ...ad, primaryText: newText } : ad)
+    } : undefined;
+
     setStrategy({
       ...strategy,
+      metaBuilderPayload: updatedBuilderPayload,
       metaAds: {
         ...strategy.metaAds,
         primaryTexts: updated
@@ -55,8 +63,15 @@ export const StrategyPreview: React.FC<StrategyPreviewProps> = ({
     if (!strategy.metaAds) return;
     const updated = [...strategy.metaAds.headlines];
     updated[index] = newHeadline;
+
+    const updatedBuilderPayload = strategy.metaBuilderPayload ? {
+      ...strategy.metaBuilderPayload,
+      ads: strategy.metaBuilderPayload.ads.map((ad, i) => i === index ? { ...ad, headline: newHeadline } : ad)
+    } : undefined;
+
     setStrategy({
       ...strategy,
+      metaBuilderPayload: updatedBuilderPayload,
       metaAds: {
         ...strategy.metaAds,
         headlines: updated
@@ -65,9 +80,18 @@ export const StrategyPreview: React.FC<StrategyPreviewProps> = ({
   };
 
   const handleUpdateCreatives = (creatives: CreativeAsset[]) => {
+    const updatedBuilderPayload = strategy.metaBuilderPayload ? {
+      ...strategy.metaBuilderPayload,
+      ads: strategy.metaBuilderPayload.ads.map(ad => {
+        const match = creatives.find(c => c.assignedAdTitle === ad.headline) || creatives[0];
+        return match ? { ...ad, creativeAsset: match } : ad;
+      })
+    } : undefined;
+
     setStrategy({
       ...strategy,
       creatives,
+      metaBuilderPayload: updatedBuilderPayload,
       metaAds: strategy.metaAds ? {
         ...strategy.metaAds,
         creatives
@@ -238,16 +262,41 @@ export const StrategyPreview: React.FC<StrategyPreviewProps> = ({
                     M
                   </div>
                   <div>
-                    <h3 className="font-bold text-slate-900 text-base font-['Outfit']">Campaña en Meta Ads</h3>
-                    <p className="text-xs text-slate-500">Instagram Feed/Stories & Facebook Reels</p>
+                    <h3 className="font-bold text-slate-900 text-base font-['Outfit']">
+                      {strategy.metaBuilderPayload?.mode === 'single_ad' ? 'Anuncio Individual en Meta Ads' : 'Campaña en Meta Ads'}
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      {strategy.metaBuilderPayload?.campaignName || 'Instagram Feed/Stories & Facebook Reels'}
+                    </p>
                   </div>
                 </div>
                 <span className="text-xs px-3 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 font-semibold">
-                  CTA: {strategy.metaAds.callToAction}
+                  CTA: {strategy.metaBuilderPayload?.ads[activeAdIndex]?.callToAction || strategy.metaAds.callToAction}
                 </span>
               </div>
 
-              {/* Targeting */}
+              {/* Selector de Anuncio si hay más de 1 */}
+              {strategy.metaBuilderPayload && strategy.metaBuilderPayload.ads.length > 1 && (
+                <div className="mt-4 flex items-center gap-2 p-1.5 rounded-xl bg-slate-100 overflow-x-auto">
+                  <span className="text-[11px] font-bold text-slate-500 px-2 shrink-0">Variante:</span>
+                  {strategy.metaBuilderPayload.ads.map((ad, idx) => (
+                    <button
+                      key={ad.id}
+                      type="button"
+                      onClick={() => setActiveAdIndex(idx)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 cursor-pointer ${
+                        activeAdIndex === idx 
+                          ? 'bg-blue-600 text-white shadow-2xs' 
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/70'
+                      }`}
+                    >
+                      {ad.name || `Anuncio 0${idx + 1}`}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Targeting / Audiencias */}
               <div className="mt-5 space-y-5">
                 <div>
                   <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
@@ -266,55 +315,47 @@ export const StrategyPreview: React.FC<StrategyPreviewProps> = ({
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                      Textos Principales del Anuncio (Copies)
+                      Texto Principal del Anuncio ({activeAdIndex + 1} de {strategy.metaAds.primaryTexts.length})
                     </h4>
                     {isEditingCopies && (
                       <span className="text-[10px] text-indigo-600 font-bold bg-indigo-50 px-2 py-0.5 rounded">Modo Edición</span>
                     )}
                   </div>
-                  <div className="space-y-2.5">
-                    {strategy.metaAds.primaryTexts.map((text, idx) => (
-                      <div key={idx}>
-                        {isEditingCopies ? (
-                          <textarea
-                            rows={2}
-                            value={text}
-                            onChange={(e) => handleCopyTextChange(idx, e.target.value)}
-                            className="w-full p-3 rounded-xl bg-slate-50 border border-indigo-200 text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-indigo-600"
-                          />
-                        ) : (
-                          <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-800 leading-relaxed font-normal">
-                            "{text}"
-                          </div>
-                        )}
+                  <div>
+                    {isEditingCopies ? (
+                      <textarea
+                        rows={3}
+                        value={strategy.metaAds.primaryTexts[activeAdIndex] || ''}
+                        onChange={(e) => handleCopyTextChange(activeAdIndex, e.target.value)}
+                        className="w-full p-3 rounded-xl bg-slate-50 border border-indigo-200 text-xs text-slate-900 focus:outline-none focus:bg-white focus:border-indigo-600"
+                      />
+                    ) : (
+                      <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-800 leading-relaxed font-normal">
+                        "{strategy.metaAds.primaryTexts[activeAdIndex] || strategy.metaAds.primaryTexts[0]}"
                       </div>
-                    ))}
+                    )}
                   </div>
                 </div>
 
                 {/* Headlines */}
                 <div>
                   <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-                    Titulares (Headlines)
+                    Titular del Anuncio (Headline)
                   </h4>
-                  <div className="space-y-2">
-                    {strategy.metaAds.headlines.map((headline, idx) => (
-                      <div key={idx}>
-                        {isEditingCopies ? (
-                          <input
-                            type="text"
-                            value={headline}
-                            onChange={(e) => handleHeadlineChange(idx, e.target.value)}
-                            className="w-full p-2.5 rounded-xl bg-slate-50 border border-indigo-200 text-xs font-bold text-slate-900 focus:outline-none focus:bg-white focus:border-indigo-600"
-                          />
-                        ) : (
-                          <div className="text-xs font-semibold text-slate-700 flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0" />
-                            {headline}
-                          </div>
-                        )}
+                  <div>
+                    {isEditingCopies ? (
+                      <input
+                        type="text"
+                        value={strategy.metaAds.headlines[activeAdIndex] || ''}
+                        onChange={(e) => handleHeadlineChange(activeAdIndex, e.target.value)}
+                        className="w-full p-2.5 rounded-xl bg-slate-50 border border-indigo-200 text-xs font-bold text-slate-900 focus:outline-none focus:bg-white focus:border-indigo-600"
+                      />
+                    ) : (
+                      <div className="text-xs font-semibold text-slate-700 flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0" />
+                        {strategy.metaAds.headlines[activeAdIndex] || strategy.metaAds.headlines[0]}
                       </div>
-                    ))}
+                    )}
                   </div>
                 </div>
               </div>
@@ -323,7 +364,7 @@ export const StrategyPreview: React.FC<StrategyPreviewProps> = ({
             {/* Social Ad Visual Mockup */}
             <div className="pt-4 border-t border-slate-100">
               <span className="text-xs text-slate-400 uppercase tracking-wider block mb-2.5 font-bold">
-                Aproximación Visual (Instagram Ad Preview)
+                Aproximación Visual (Instagram & Facebook Feed Preview)
               </span>
               <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3">
                 <div className="flex items-center gap-2.5">
@@ -334,32 +375,33 @@ export const StrategyPreview: React.FC<StrategyPreviewProps> = ({
                   </div>
                   <div>
                     <div className="text-xs font-bold text-slate-900 leading-none">{strategy.brandName}</div>
-                    <span className="text-[10px] text-slate-400">Publicidad oficial</span>
+                    <span className="text-[10px] text-slate-400">Publicidad oficial • PAUSED</span>
                   </div>
                 </div>
                 <p className="text-xs text-slate-700">
-                  {strategy.metaAds.primaryTexts[0]}
+                  {strategy.metaAds.primaryTexts[activeAdIndex] || strategy.metaAds.primaryTexts[0]}
                 </p>
-                <div className="h-36 rounded-xl bg-slate-900 overflow-hidden flex items-center justify-center border border-slate-200">
-                  {strategy.creatives && strategy.creatives[0] ? (
+                <div className="h-44 rounded-xl bg-slate-900 overflow-hidden flex items-center justify-center border border-slate-200 relative">
+                  {(strategy.creatives && strategy.creatives[activeAdIndex]) || (strategy.creatives && strategy.creatives[0]) ? (
                     <img 
-                      src={strategy.creatives[0].url} 
+                      src={(strategy.creatives[activeAdIndex] || strategy.creatives[0]).url} 
                       alt="Creativo Asignado" 
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <div className="text-xs text-slate-400 font-medium flex items-center gap-2">
-                      <Layers className="w-4 h-4" />
-                      <span>Sin creativo asignado aún</span>
+                    <div className="text-xs text-slate-400 font-medium flex flex-col items-center gap-1.5 p-4 text-center">
+                      <Layers className="w-5 h-5 text-slate-500" />
+                      <span>Creativo visual pendiente</span>
+                      <span className="text-[10px] text-slate-500">Usa el módulo de arriba para asignar imagen Feed 1:1 o Story 9:16</span>
                     </div>
                   )}
                 </div>
                 <div className="flex items-center justify-between pt-1">
                   <span className="text-xs font-bold text-slate-900 truncate max-w-[200px]">
-                    {strategy.metaAds.headlines[0]}
+                    {strategy.metaAds.headlines[activeAdIndex] || strategy.metaAds.headlines[0]}
                   </span>
                   <span className="text-xs font-bold px-3 py-1 rounded-full bg-blue-600 text-white">
-                    {strategy.metaAds.callToAction}
+                    {strategy.metaBuilderPayload?.ads[activeAdIndex]?.callToAction || strategy.metaAds.callToAction}
                   </span>
                 </div>
               </div>

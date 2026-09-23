@@ -1,5 +1,13 @@
 import { Router, Request, Response } from 'express';
-import { verifyMetaToken, verifyMetaAdAccount, deployMetaCampaign, deployMetaTestCampaign } from '../services/metaAds.js';
+import { 
+  verifyMetaToken, 
+  verifyMetaAdAccount, 
+  deployMetaCampaign, 
+  deployMetaTestCampaign,
+  fetchMetaCampaigns,
+  fetchMetaAdSets,
+  deployMetaBuilder
+} from '../services/metaAds.js';
 
 export const metaRouter = Router();
 
@@ -46,6 +54,48 @@ metaRouter.post('/verify-account', async (req: Request, res: Response) => {
   }
 });
 
+// Endpoint para listar campañas existentes de una cuenta publicitaria
+metaRouter.post('/campaigns-list', async (req: Request, res: Response) => {
+  try {
+    const token = req.body.token || process.env.META_ACCESS_TOKEN;
+    const adAccountId = req.body.adAccountId || process.env.META_AD_ACCOUNT_ID;
+    const result = await fetchMetaCampaigns(token, adAccountId);
+    return res.json(result);
+  } catch (error: any) {
+    console.error('Error fetching Meta campaigns:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Endpoint para listar conjuntos de anuncios de una campaña
+metaRouter.post('/adsets-list', async (req: Request, res: Response) => {
+  try {
+    const token = req.body.token || process.env.META_ACCESS_TOKEN;
+    const adAccountId = req.body.adAccountId || process.env.META_AD_ACCOUNT_ID;
+    const campaignId = req.body.campaignId;
+    const result = await fetchMetaAdSets(token, adAccountId, campaignId);
+    return res.json(result);
+  } catch (error: any) {
+    console.error('Error fetching Meta adsets:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Endpoint para desplegar la estructura de MetaAdBuilder (Campaña completa o Anuncio individual)
+metaRouter.post('/deploy-builder', async (req: Request, res: Response) => {
+  try {
+    const { payload, token, adAccountId } = req.body;
+    if (!payload) {
+      return res.status(400).json({ success: false, error: 'Payload de configuración no suministrado.' });
+    }
+    const result = await deployMetaBuilder(payload, token, adAccountId);
+    return res.json(result);
+  } catch (error: any) {
+    console.error('Error deploying Meta builder:', error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Endpoint para realizar una prueba real de creación de campaña en PAUSED (sin consumo de IA)
 metaRouter.post('/test-creation', async (req: Request, res: Response) => {
   try {
@@ -74,3 +124,4 @@ metaRouter.post('/test-creation', async (req: Request, res: Response) => {
     return res.status(500).json({ success: false, error: error.message });
   }
 });
+

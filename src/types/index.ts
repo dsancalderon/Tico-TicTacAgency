@@ -139,6 +139,7 @@ export interface GeneratedCampaignStrategy {
   status: 'draft' | 'awaiting_approval' | 'approved' | 'deploying' | 'active' | 'failed';
   deployedMetaCampaignId?: string;
   deployedGoogleCampaignId?: string;
+  metaBuilderPayload?: MetaBuilderPayload;
 }
 
 export interface DeploymentLog {
@@ -147,3 +148,80 @@ export interface DeploymentLog {
   message: string;
   status: 'info' | 'success' | 'warning' | 'error';
 }
+
+export type MetaFormMode = 'full_campaign' | 'single_ad';
+
+export type MetaSpecialAdCategory = 'NONE' | 'HOUSING' | 'EMPLOYMENT' | 'CREDIT' | 'ISSUES_ELECTIONS_POLITICS';
+
+export type MetaBudgetType = 'CBO' | 'ABO';
+
+export type MetaCallToAction = 
+  | 'LEARN_MORE' 
+  | 'SHOP_NOW' 
+  | 'SIGN_UP' 
+  | 'CONTACT_US' 
+  | 'WHATSAPP_MESSAGE' 
+  | 'GET_OFFER' 
+  | 'BOOK_TRAVEL' 
+  | 'DOWNLOAD';
+
+export interface MetaAdSetFormItem {
+  id: string;
+  name: string;
+  budgetAmount?: number;
+  startDate: string;
+  endDate?: string;
+  isContinuous: boolean;
+  optimizationGoal: string;
+  attributionWindow: string;
+  delegateAudienceToTico: boolean;
+  countries: string[];
+  cities: string;
+  ageMin: number;
+  ageMax: number;
+  gender: 'all' | 'men' | 'women';
+  languages: string;
+  interestsDescription: string;
+  interestsSuggested?: string[];
+  placementType: 'advantage_plus' | 'manual';
+  manualPositions?: string[];
+}
+
+export interface MetaAdFormItem {
+  id: string;
+  adSetId: string;
+  name: string;
+  conceptAngle: string;
+  destinationUrl: string;
+  urlParameters?: string;
+  delegateCopysToTico: boolean;
+  primaryText: string;
+  headline: string;
+  description: string;
+  callToAction: MetaCallToAction;
+  creativeAsset?: CreativeAsset;
+}
+
+export interface MetaBuilderPayload {
+  mode: MetaFormMode;
+  brandName: string;
+  adAccountId?: string;
+  pageId?: string;
+  pixelId?: string;
+  existingCampaignId?: string;
+  existingCampaignName?: string;
+  existingAdSetId?: string;
+  existingAdSetName?: string;
+  campaignName: string;
+  objective: string;
+  specialAdCategory: MetaSpecialAdCategory;
+  budgetType: MetaBudgetType;
+  totalBudget: number;
+  currency: string;
+  cboDistribution: 'auto' | 'manual_limits';
+  bidStrategy: string;
+  delegateBudgetToTico?: boolean;
+  adSets: MetaAdSetFormItem[];
+  ads: MetaAdFormItem[];
+}
+

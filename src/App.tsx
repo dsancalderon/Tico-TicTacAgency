@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { loadWorkspace, saveWorkspace, saveConnection, saveCampaign, restoreStrategy } from './services/workspace';
 import { Header } from './components/Header';
 import { BriefingForm } from './components/BriefingForm';
+import { MetaAdBuilderForm } from './components/MetaAdBuilder/MetaAdBuilderForm';
 import { StrategyPreview } from './components/StrategyPreview';
 import { DeploymentConsole } from './components/DeploymentConsole';
 import { TicoLogo } from './components/TicoLogo';
@@ -18,9 +19,16 @@ import type {
   MetaConnectionState,
   GoogleConnectionState,
   CreditTransaction,
-  DashboardTab
+  DashboardTab,
+  MetaBuilderPayload
 } from './types';
-import { checkBackendHealth, generateStrategyApi, deployCampaignApi } from './services/api';
+import { 
+  checkBackendHealth, 
+  generateStrategyApi, 
+  deployCampaignApi, 
+  generateMetaBuilderStrategyApi, 
+  deployMetaBuilderApi 
+} from './services/api';
 import {
   ArrowRight,
   Sparkles,
@@ -30,7 +38,8 @@ import {
   Share2,
   FolderKanban,
   FileCheck2,
-  Lock
+  Lock,
+  Layers
 } from 'lucide-react';
 import { TicoLoader } from './components/TicoLoader';
 import { forceResetScroll } from './utils/scrollLock';
@@ -38,6 +47,7 @@ import { forceResetScroll } from './utils/scrollLock';
 export function App() {
   const [backendOnline, setBackendOnline] = useState<boolean>(false);
   const [currentStep, setCurrentStep] = useState<'briefing' | 'strategy' | 'deployed'>('briefing');
+  const [builderMode, setBuilderMode] = useState<'meta_builder' | 'quick_brief'>('meta_builder');
   const [isLoadingStrategy, setIsLoadingStrategy] = useState<boolean>(false);
   const [isDeploying, setIsDeploying] = useState<boolean>(false);
   const [strategy, setStrategy] = useState<GeneratedCampaignStrategy | null>(null);
@@ -317,13 +327,42 @@ export function App() {
     setIsDeploying(true);
 
     try {
-      const result = await deployCampaignApi(strategyToDeploy);
+      let result: any;
+      if (strategyToDeploy.metaBuilderPayload) {
+        const deployResponse = await deployMetaBuilderApi(
+          strategyToDeploy.metaBuilderPayload,
+          metaState.userAccessToken,
+          metaState.adAccountId
+        );
+        result = {
+          success: deployResponse.success,
+          deployedAt: new Date().toISOString(),
+          results: {
+            meta: {
+              mode: deployResponse.mode,
+              status: deployResponse.status || 'PAUSED',
+              campaignId: deployResponse.campaignId,
+              adsetId: deployResponse.adSets?.[0]?.metaId || deployResponse.adSetId,
+              adId: deployResponse.ads?.[0]?.metaId || deployResponse.adId,
+              message: deployResponse.message,
+              adsManagerUrl: deployResponse.adsManagerUrl
+            }
+          }
+        };
+      } else {
+        result = await deployCampaignApi(strategyToDeploy);
+      }
+
       if (activeOwner.current !== owner) return;
       setDeployResult(result);
       setCurrentStep('deployed');
 
-      const recorded = { ...strategyToDeploy, deployedMetaCampaignId: result.results?.meta?.campaignId,
-        deployedGoogleCampaignId: result.results?.google?.campaignId, status: 'approved' as const };
+      const recorded = { 
+        ...strategyToDeploy, 
+        deployedMetaCampaignId: result.results?.meta?.campaignId,
+        deployedGoogleCampaignId: result.results?.google?.campaignId, 
+        status: 'approved' as const 
+      };
       const id = await saveCampaign(owner, recorded, result);
       if (activeOwner.current !== owner) return;
       setStrategy({ ...recorded, id });
@@ -335,6 +374,38 @@ export function App() {
       window.alert(error instanceof Error ? error.message : 'No se pudo desplegar la campaña.');
     } finally {
       setIsDeploying(false);
+    }
+  };
+
+  // Manejo de envío desde el MetaAdBuilderForm
+  const handleMetaBuilderSubmit = async (payload: MetaBuilderPayload) => {
+    if (!userSession?.isAuthenticated) {
+      setAuthModalTitle('Inicia sesión para estructurar tu pauta');
+      setAuthModalSubtitle('Para formular tus anuncios con Tico IA y desplegarlos en Meta Ads, inicia sesión con tu cuenta.');
+      setIsAuthModalOpen(true);
+      return;
+    }
+
+    setDashboardTab('agent');
+    setIsLoadingStrategy(true);
+    const owner = userSession.id;
+
+    try {
+      const { strategy: generated, enrichedPayload } = await generateMetaBuilderStrategyApi(payload);
+      if (activeOwner.current !== owner) return;
+      const identified = { ...generated, id: crypto.randomUUID(), metaBuilderPayload: enrichedPayload };
+      await saveCampaign(owner, identified);
+      await saveWorkspace(owner, { briefing: savedBrief, strategy: identified, step: 'strategy' });
+      if (activeOwner.current !== owner) return;
+      setStrategy(identified);
+      setDeployedCampaignsList(previous => [identified, ...previous]);
+      setCurrentStep('strategy');
+      const el = document.getElementById('workflow-container');
+      if (el) el.scrollIntoView({ behavior: 'smooth' });
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : 'No se pudo generar la estrategia de Meta Ads.');
+    } finally {
+      setIsLoadingStrategy(false);
     }
   };
 
@@ -411,7 +482,6 @@ export function App() {
           />
         )}
 
-        {/* 2. SECCIÓN TICO AGENT: APARTADO DE LA IMPLEMENTACIÓN DE CAMPAÑAS CON IA */}
         {dashboardTab === 'agent' && (
           <div className="space-y-8" id="workflow-container">
             {/* Stepper indicators */}
@@ -467,13 +537,56 @@ export function App() {
 
             {/* Dynamic Step Content */}
             {currentStep === 'briefing' && (
-              <BriefingForm
-                initialData={savedBrief}
-                onDraftChange={setSavedBrief}
-                onSubmit={handleBriefSubmit}
-                isLoading={isLoadingStrategy}
-                submitButtonText="Formular Plan de Pauta con TICO"
-              />
+              <div className="space-y-6">
+                {/* Switcher de Modos: Meta Ads Builder vs Briefing General */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-2 bg-slate-100/90 rounded-2xl border border-slate-200/90">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setBuilderMode('meta_builder')}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
+                        builderMode === 'meta_builder'
+                          ? 'bg-blue-600 text-white shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                      }`}
+                    >
+                      <Share2 className="w-3.5 h-3.5" />
+                      <span>Meta Ads Builder (Campaña / Anuncio con Tico IA)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBuilderMode('quick_brief')}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 ${
+                        builderMode === 'quick_brief'
+                          ? 'bg-slate-950 text-white shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+                      }`}
+                    >
+                      <Layers className="w-3.5 h-3.5" />
+                      <span>Briefing General Rápido (Meta + Google)</span>
+                    </button>
+                  </div>
+                  <span className="text-[11px] text-slate-500 font-medium px-2">
+                    {builderMode === 'meta_builder' ? 'Jerarquía oficial Campaña → AdSet → Anuncio' : 'Estrategia rápida'}
+                  </span>
+                </div>
+
+                {builderMode === 'meta_builder' ? (
+                  <MetaAdBuilderForm
+                    metaState={metaState}
+                    onSubmit={handleMetaBuilderSubmit}
+                    isLoading={isLoadingStrategy}
+                  />
+                ) : (
+                  <BriefingForm
+                    initialData={savedBrief}
+                    onDraftChange={setSavedBrief}
+                    onSubmit={handleBriefSubmit}
+                    isLoading={isLoadingStrategy}
+                    submitButtonText="Formular Plan de Pauta con TICO"
+                  />
+                )}
+              </div>
             )}
 
             {currentStep === 'strategy' && strategy && (
