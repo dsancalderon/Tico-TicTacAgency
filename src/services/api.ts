@@ -766,200 +766,11 @@ function createStrategyFromPayload(
   };
 }
 
-/**
- * Obtiene la clave de Gemini desde el entorno de Vite o desde el almacenamiento local
- */
-export function getClientGeminiApiKey(): string {
-  const fromEnv = (import.meta.env.VITE_GEMINI_API_KEY || '').trim();
-  if (fromEnv && !fromEnv.includes('your_')) return fromEnv;
-  if (typeof window !== 'undefined') {
-    const fromStorage = (localStorage.getItem('gemini_api_key') || sessionStorage.getItem('gemini_api_key') || '').trim();
-    if (fromStorage && !fromStorage.includes('your_')) return fromStorage;
-  }
-  return '';
-}
-
-/**
- * Guarda o elimina la clave de Gemini en el navegador
- */
-export function setClientGeminiApiKey(key: string): void {
-  if (typeof window !== 'undefined') {
-    const clean = key.trim();
-    if (clean) {
-      localStorage.setItem('gemini_api_key', clean);
-    } else {
-      localStorage.removeItem('gemini_api_key');
-    }
-  }
-}
-
-/**
- * Realiza un ping en vivo a Google Gemini (Gemini 3.6 Flash) para verificar la clave
- * y forzar el registro de la petición en el panel de Google AI Studio
- */
-export async function testGeminiConnectionApi(apiKeyOverride?: string): Promise<{ success: boolean; message: string; model: string }> {
-  const key = (apiKeyOverride || getClientGeminiApiKey()).trim();
-  if (!key) {
-    return {
-      success: false,
-      message: 'No se encontró ninguna clave de Gemini configurada. Ingresa tu API Key de Google AI Studio.',
-      model: 'gemini-3.6-flash'
-    };
-  }
-
-  try {
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${encodeURIComponent(key)}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: 'Test de conexión Tico Agent. Responde: Conexión exitosa.' }] }]
-      })
-    });
-
-    if (res.ok) {
-      const data = await res.json();
-      const reply = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || 'OK';
-      return {
-        success: true,
-        message: `¡Conexión verificada con Google Gemini! Respuesta: "${reply}". Esta solicitud ya quedó registrada en tu panel de Google AI Studio.`,
-        model: 'gemini-3.6-flash'
-      };
-    } else {
-      const errText = await res.text().catch(() => '');
-      return {
-        success: false,
-        message: `Google Gemini API respondió código ${res.status}: ${errText.slice(0, 150)}`,
-        model: 'gemini-3.6-flash'
-      };
-    }
-  } catch (err: any) {
-    return {
-      success: false,
-      message: `Error de red al conectar con Google Gemini: ${err.message}`,
-      model: 'gemini-3.6-flash'
-    };
-  }
-}
-
-/**
- * Consulta directa a la API de Google Gemini (Gemini 3.6 Flash) desde el navegador
- */
-async function callDirectGeminiStrategy(payload: MetaBuilderPayload, apiKeyOverride?: string): Promise<{
-  strategySummary: string;
-  enrichedPayload: MetaBuilderPayload;
-}> {
-  const apiKey = (apiKeyOverride || getClientGeminiApiKey()).trim();
-  if (!apiKey || apiKey.includes('your_')) {
-    throw new Error('No se encontró la clave de API de Gemini configurada (GEMINI_API_KEY / VITE_GEMINI_API_KEY).');
-  }
-
-  const prompt = `Eres TICO, el agente estratega senior de pauta en Meta Ads (Facebook & Instagram) de TicTac Agency Performance.
-Formula los copys y segmentaciones para esta campaña de Meta Ads basándote en el contexto de marca:
-
-CONTEXTO DE MARCA:
-- Nombre: ${payload.brandName}
-- Sitio Web: ${payload.websiteUrl || 'No especificado'}
-- Industria / Nicho: ${payload.industry || 'General'}
-- Público Objetivo: ${payload.targetAudience || 'Clientes potenciales'}
-- Ofertas / Notas: ${payload.additionalNotes || 'Enfocarse en la propuesta de valor'}
-
-CONFIGURACIÓN DE PAUTA:
-- Modo: ${payload.mode}
-- Objetivo Meta (ODAX): ${payload.objective}
-- Categoría Especial: ${payload.specialAdCategory}
-- Presupuesto: ${payload.totalBudget} ${payload.currency}
-- AdSets: ${JSON.stringify(payload.adSets || [])}
-- Ads: ${JSON.stringify(payload.ads || [])}
-
-INSTRUCCIONES:
-1. Para cada AdSet donde delegateAudienceToTico sea true: genera interestsSuggested (4 a 6 intereses detallados de alto rendimiento en Meta Ads para el sector "${payload.industry}"), ageMin, ageMax y gender (respetando restricciones de Categoría Especial si aplica).
-2. Para cada Ad donde delegateCopysToTico sea true: redacta headline (máx 40 caracteres con gancho), primaryText (copy persuasivo con fórmula AIDA o PAS usando el contexto de la marca "${payload.brandName}", su oferta "${payload.additionalNotes}" y su ángulo "${payload.ads[0]?.conceptAngle || 'Oferta'}"), description (1 línea de soporte) y callToAction (LEARN_MORE, SHOP_NOW, SIGN_UP, CONTACT_US, etc.).
-3. Genera un strategySummary ejecutivo explicando la lógica publicitaria.
-
-Responde ÚNICAMENTE un JSON válido con este formato:
-{
-  "strategySummary": "string",
-  "enrichedPayload": {
-    "brandName": "${payload.brandName}",
-    "adSets": [ ...adSets con interestsSuggested, ageMin, ageMax... ],
-    "ads": [ ...ads con headline, primaryText, description, callToAction... ]
-  }
-}`;
-
-  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${encodeURIComponent(apiKey)}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: {
-        responseMimeType: 'application/json',
-        temperature: 0.7
-      }
-    })
-  });
-
-  if (!res.ok) {
-    const errorText = await res.text().catch(() => '');
-    throw new Error(`Google Gemini API respondió con error ${res.status}: ${errorText.slice(0, 150)}`);
-  }
-
-  const data = await res.json();
-  const rawJson = data.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!rawJson) {
-    throw new Error('Gemini no retornó contenido en la respuesta.');
-  }
-
-  const parsed = JSON.parse(rawJson);
-  const enriched = parsed.enrichedPayload || {};
-
-  // Normalizar anuncios extrayendo campos planos o anidados
-  const normalizedAds = (payload.ads || []).map((origAd, idx) => {
-    const genAd = (enriched.ads && enriched.ads[idx]) || enriched.ads?.find((a: any) => a.id === origAd.id) || {};
-    const copyObj = genAd.copy || {};
-    return {
-      ...origAd,
-      ...genAd,
-      headline: genAd.headline || copyObj.headline || origAd.headline,
-      primaryText: genAd.primaryText || copyObj.primaryText || origAd.primaryText,
-      description: genAd.description || copyObj.description || origAd.description,
-      callToAction: genAd.callToAction || copyObj.callToAction || origAd.callToAction,
-      delegateCopysToTico: false
-    };
-  });
-
-  // Normalizar conjuntos de anuncios
-  const normalizedAdSets = (payload.adSets || []).map((origSet, idx) => {
-    const genSet = (enriched.adSets && enriched.adSets[idx]) || enriched.adSets?.find((s: any) => s.id === origSet.id) || {};
-    const audienceObj = genSet.audience || {};
-    const detailedTargeting = audienceObj.detailedTargeting || {};
-    const demographics = audienceObj.demographics || {};
-    const interests = genSet.interestsSuggested || detailedTargeting.interests || origSet.interestsSuggested;
-    return {
-      ...origSet,
-      ...genSet,
-      interestsSuggested: interests,
-      ageMin: genSet.ageMin || demographics.ageMin || origSet.ageMin,
-      ageMax: genSet.ageMax || demographics.ageMax || origSet.ageMax,
-      delegateAudienceToTico: false
-    };
-  });
-
-  const finalPayload: MetaBuilderPayload = {
-    ...payload,
-    ...enriched,
-    adSets: normalizedAdSets,
-    ads: normalizedAds
-  };
-
-  return {
-    strategySummary: parsed.strategySummary || `Estrategia de Meta Ads formulada por TICO IA para ${payload.brandName}.`,
-    enrichedPayload: finalPayload
-  };
-}
 
 /**
  * Formula sugerencias estratégicas con IA para los bloques delegados en MetaAdBuilder
- * Soporta modo real (API de Tico / Gemini) o modo simulación con textos predeterminados
+ * Ejecutado de forma segura y exclusiva a través del backend en Vercel (/api/campaigns/generate-meta-builder)
+ * La API key de Gemini reside únicamente en el servidor y nunca se expone al cliente
  */
 export async function generateMetaBuilderStrategyApi(
   payload: MetaBuilderPayload,
@@ -968,6 +779,16 @@ export async function generateMetaBuilderStrategyApi(
   strategy: GeneratedCampaignStrategy;
   enrichedPayload: MetaBuilderPayload;
 }> {
+  // Limpieza defensiva en cliente: asegurarnos de no persistir claves en almacenamiento local
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.removeItem('gemini_api_key');
+      sessionStorage.removeItem('gemini_api_key');
+    } catch {
+      // Ignorar si el almacenamiento está restringido
+    }
+  }
+
   // 1. Si el usuario solicitó explícitamente simulación / textos predeterminados
   if (useMock) {
     const mockEnriched = createDeterministicPayload(payload);
@@ -979,21 +800,13 @@ export async function generateMetaBuilderStrategyApi(
     return { strategy: mockStrategy, enrichedPayload: mockEnriched };
   }
 
-  const clientGeminiKey = getClientGeminiApiKey();
-  const payloadWithKey = {
-    ...payload,
-    geminiApiKey: clientGeminiKey || undefined
-  };
-
-  // 2. Petición real al backend en Vercel (/api/campaigns/generate-meta-builder)
-  let backendError: string | null = null;
-
+  // 2. Petición segura al backend en Vercel (/api/campaigns/generate-meta-builder)
   try {
     const headers = await authHeaders().catch(() => ({ 'Content-Type': 'application/json' }));
     const res = await fetch(`${API_BASE_URL}/campaigns/generate-meta-builder`, {
       method: 'POST',
       headers,
-      body: JSON.stringify(payloadWithKey)
+      body: JSON.stringify(payload)
     });
 
     if (res.ok) {
@@ -1004,40 +817,18 @@ export async function generateMetaBuilderStrategyApi(
         const strategy = createStrategyFromPayload(payload, enriched, strategySummary);
         return { strategy, enrichedPayload: enriched };
       }
-    } else {
-      const errJson = await res.json().catch(() => null);
-      backendError = errJson?.error || `Servidor respondió código HTTP ${res.status}: ${res.statusText}`;
     }
+
+    const errJson = await res.json().catch(() => null);
+    const errorMessage = errJson?.error || `Error del servidor (${res.status}): ${res.statusText}`;
+    throw new Error(errorMessage);
   } catch (err: any) {
-    backendError = err?.message || 'Servidor backend no disponible';
+    console.error('[TICO-AI] Error en formulación de estrategia:', err);
+    throw new Error(
+      `No se pudo formular la estrategia con IA: ${err.message}\n\n` +
+      `Si deseas continuar de inmediato para probar el flujo sin esperar a la IA, puedes pulsar el botón inferior "⚡ Probar con textos predeterminados".`
+    );
   }
-
-  // 3. Respaldo directo en cliente: Si el backend en Vercel no respondió o no tiene la clave configurada en su entorno,
-  // invocar directamente a Google Gemini API desde el navegador usando la clave del cliente
-  if (clientGeminiKey) {
-    console.log('[TICO-AI] Conectando directamente con Google Gemini API desde el navegador...', backendError);
-    try {
-      const directResult = await callDirectGeminiStrategy(payload, clientGeminiKey);
-      const strategy = createStrategyFromPayload(payload, directResult.enrichedPayload, directResult.strategySummary);
-      return { strategy, enrichedPayload: directResult.enrichedPayload };
-    } catch (geminiErr: any) {
-      console.error('[TICO-AI] Error en llamada a Gemini:', geminiErr);
-      throw new Error(
-        `Error al consultar la API de Google Gemini en tiempo real: ${geminiErr.message}\n\n` +
-        (backendError ? `Detalle del servidor Vercel: ${backendError}\n\n` : '') +
-        `Usa el botón "⚡ Probar con textos predeterminados" si deseas probar el flujo sin conexión a la API.`
-      );
-    }
-  }
-
-  // Si no hay clave configurada ni en Vercel ni en el navegador:
-  throw new Error(
-    (backendError || 'GEMINI_API_KEY no encontrada.') +
-    '\n\nPara solucionar esto:' +
-    '\n1. En Vercel: Ve a Settings > Environment Variables y agrega GEMINI_API_KEY.' +
-    '\n2. En la app: Ve a la pestaña Conexiones y guarda tu clave de Google AI Studio.' +
-    '\n3. O haz clic en "⚡ Probar con textos predeterminados" para continuar en modo simulación.'
-  );
 }
 
 /**

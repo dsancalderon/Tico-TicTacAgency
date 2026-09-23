@@ -70,12 +70,13 @@ Para que la aplicación formule anuncios y estrategias con IA real en Vercel (si
 ### Variables del Cliente (Vite Frontend)
 - `VITE_SUPABASE_URL`: URL de Supabase para el cliente web.
 - `VITE_SUPABASE_PUBLISHABLE_KEY`: Clave pública `anon` para el cliente web.
-- `VITE_GEMINI_API_KEY`: Clave de API de Google AI Studio (permite consulta directa desde el navegador como contingencia).
 - `VITE_API_BASE_URL`: `/api` (ruta relativa para Vercel).
 
 ---
 
-## 4. Gestión de Clave de Gemini en la Aplicación
-Además de las variables de entorno de Vercel, la aplicación incluye:
-1. **Configuración en Conexiones**: En la pestaña **Conexiones**, el usuario puede verificar el estado de conexión de Google Gemini, ingresar su clave y probar la conexión en vivo con un botón de diagnóstico que genera un ping a `gemini-3.6-flash` registrando la petición en Google AI Studio.
-2. **Persistencia Local**: La clave se almacena de forma segura en `localStorage` del navegador y se envía en las solicitudes de formulación publicitaria para garantizar que siempre se consulte la API real.
+## 4. Seguridad y Gestión de la Clave de Google Gemini
+Siguiendo las mejores prácticas de seguridad web:
+1. **Aislamiento 100% en el Servidor (Backend)**: La clave `GEMINI_API_KEY` reside única y exclusivamente en las Variables de Entorno de **Vercel** (`process.env.GEMINI_API_KEY`). Nunca se expone en el código cliente, ni en respuestas JSON, ni en el almacenamiento local (`localStorage`) del navegador.
+2. **Canal Seguro**: Todas las solicitudes de redacción de copys y segmentación pasan por la función serverless de Vercel (`/api/campaigns/generate-meta-builder`), autenticadas mediante el token de sesión del usuario en Supabase.
+3. **Pestaña Conexiones Limpia**: El apartado de Conexiones se mantiene enfocado exclusivamente en las plataformas oficiales de pauta publicitaria (**Meta Ads** y **Google Ads**).
+
