@@ -274,33 +274,91 @@ Responde ÚNICAMENTE un objeto JSON válido con este formato:
   "enrichedPayload": { ...el payload recibido pero con los campos delegados rellenados con tus sugerencias }
 }`;
 
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey.trim()}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          responseMimeType: 'application/json',
-          temperature: 0.7
-        }
-      })
-    });
+    const candidateModels = ['gemini-3.6-flash', 'gemini-flash-latest'];
+    let lastError = '';
 
-    if (res.ok) {
-      const data = await res.json() as any;
-      const rawJson = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (rawJson) {
-        const parsed = JSON.parse(rawJson);
-        return {
-          strategySummary: parsed.strategySummary || `Estrategia de Meta formulada por TICO para ${brandName}.`,
-          enrichedPayload: parsed.enrichedPayload || payload
-        };
+    for (const model of candidateModels) {
+      try {
+        console.log(`[TICO-AI] Consultando modelo Gemini: ${model}...`);
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey.trim()}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+              responseMimeType: 'application/json',
+              temperature: 0.7
+            }
+          })
+        });
+
+        if (res.ok) {
+          const data = await res.json() as any;
+          const rawJson = data.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (rawJson) {
+            const parsed = JSON.parse(rawJson);
+            const enriched = parsed.enrichedPayload || {};
+
+            // Normalizar anuncios extrayendo campos planos o anidados
+            const normalizedAds = (payload.ads || []).map((origAd: any, idx: number) => {
+              const genAd = (enriched.ads && enriched.ads[idx]) || enriched.ads?.find((a: any) => a.id === origAd.id) || {};
+              const copyObj = genAd.copy || {};
+              return {
+                ...origAd,
+                ...genAd,
+                headline: genAd.headline || copyObj.headline || origAd.headline,
+                primaryText: genAd.primaryText || copyObj.primaryText || origAd.primaryText,
+                description: genAd.description || copyObj.description || origAd.description,
+                callToAction: genAd.callToAction || copyObj.callToAction || origAd.callToAction,
+                delegateCopysToTico: false
+              };
+            });
+
+            // Normalizar conjuntos de anuncios
+            const normalizedAdSets = (payload.adSets || []).map((origSet: any, idx: number) => {
+              const genSet = (enriched.adSets && enriched.adSets[idx]) || enriched.adSets?.find((s: any) => s.id === origSet.id) || {};
+              const audienceObj = genSet.audience || {};
+              const detailedTargeting = audienceObj.detailedTargeting || {};
+              const demographics = audienceObj.demographics || {};
+              const interests = genSet.interestsSuggested || detailedTargeting.interests || origSet.interestsSuggested;
+              return {
+                ...origSet,
+                ...genSet,
+                interestsSuggested: interests,
+                ageMin: genSet.ageMin || demographics.ageMin || origSet.ageMin,
+                ageMax: genSet.ageMax || demographics.ageMax || origSet.ageMax,
+                delegateAudienceToTico: false
+              };
+            });
+
+            const finalPayload = {
+              ...payload,
+              ...enriched,
+              adSets: normalizedAdSets,
+              ads: normalizedAds
+            };
+
+            return {
+              strategySummary: parsed.strategySummary || `Estrategia de Meta Ads formulada por TICO IA para ${brandName}.`,
+              enrichedPayload: finalPayload
+            };
+          }
+        } else {
+          const errBody = await res.text().catch(() => '');
+          lastError = `Modelo ${model} retornó ${res.status}: ${errBody.slice(0, 150)}`;
+          console.warn(`[TICO-AI] ${lastError}`);
+        }
+      } catch (err: any) {
+        lastError = `Fallo al invocar ${model}: ${err.message}`;
+        console.warn(`[TICO-AI] ${lastError}`);
       }
     }
-  } catch (err) {
-    console.error('Error invoking Gemini for MetaAdBuilder:', err);
-  }
 
-  return generateFallback();
+    console.error('[TICO-AI] No se pudo generar la estrategia con ningún modelo:', lastError);
+    throw new Error(`La API de IA no pudo generar la estrategia: ${lastError}`);
+  } catch (err: any) {
+    console.error('Error invoking Gemini for MetaAdBuilder:', err.message);
+    throw err;
+  }
 }
 

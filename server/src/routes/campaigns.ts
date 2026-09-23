@@ -38,9 +38,9 @@ campaignsRouter.post('/generate-meta-builder', async (req: Request, res: Respons
       strategySummary: result.strategySummary,
       enrichedPayload: result.enrichedPayload
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error generating Meta builder strategy:', error);
-    return res.status(500).json({ error: 'Error al procesar la estrategia de Meta Ads.' });
+    return res.status(500).json({ error: error?.message || 'Error al procesar la estrategia de Meta Ads.' });
   }
 });
 

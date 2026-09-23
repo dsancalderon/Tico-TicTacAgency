@@ -36,7 +36,7 @@ import { fetchMetaCampaignsApi, fetchMetaAdSetsApi } from '../../services/api';
 interface MetaAdBuilderFormProps {
   metaState?: MetaConnectionState;
   onUpdateMetaState?: (newState: MetaConnectionState) => void;
-  onSubmit: (payload: MetaBuilderPayload) => void;
+  onSubmit: (payload: MetaBuilderPayload, options?: { useMock?: boolean }) => void;
   isLoading: boolean;
   initialData?: MetaBuilderPayload | null;
   onDraftChange?: (payload: MetaBuilderPayload) => void;
@@ -436,7 +436,7 @@ export const MetaAdBuilderForm: React.FC<MetaAdBuilderFormProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(getPayload());
+    onSubmit(getPayload(), { useMock: false });
   };
 
   return (
@@ -1398,7 +1398,7 @@ export const MetaAdBuilderForm: React.FC<MetaAdBuilderFormProps> = ({
         {/* ========================================================================= */}
         {/* BOTÓN FINAL DE FORMULACIÓN                                               */}
         {/* ========================================================================= */}
-        <div className="pt-4 border-t border-slate-200">
+        <div className="pt-4 border-t border-slate-200 space-y-3">
           <button
             type="submit"
             disabled={isLoading}
@@ -1407,7 +1407,7 @@ export const MetaAdBuilderForm: React.FC<MetaAdBuilderFormProps> = ({
             {isLoading ? (
               <>
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                <span>Tico está analizando la configuración y formulando los anuncios...</span>
+                <span>Tico está consultando la API y formulando los anuncios con IA...</span>
               </>
             ) : (
               <>
@@ -1417,6 +1417,21 @@ export const MetaAdBuilderForm: React.FC<MetaAdBuilderFormProps> = ({
               </>
             )}
           </button>
+
+          <div className="flex flex-col items-center justify-center pt-1 gap-1">
+            <button
+              type="button"
+              disabled={isLoading}
+              onClick={() => onSubmit(getPayload(), { useMock: true })}
+              className="text-xs font-semibold text-slate-500 hover:text-slate-800 transition flex items-center gap-1.5 cursor-pointer py-1.5 px-3 rounded-lg hover:bg-slate-100 disabled:opacity-50"
+              title="Avanzar rápidamente a la revisión usando textos de prueba predeterminados sin consumir llamadas a la API"
+            >
+              <span>⚡ Probar con textos predeterminados (Simulación sin IA)</span>
+            </button>
+            <p className="text-[11px] text-slate-400 text-center">
+              El botón principal hace la petición real a la API en tiempo real.
+            </p>
+          </div>
         </div>
       </form>
     </div>

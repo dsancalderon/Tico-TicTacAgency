@@ -419,7 +419,7 @@ export function App() {
   };
 
   // Manejo de envío desde el MetaAdBuilderForm
-  const handleMetaBuilderSubmit = async (payload: MetaBuilderPayload) => {
+  const handleMetaBuilderSubmit = async (payload: MetaBuilderPayload, options?: { useMock?: boolean }) => {
     if (!userSession?.isAuthenticated) {
       setAuthModalTitle('Inicia sesión para estructurar tu pauta');
       setAuthModalSubtitle('Para formular tus anuncios con Tico IA y desplegarlos en Meta Ads, inicia sesión con tu cuenta.');
@@ -432,7 +432,7 @@ export function App() {
     const owner = userSession.id;
 
     try {
-      const { strategy: generated, enrichedPayload } = await generateMetaBuilderStrategyApi(payload);
+      const { strategy: generated, enrichedPayload } = await generateMetaBuilderStrategyApi(payload, options?.useMock);
       if (activeOwner.current !== owner) return;
       const strategyId = editingDraftId || crypto.randomUUID();
       const identified = { ...generated, id: strategyId, metaBuilderPayload: enrichedPayload };

@@ -697,61 +697,11 @@ export async function fetchMetaAdSetsApi(campaignId: string, adAccountId?: strin
 /**
  * Formula sugerencias estratégicas con IA para los bloques delegados en MetaAdBuilder
  */
-export async function generateMetaBuilderStrategyApi(payload: MetaBuilderPayload): Promise<{
-  strategy: GeneratedCampaignStrategy;
-  enrichedPayload: MetaBuilderPayload;
-}> {
-  try {
-    const res = await fetch(`${API_BASE_URL}/campaigns/generate-meta-builder`, {
-      method: 'POST',
-      headers: await authHeaders(),
-      body: JSON.stringify(payload)
-    });
-
-    if (res.ok) {
-      const data = await res.json();
-      const enriched = data.enrichedPayload || payload;
-      const strategySummary = data.strategySummary || `Estrategia de Meta Ads formulada por TICO para ${payload.brandName}.`;
-
-      // Armar la entidad GeneratedCampaignStrategy unificada
-      const strategy: GeneratedCampaignStrategy = {
-        briefingId: `meta_brief_${Date.now()}`,
-        brandName: payload.brandName,
-        strategySummary,
-        totalBudget: payload.totalBudget,
-        currency: payload.currency,
-        createdAt: new Date().toISOString(),
-        creditCost: 5,
-        status: 'awaiting_approval',
-        complianceChecked: true,
-        creatives: [],
-        metaAds: {
-          campaignName: enriched.campaignName || `[TICO] ${enriched.brandName} - Meta Ads`,
-          objective: enriched.objective,
-          placements: ['instagram_feed', 'instagram_stories', 'facebook_feed', 'facebook_reels'],
-          interestsAndBehaviors: enriched.adSets?.[0]?.interestsSuggested || [
-            `${payload.brandName} Nicho`,
-            'Compradores que interactuaron',
-            'Usuarios activos en redes sociales'
-          ],
-          primaryTexts: (enriched.ads || []).map((a: any) => a.primaryText || 'Descubre nuestras mejores soluciones.'),
-          headlines: (enriched.ads || []).map((a: any) => a.headline || `${payload.brandName} Oficial`),
-          callToAction: (enriched.ads?.[0]?.callToAction as any) || 'LEARN_MORE',
-          budgetSharePercentage: 100,
-          budgetAmount: payload.totalBudget,
-          dailyBudget: Math.round(payload.totalBudget / 30)
-        },
-        metaBuilderPayload: enriched
-      };
-
-      return { strategy, enrichedPayload: enriched };
-    }
-  } catch (err) {
-    console.warn('Backend call for meta-builder failed, using direct client formulation:', err);
-  }
-
-  // Fallback directo en cliente
-  const fallbackEnriched: MetaBuilderPayload = {
+/**
+ * Crea una carga útil enriquecida con textos predeterminados de prueba para simulación
+ */
+function createDeterministicPayload(payload: MetaBuilderPayload): MetaBuilderPayload {
+  return {
     ...payload,
     adSets: payload.adSets.map(s => s.delegateAudienceToTico ? {
       ...s,
@@ -763,21 +713,32 @@ export async function generateMetaBuilderStrategyApi(payload: MetaBuilderPayload
         `${payload.brandName} ${payload.industry || 'Intereses Afines'}`,
         payload.industry ? `Interesados en ${payload.industry}` : 'Compradores que interactuaron en Instagram',
         'Usuarios con alta interacción comercial'
-      ]
+      ],
+      delegateAudienceToTico: false
     } : s),
     ads: payload.ads.map(a => a.delegateCopysToTico ? {
       ...a,
       headline: `${payload.brandName} | ${a.conceptAngle || 'Oferta Exclusiva'}`.slice(0, 40),
       primaryText: `${payload.additionalNotes ? payload.additionalNotes + '. ' : ''}Descubre todo lo que ${payload.brandName} tiene preparado para ti. Diseñado para ${payload.targetAudience || 'potenciar tu experiencia con ' + (a.conceptAngle?.toLowerCase() || 'los mejores resultados')}. Aprovecha hoy.`,
       description: 'Garantía oficial • Asesoría personalizada',
-      callToAction: payload.objective === 'OUTCOME_LEADS' ? 'CONTACT_US' : (payload.objective === 'OUTCOME_SALES' ? 'SHOP_NOW' : 'LEARN_MORE')
+      callToAction: payload.objective === 'OUTCOME_LEADS' ? 'CONTACT_US' : (payload.objective === 'OUTCOME_SALES' ? 'SHOP_NOW' : 'LEARN_MORE'),
+      delegateCopysToTico: false
     } : a)
   };
+}
 
-  const strategy: GeneratedCampaignStrategy = {
+/**
+ * Construye la entidad unificada GeneratedCampaignStrategy
+ */
+function createStrategyFromPayload(
+  payload: MetaBuilderPayload,
+  enriched: MetaBuilderPayload,
+  strategySummary: string
+): GeneratedCampaignStrategy {
+  return {
     briefingId: `meta_brief_${Date.now()}`,
     brandName: payload.brandName,
-    strategySummary: `Estrategia formulada por el Agente TICO para ${payload.brandName} en Meta Ads (${payload.mode === 'single_ad' ? 'Anuncio Individual' : 'Campaña Completa'}).`,
+    strategySummary,
     totalBudget: payload.totalBudget,
     currency: payload.currency,
     createdAt: new Date().toISOString(),
@@ -786,24 +747,205 @@ export async function generateMetaBuilderStrategyApi(payload: MetaBuilderPayload
     complianceChecked: true,
     creatives: [],
     metaAds: {
-      campaignName: fallbackEnriched.campaignName || `[TICO] ${fallbackEnriched.brandName} - Meta Ads`,
-      objective: fallbackEnriched.objective,
+      campaignName: enriched.campaignName || `[TICO] ${enriched.brandName} - Meta Ads`,
+      objective: enriched.objective,
       placements: ['instagram_feed', 'instagram_stories', 'facebook_feed', 'facebook_reels'],
-      interestsAndBehaviors: fallbackEnriched.adSets?.[0]?.interestsSuggested || [
+      interestsAndBehaviors: enriched.adSets?.[0]?.interestsSuggested || [
         `${payload.brandName} Nicho`,
-        'Compradores que interactuaron'
+        'Compradores que interactuaron',
+        'Usuarios activos en redes sociales'
       ],
-      primaryTexts: fallbackEnriched.ads.map(a => a.primaryText),
-      headlines: fallbackEnriched.ads.map(a => a.headline),
-      callToAction: (fallbackEnriched.ads[0]?.callToAction as any) || 'LEARN_MORE',
+      primaryTexts: (enriched.ads || []).map((a: any) => a.primaryText || 'Descubre nuestras mejores soluciones.'),
+      headlines: (enriched.ads || []).map((a: any) => a.headline || `${payload.brandName} Oficial`),
+      callToAction: (enriched.ads?.[0]?.callToAction as any) || 'LEARN_MORE',
       budgetSharePercentage: 100,
       budgetAmount: payload.totalBudget,
       dailyBudget: Math.round(payload.totalBudget / 30)
     },
-    metaBuilderPayload: fallbackEnriched
+    metaBuilderPayload: enriched
+  };
+}
+
+/**
+ * Consulta directa a la API de Google Gemini (Gemini 3.6 Flash) desde el navegador
+ */
+async function callDirectGeminiStrategy(payload: MetaBuilderPayload): Promise<{
+  strategySummary: string;
+  enrichedPayload: MetaBuilderPayload;
+}> {
+  const apiKey = (import.meta.env.VITE_GEMINI_API_KEY || '').trim();
+  if (!apiKey || apiKey.includes('your_')) {
+    throw new Error('No se encontró la clave de API de Gemini configurada (VITE_GEMINI_API_KEY).');
+  }
+
+  const prompt = `Eres TICO, el agente estratega senior de pauta en Meta Ads (Facebook & Instagram) de TicTac Agency Performance.
+Formula los copys y segmentaciones para esta campaña de Meta Ads basándote en el contexto de marca:
+
+CONTEXTO DE MARCA:
+- Nombre: ${payload.brandName}
+- Sitio Web: ${payload.websiteUrl || 'No especificado'}
+- Industria / Nicho: ${payload.industry || 'General'}
+- Público Objetivo: ${payload.targetAudience || 'Clientes potenciales'}
+- Ofertas / Notas: ${payload.additionalNotes || 'Enfocarse en la propuesta de valor'}
+
+CONFIGURACIÓN DE PAUTA:
+- Modo: ${payload.mode}
+- Objetivo Meta (ODAX): ${payload.objective}
+- Categoría Especial: ${payload.specialAdCategory}
+- Presupuesto: ${payload.totalBudget} ${payload.currency}
+- AdSets: ${JSON.stringify(payload.adSets || [])}
+- Ads: ${JSON.stringify(payload.ads || [])}
+
+INSTRUCCIONES:
+1. Para cada AdSet donde delegateAudienceToTico sea true: genera interestsSuggested (4 a 6 intereses detallados de alto rendimiento en Meta Ads para el sector "${payload.industry}"), ageMin, ageMax y gender (respetando restricciones de Categoría Especial si aplica).
+2. Para cada Ad donde delegateCopysToTico sea true: redacta headline (máx 40 caracteres con gancho), primaryText (copy persuasivo con fórmula AIDA o PAS usando el contexto de la marca "${payload.brandName}", su oferta "${payload.additionalNotes}" y su ángulo "${payload.ads[0]?.conceptAngle || 'Oferta'}"), description (1 línea de soporte) y callToAction (LEARN_MORE, SHOP_NOW, SIGN_UP, CONTACT_US, etc.).
+3. Genera un strategySummary ejecutivo explicando la lógica publicitaria.
+
+Responde ÚNICAMENTE un JSON válido con este formato:
+{
+  "strategySummary": "string",
+  "enrichedPayload": {
+    "brandName": "${payload.brandName}",
+    "adSets": [ ...adSets con interestsSuggested, ageMin, ageMax... ],
+    "ads": [ ...ads con headline, primaryText, description, callToAction... ]
+  }
+}`;
+
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: {
+        responseMimeType: 'application/json',
+        temperature: 0.7
+      }
+    })
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text().catch(() => '');
+    throw new Error(`Google Gemini API respondió con error ${res.status}: ${errorText.slice(0, 150)}`);
+  }
+
+  const data = await res.json();
+  const rawJson = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!rawJson) {
+    throw new Error('Gemini no retornó contenido en la respuesta.');
+  }
+
+  const parsed = JSON.parse(rawJson);
+  const enriched = parsed.enrichedPayload || {};
+
+  // Normalizar anuncios extrayendo campos planos o anidados
+  const normalizedAds = (payload.ads || []).map((origAd, idx) => {
+    const genAd = (enriched.ads && enriched.ads[idx]) || enriched.ads?.find((a: any) => a.id === origAd.id) || {};
+    const copyObj = genAd.copy || {};
+    return {
+      ...origAd,
+      ...genAd,
+      headline: genAd.headline || copyObj.headline || origAd.headline,
+      primaryText: genAd.primaryText || copyObj.primaryText || origAd.primaryText,
+      description: genAd.description || copyObj.description || origAd.description,
+      callToAction: genAd.callToAction || copyObj.callToAction || origAd.callToAction,
+      delegateCopysToTico: false
+    };
+  });
+
+  // Normalizar conjuntos de anuncios
+  const normalizedAdSets = (payload.adSets || []).map((origSet, idx) => {
+    const genSet = (enriched.adSets && enriched.adSets[idx]) || enriched.adSets?.find((s: any) => s.id === origSet.id) || {};
+    const audienceObj = genSet.audience || {};
+    const detailedTargeting = audienceObj.detailedTargeting || {};
+    const demographics = audienceObj.demographics || {};
+    const interests = genSet.interestsSuggested || detailedTargeting.interests || origSet.interestsSuggested;
+    return {
+      ...origSet,
+      ...genSet,
+      interestsSuggested: interests,
+      ageMin: genSet.ageMin || demographics.ageMin || origSet.ageMin,
+      ageMax: genSet.ageMax || demographics.ageMax || origSet.ageMax,
+      delegateAudienceToTico: false
+    };
+  });
+
+  const finalPayload: MetaBuilderPayload = {
+    ...payload,
+    ...enriched,
+    adSets: normalizedAdSets,
+    ads: normalizedAds
   };
 
-  return { strategy, enrichedPayload: fallbackEnriched };
+  return {
+    strategySummary: parsed.strategySummary || `Estrategia de Meta Ads formulada por TICO IA para ${payload.brandName}.`,
+    enrichedPayload: finalPayload
+  };
+}
+
+/**
+ * Formula sugerencias estratégicas con IA para los bloques delegados en MetaAdBuilder
+ * Soporta modo real (API de Tico / Gemini) o modo simulación con textos predeterminados
+ */
+export async function generateMetaBuilderStrategyApi(
+  payload: MetaBuilderPayload,
+  useMock: boolean = false
+): Promise<{
+  strategy: GeneratedCampaignStrategy;
+  enrichedPayload: MetaBuilderPayload;
+}> {
+  // 1. Si el usuario solicitó explícitamente simulación / textos predeterminados
+  if (useMock) {
+    const mockEnriched = createDeterministicPayload(payload);
+    const mockStrategy = createStrategyFromPayload(
+      payload,
+      mockEnriched,
+      `[SIMULACIÓN] Estrategia de prueba con textos de muestra para ${payload.brandName} en Meta Ads.`
+    );
+    return { strategy: mockStrategy, enrichedPayload: mockEnriched };
+  }
+
+  // 2. Petición real a la API (Botón principal "Formular Estrategia con Tico IA")
+  let backendError: string | null = null;
+
+  try {
+    const headers = await authHeaders().catch(() => ({ 'Content-Type': 'application/json' }));
+    const res = await fetch(`${API_BASE_URL}/campaigns/generate-meta-builder`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload)
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data.enrichedPayload) {
+        const enriched = data.enrichedPayload;
+        const strategySummary = data.strategySummary || `Estrategia de Meta Ads formulada por TICO IA para ${payload.brandName}.`;
+        const strategy = createStrategyFromPayload(payload, enriched, strategySummary);
+        return { strategy, enrichedPayload: enriched };
+      }
+    } else {
+      const errJson = await res.json().catch(() => null);
+      backendError = errJson?.error || `Servidor respondió código HTTP ${res.status}: ${res.statusText}`;
+    }
+  } catch (err: any) {
+    backendError = err?.message || 'Servidor backend no disponible en puerto 4000';
+  }
+
+  // 3. Respaldo directo en cliente: Si el backend está inactivo, llamar a Gemini API en tiempo real
+  console.log('[TICO-AI] Consultando API de Google Gemini directamente desde el cliente...', backendError);
+  try {
+    const directResult = await callDirectGeminiStrategy(payload);
+    const strategy = createStrategyFromPayload(payload, directResult.enrichedPayload, directResult.strategySummary);
+    return { strategy, enrichedPayload: directResult.enrichedPayload };
+  } catch (geminiErr: any) {
+    console.error('[TICO-AI] Error en llamada a Gemini:', geminiErr);
+    throw new Error(
+      `No se pudo formular la estrategia con la API del Agente Tico.\n\n` +
+      `Detalle: ${geminiErr.message}\n` +
+      (backendError ? `Estado del backend: ${backendError}\n\n` : '\n') +
+      `Puedes usar el botón "⚡ Probar con textos predeterminados" si deseas probar el flujo sin conexión a la API.`
+    );
+  }
 }
 
 /**
