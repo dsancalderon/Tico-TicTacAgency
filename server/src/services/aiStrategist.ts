@@ -142,54 +142,66 @@ Debes responder ÚNICAMENTE un objeto JSON válido con las siguientes propiedade
   }` : 'null'}
 }`;
 
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey.trim()}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            responseMimeType: 'application/json',
-            temperature: 0.7
-          }
-        })
-      });
+      const candidateModels = [
+        'gemini-2.5-flash',
+        'gemini-2.0-flash',
+        'gemini-1.5-flash',
+        'gemini-1.5-flash-latest',
+        'gemini-1.5-pro'
+      ];
 
-      if (res.ok) {
-        const data = await res.json() as any;
-        const rawJson = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (rawJson) {
-          const parsed = JSON.parse(rawJson);
-          return {
-            briefingId: `brief_${Date.now()}`,
-            brandName: brief.brandName,
-            strategySummary: parsed.strategySummary || `Estrategia de performance generada por TICO para ${brief.brandName}.`,
-            totalBudget: brief.budgetTotal,
-            currency: brief.currency,
-            createdAt: new Date().toISOString(),
-            creditCost: 5,
-            status: 'awaiting_approval',
-            complianceChecked: true,
-            creatives: [],
-            metaAds: includeMeta && parsed.metaAds ? {
-              ...parsed.metaAds,
-              budgetSharePercentage: metaShare,
-              budgetAmount: metaBudget,
-              dailyBudget: Math.round(metaBudget / 30)
-            } : undefined,
-            googleAds: includeGoogle && parsed.googleAds ? {
-              ...parsed.googleAds,
-              budgetSharePercentage: googleShare,
-              budgetAmount: googleBudget
-            } : undefined
-          };
-        }
-      } else {
-        const errText = await res.text().catch(() => '');
-        console.warn('Gemini API returned error status:', res.status, errText);
-        if (process.env.NODE_ENV === 'test') {
-          // permitir fallback en test
-        } else {
-          throw new Error(`Google Gemini API retornó error ${res.status}: ${errText.slice(0, 150)}`);
+      for (const model of candidateModels) {
+        try {
+          const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey.trim()}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }],
+              generationConfig: {
+                responseMimeType: 'application/json',
+                temperature: 0.7
+              }
+            })
+          });
+
+          if (res.ok) {
+            const data = await res.json() as any;
+            const rawJson = data.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (rawJson) {
+              const parsed = JSON.parse(rawJson);
+              return {
+                briefingId: `brief_${Date.now()}`,
+                brandName: brief.brandName,
+                strategySummary: parsed.strategySummary || `Estrategia de performance generada por TICO para ${brief.brandName}.`,
+                totalBudget: brief.budgetTotal,
+                currency: brief.currency,
+                createdAt: new Date().toISOString(),
+                creditCost: 5,
+                status: 'awaiting_approval',
+                complianceChecked: true,
+                creatives: [],
+                metaAds: includeMeta && parsed.metaAds ? {
+                  ...parsed.metaAds,
+                  budgetSharePercentage: metaShare,
+                  budgetAmount: metaBudget,
+                  dailyBudget: Math.round(metaBudget / 30)
+                } : undefined,
+                googleAds: includeGoogle && parsed.googleAds ? {
+                  ...parsed.googleAds,
+                  budgetSharePercentage: googleShare,
+                  budgetAmount: googleBudget
+                } : undefined
+              };
+            }
+          } else {
+            const errText = await res.text().catch(() => '');
+            console.warn(`[TICO-AI] Modelo ${model} retornó ${res.status}:`, errText.slice(0, 100));
+            if (res.status === 503 || res.status === 429) {
+              await new Promise(r => setTimeout(r, 400));
+            }
+          }
+        } catch (mErr: any) {
+          console.warn(`[TICO-AI] Fallo en ${model}:`, mErr.message);
         }
       }
     } catch (err: any) {
@@ -312,8 +324,15 @@ Responde ÚNICAMENTE un objeto JSON válido con este formato:
   "enrichedPayload": { ...el payload recibido pero con los campos delegados rellenados con tus sugerencias }
 }`;
 
-    const candidateModels = ['gemini-3.6-flash', 'gemini-flash-latest'];
+    const candidateModels = [
+      'gemini-2.5-flash',
+      'gemini-2.0-flash',
+      'gemini-1.5-flash',
+      'gemini-1.5-flash-latest',
+      'gemini-1.5-pro'
+    ];
     let lastError = '';
+    let isHighDemand503 = false;
 
     for (const model of candidateModels) {
       try {
@@ -383,8 +402,15 @@ Responde ÚNICAMENTE un objeto JSON válido con este formato:
           }
         } else {
           const errBody = await res.text().catch(() => '');
+          if (res.status === 503) {
+            isHighDemand503 = true;
+          }
           lastError = `Modelo ${model} retornó ${res.status}: ${errBody.slice(0, 150)}`;
           console.warn(`[TICO-AI] ${lastError}`);
+          // Si el modelo específico está saturado, esperar 400ms y probar el siguiente modelo de la lista
+          if (res.status === 503 || res.status === 429) {
+            await new Promise((resolve) => setTimeout(resolve, 400));
+          }
         }
       } catch (err: any) {
         lastError = `Fallo al invocar ${model}: ${err.message}`;
@@ -393,6 +419,12 @@ Responde ÚNICAMENTE un objeto JSON válido con este formato:
     }
 
     console.error('[TICO-AI] No se pudo generar la estrategia con ningún modelo:', lastError);
+    if (isHighDemand503) {
+      throw new Error(
+        'Los servidores de Google AI Studio (versión gratuita) están experimentando una saturación temporal de alta demanda (Error 503). ' +
+        'Por favor inténtalo de nuevo en unos segundos, o utiliza el botón inferior "⚡ Probar con textos predeterminados" para continuar sin esperas.'
+      );
+    }
     throw new Error(`La API de IA no pudo generar la estrategia: ${lastError}`);
   } catch (err: any) {
     console.error('Error invoking Gemini for MetaAdBuilder:', err.message);
