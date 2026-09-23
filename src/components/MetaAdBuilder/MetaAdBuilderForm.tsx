@@ -11,8 +11,6 @@ import {
   Wand2, 
   RefreshCw, 
   ArrowRight,
-  ArrowLeft,
-  Save,
   X,
   Info,
   Share2,
@@ -36,9 +34,8 @@ interface MetaAdBuilderFormProps {
   isLoading: boolean;
   initialData?: MetaBuilderPayload | null;
   onDraftChange?: (payload: MetaBuilderPayload) => void;
-  onSaveDraft?: (payload: MetaBuilderPayload) => void;
-  onClose?: (payload?: MetaBuilderPayload) => void;
-  onCancel?: () => void;
+  onClose?: () => void;
+  showCloseButton?: boolean;
 }
 
 export const MetaAdBuilderForm: React.FC<MetaAdBuilderFormProps> = ({
@@ -47,9 +44,8 @@ export const MetaAdBuilderForm: React.FC<MetaAdBuilderFormProps> = ({
   isLoading,
   initialData,
   onDraftChange,
-  onSaveDraft,
   onClose,
-  onCancel
+  showCloseButton = false
 }) => {
   // 1. Selector inicial de modo
   const [mode, setMode] = useState<MetaFormMode>(initialData?.mode || 'full_campaign');
@@ -335,14 +331,7 @@ export const MetaAdBuilderForm: React.FC<MetaAdBuilderFormProps> = ({
   ]);
 
   const handleClose = () => {
-    const payload = getPayload();
-    if (onClose) {
-      onClose(payload);
-    } else if (onSaveDraft) {
-      onSaveDraft(payload);
-    } else if (onCancel) {
-      onCancel();
-    }
+    onClose?.();
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -352,13 +341,13 @@ export const MetaAdBuilderForm: React.FC<MetaAdBuilderFormProps> = ({
 
   return (
     <div className="bg-white rounded-3xl border border-slate-200/90 p-6 md:p-10 shadow-sm relative overflow-hidden space-y-8">
-      {/* Botón de Cierre Superior */}
-      {(onClose || onCancel || onSaveDraft) && (
+      {/* Botón de Cierre Superior (Solo a partir de la parte 2 o si showCloseButton es true) */}
+      {showCloseButton && onClose && (
         <button
           type="button"
           onClick={handleClose}
           className="absolute top-4 right-4 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer text-xs font-semibold"
-          title="Cerrar formulario y ver campañas"
+          title="Cerrar"
         >
           <X className="w-4 h-4 text-slate-500" />
           <span>Cerrar</span>
@@ -385,30 +374,6 @@ export const MetaAdBuilderForm: React.FC<MetaAdBuilderFormProps> = ({
         </div>
 
         <div className="flex items-center gap-2.5 self-start lg:self-auto flex-wrap">
-          {(onClose || onCancel || onSaveDraft) && (
-            <button
-              type="button"
-              onClick={handleClose}
-              className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-all shadow-2xs cursor-pointer hover:border-slate-300"
-              title="Cerrar formulario y ver campañas guardadas"
-            >
-              <X className="w-3.5 h-3.5 text-slate-500" />
-              <span>Cerrar</span>
-            </button>
-          )}
-
-          {onSaveDraft && (
-            <button
-              type="button"
-              onClick={() => onSaveDraft(getPayload())}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-all shadow-2xs cursor-pointer hover:border-slate-300"
-              title="Guardar como borrador y volver a Mis Campañas"
-            >
-              <ArrowLeft className="w-3.5 h-3.5 text-slate-600" />
-              <span>Guardar Borrador y Salir</span>
-            </button>
-          )}
-
           <button
             type="button"
             onClick={handleLoadPreset}
@@ -1075,22 +1040,11 @@ export const MetaAdBuilderForm: React.FC<MetaAdBuilderFormProps> = ({
         {/* ========================================================================= */}
         {/* BOTÓN FINAL DE FORMULACIÓN                                               */}
         {/* ========================================================================= */}
-        <div className="pt-4 border-t border-slate-200 flex flex-col sm:flex-row items-center gap-3">
-          {onSaveDraft && (
-            <button
-              type="button"
-              disabled={isLoading}
-              onClick={() => onSaveDraft(getPayload())}
-              className="w-full sm:w-auto py-4 px-6 rounded-2xl border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold text-sm tracking-wide transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-            >
-              <Save className="w-4 h-4 text-slate-500" />
-              <span>Guardar como Borrador</span>
-            </button>
-          )}
+        <div className="pt-4 border-t border-slate-200">
           <button
             type="submit"
             disabled={isLoading}
-            className="flex-1 w-full py-4 px-6 rounded-2xl bg-slate-950 hover:bg-slate-800 text-white font-bold text-sm tracking-wide shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2.5 disabled:opacity-50 cursor-pointer"
+            className="w-full py-4 px-6 rounded-2xl bg-slate-950 hover:bg-slate-800 text-white font-bold text-sm tracking-wide shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2.5 disabled:opacity-50 cursor-pointer"
           >
             {isLoading ? (
               <>

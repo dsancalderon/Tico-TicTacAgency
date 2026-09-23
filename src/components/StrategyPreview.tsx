@@ -10,7 +10,8 @@ import {
   FileSpreadsheet, 
   Edit3, 
   Coins, 
-  Layers
+  Layers,
+  X
 } from 'lucide-react';
 import { exportStrategyToExcel } from '../utils/excelExporter';
 import { CreativeAssignment } from './Dashboard/CreativeAssignment';
@@ -19,6 +20,7 @@ interface StrategyPreviewProps {
   strategy: GeneratedCampaignStrategy;
   onApprove: (strategy: GeneratedCampaignStrategy) => void;
   onBack: () => void;
+  onClose?: () => void;
   isDeploying: boolean;
   userCredits?: number;
   onAddCredits?: (amount?: number) => void;
@@ -29,6 +31,7 @@ export const StrategyPreview: React.FC<StrategyPreviewProps> = ({
   strategy: initialStrategy,
   onApprove,
   onBack,
+  onClose,
   isDeploying,
   userCredits = 0,
   onAddCredits,
@@ -160,6 +163,18 @@ export const StrategyPreview: React.FC<StrategyPreviewProps> = ({
               <ArrowLeft className="w-3.5 h-3.5" /> 
               <span>Modificar Brief</span>
             </button>
+
+            {onClose && (
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-full border border-slate-300 bg-white hover:bg-rose-50 hover:border-rose-300 hover:text-rose-700 text-xs font-bold text-slate-700 transition-all shadow-2xs cursor-pointer group"
+                title="Cerrar y salir"
+              >
+                <X className="w-3.5 h-3.5 text-slate-400 group-hover:text-rose-600" />
+                <span>Cerrar</span>
+              </button>
+            )}
           </div>
         </div>
 

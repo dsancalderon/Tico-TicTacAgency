@@ -1,11 +1,12 @@
 import React from 'react';
-import { CheckCircle2, ExternalLink, RefreshCw, Terminal, Coins } from 'lucide-react';
+import { CheckCircle2, ExternalLink, RefreshCw, Terminal, Coins, X } from 'lucide-react';
 import type { GeneratedCampaignStrategy } from '../types';
 
 interface DeploymentConsoleProps {
   strategy: GeneratedCampaignStrategy;
   deployResult: any;
   onReset: () => void;
+  onClose?: () => void;
   creditsRemaining?: number;
 }
 
@@ -13,6 +14,7 @@ export const DeploymentConsole: React.FC<DeploymentConsoleProps> = ({
   strategy,
   deployResult,
   onReset,
+  onClose,
   creditsRemaining = 45
 }) => {
   const isMetaSandbox = deployResult?.results?.meta?.mode === 'mock_sandbox';
@@ -38,14 +40,27 @@ export const DeploymentConsole: React.FC<DeploymentConsoleProps> = ({
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={onReset}
-          className="self-start sm:self-auto flex items-center gap-2 px-5 py-2.5 rounded-full bg-slate-950 hover:bg-slate-800 text-white text-xs font-bold transition-all cursor-pointer shadow-xs"
-        >
-          <RefreshCw className="w-3.5 h-3.5" />
-          <span>Crear Nueva Pauta</span>
-        </button>
+        <div className="self-start sm:self-auto flex items-center gap-2">
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-full border border-slate-300 bg-white hover:bg-rose-50 hover:border-rose-300 hover:text-rose-700 text-slate-700 text-xs font-bold transition-all cursor-pointer shadow-xs group"
+              title="Cerrar y volver a fase 1"
+            >
+              <X className="w-3.5 h-3.5 text-slate-400 group-hover:text-rose-600" />
+              <span>Cerrar</span>
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onReset}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-slate-950 hover:bg-slate-800 text-white text-xs font-bold transition-all cursor-pointer shadow-xs"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            <span>Crear Nueva Pauta</span>
+          </button>
+        </div>
       </div>
 
       {/* Credit Consumption Summary */}

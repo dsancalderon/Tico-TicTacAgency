@@ -42,7 +42,10 @@ import {
   Layers,
   Trash2,
   Pencil,
-  X
+  X,
+  CheckCircle2,
+  Info,
+  HelpCircle
 } from 'lucide-react';
 import { TicoLoader } from './components/TicoLoader';
 import { forceResetScroll } from './utils/scrollLock';
@@ -57,6 +60,16 @@ export function App() {
   const [deployResult, setDeployResult] = useState<any>(null);
   const [editingDraftPayload, setEditingDraftPayload] = useState<MetaBuilderPayload | null>(null);
   const [editingDraftId, setEditingDraftId] = useState<string | null>(null);
+  const [isCloseConfirmModalOpen, setIsCloseConfirmModalOpen] = useState<boolean>(false);
+  const [toastNotification, setToastNotification] = useState<{ text: string; type: 'success' | 'info' } | null>(null);
+
+  useEffect(() => {
+    if (!toastNotification) return;
+    const timer = setTimeout(() => {
+      setToastNotification(null);
+    }, 3500);
+    return () => clearTimeout(timer);
+  }, [toastNotification]);
 
   // Sesión de Usuario
   const [userSession, setUserSession] = useState<UserSession | null>(null);
@@ -520,175 +533,125 @@ export function App() {
     }, 800);
   };
 
-  // Guardar Borrador explícito desde MetaAdBuilderForm
-  const handleSaveDraftMetaBuilder = async (payload: MetaBuilderPayload) => {
+  // Guardar y salir a Fase 1 al confirmar en el modal de cierre
+  const handleSaveDraftAndExitToPhase1 = async () => {
     if (draftTimer.current) {
       window.clearTimeout(draftTimer.current);
       draftTimer.current = null;
     }
 
-    if (!userSession?.isAuthenticated) {
-      setAuthModalTitle('Inicia sesión para guardar tu borrador');
-      setAuthModalSubtitle('Para guardar tus borradores en tu espacio de trabajo, inicia sesión con tu cuenta.');
-      setIsAuthModalOpen(true);
-      return;
-    }
+    const owner = userSession?.id;
 
-    const owner = userSession.id;
-    const draftId = editingDraftId || crypto.randomUUID();
-    const draftStrategy: GeneratedCampaignStrategy = {
-      id: draftId,
-      briefingId: draftId,
-      brandName: payload.brandName?.trim() || 'Borrador sin título',
-      strategySummary: `Borrador de pauta en Meta Ads (${payload.mode === 'single_ad' ? 'Anuncio Individual' : 'Campaña Completa'})`,
-      totalBudget: payload.totalBudget || (payload.adSets?.reduce((acc, s) => acc + (s.budgetAmount || 0), 0) ?? 0),
-      currency: payload.currency || 'USD',
-      createdAt: new Date().toISOString(),
-      creditCost: 0,
-      creatives: [],
-      complianceChecked: false,
-      status: 'draft',
-      metaBuilderPayload: payload,
-    };
-
-    try {
-      await saveCampaign(owner, draftStrategy);
-      setDeployedCampaignsList(prev => [
-        draftStrategy,
-        ...prev.filter(c => c.id !== draftId)
-      ]);
-      setEditingDraftId(null);
-      setEditingDraftPayload(null);
-      setDashboardTab('campaigns');
-    } catch (error) {
-      window.alert(error instanceof Error ? error.message : 'No se pudo guardar el borrador.');
-    }
-  };
-
-  // Guardar Borrador explícito desde BriefingForm
-  const handleSaveDraftBrief = async (brief: ClientBriefing) => {
-    if (draftTimer.current) {
-      window.clearTimeout(draftTimer.current);
-      draftTimer.current = null;
-    }
-
-    if (!userSession?.isAuthenticated) {
-      setAuthModalTitle('Inicia sesión para guardar tu borrador');
-      setAuthModalSubtitle('Para guardar tus borradores en tu espacio de trabajo, inicia sesión con tu cuenta.');
-      setIsAuthModalOpen(true);
-      return;
-    }
-
-    const owner = userSession.id;
-    const draftId = editingDraftId || crypto.randomUUID();
-    const draftStrategy: GeneratedCampaignStrategy = {
-      id: draftId,
-      briefingId: draftId,
-      brandName: brief.brandName?.trim() || 'Borrador sin título',
-      strategySummary: `Borrador de estrategia general (${brief.industry || 'Briefing rápido'})`,
-      totalBudget: brief.budgetTotal || 0,
-      currency: brief.currency || 'USD',
-      createdAt: new Date().toISOString(),
-      creditCost: 0,
-      creatives: [],
-      complianceChecked: false,
-      status: 'draft',
-    };
-
-    try {
-      await saveCampaign(owner, draftStrategy);
-      await saveWorkspace(owner, { briefing: brief, strategy: null, step: 'briefing' });
-      setDeployedCampaignsList(prev => [
-        draftStrategy,
-        ...prev.filter(c => c.id !== draftId)
-      ]);
-      setEditingDraftId(null);
-      setEditingDraftPayload(null);
-      setDashboardTab('campaigns');
-    } catch (error) {
-      window.alert(error instanceof Error ? error.message : 'No se pudo guardar el borrador.');
-    }
-  };
-
-  // Cerrar formulario y regresar a Mis Campañas (persistiendo el estado en el que quedó)
-  const handleCloseBuilder = async (currentPayload?: MetaBuilderPayload) => {
-    if (draftTimer.current) {
-      window.clearTimeout(draftTimer.current);
-      draftTimer.current = null;
-    }
-
-    const payload = currentPayload || editingDraftPayload;
-    if (userSession?.isAuthenticated && payload) {
-      const owner = userSession.id;
-      const draftId = editingDraftId || crypto.randomUUID();
-      const draftStrategy: GeneratedCampaignStrategy = {
-        id: draftId,
-        briefingId: draftId,
-        brandName: payload.brandName?.trim() || 'Borrador sin título',
-        strategySummary: `Borrador de pauta en Meta Ads (${payload.mode === 'single_ad' ? 'Anuncio Individual' : 'Campaña Completa'})`,
-        totalBudget: payload.totalBudget || (payload.adSets?.reduce((acc, s) => acc + (s.budgetAmount || 0), 0) ?? 0),
-        currency: payload.currency || 'USD',
-        createdAt: new Date().toISOString(),
-        creditCost: 0,
-        creatives: [],
-        complianceChecked: false,
-        status: 'draft',
-        metaBuilderPayload: payload,
-      };
-
-      try {
-        await saveCampaign(owner, draftStrategy);
-        setDeployedCampaignsList(prev => [
-          draftStrategy,
-          ...prev.filter(c => c.id !== draftId)
-        ]);
-        setEditingDraftId(draftId);
-        setEditingDraftPayload(payload);
-      } catch (err) {
-        console.error('Error al guardar borrador al cerrar:', err);
+    if (owner) {
+      // 1. Si estamos en fase 2 o 3 con estrategia formulada
+      if (strategy) {
+        const draftStrategy: GeneratedCampaignStrategy = {
+          ...strategy,
+          status: strategy.status || 'draft',
+        };
+        try {
+          await saveCampaign(owner, draftStrategy);
+          setDeployedCampaignsList(prev => [
+            draftStrategy,
+            ...prev.filter(c => c.id !== draftStrategy.id)
+          ]);
+        } catch (err) {
+          console.error('Error al guardar borrador de estrategia:', err);
+        }
+      } 
+      // 2. Si estamos en fase 1 editando MetaAdBuilderForm
+      else if (builderMode === 'meta_builder' && editingDraftPayload) {
+        const draftId = editingDraftId || crypto.randomUUID();
+        const draftStrategy: GeneratedCampaignStrategy = {
+          id: draftId,
+          briefingId: draftId,
+          brandName: editingDraftPayload.brandName?.trim() || 'Borrador sin título',
+          strategySummary: `Borrador de pauta en Meta Ads (${editingDraftPayload.mode === 'single_ad' ? 'Anuncio Individual' : 'Campaña Completa'})`,
+          totalBudget: editingDraftPayload.totalBudget || (editingDraftPayload.adSets?.reduce((acc, s) => acc + (s.budgetAmount || 0), 0) ?? 0),
+          currency: editingDraftPayload.currency || 'USD',
+          createdAt: new Date().toISOString(),
+          creditCost: 0,
+          creatives: [],
+          complianceChecked: false,
+          status: 'draft',
+          metaBuilderPayload: editingDraftPayload,
+        };
+        try {
+          await saveCampaign(owner, draftStrategy);
+          setDeployedCampaignsList(prev => [
+            draftStrategy,
+            ...prev.filter(c => c.id !== draftId)
+          ]);
+        } catch (err) {
+          console.error('Error al guardar borrador de Meta builder:', err);
+        }
+      }
+      // 3. Si estamos en fase 1 con Briefing rápido
+      else if (builderMode === 'quick_brief' && savedBrief) {
+        const draftId = editingDraftId || crypto.randomUUID();
+        const draftStrategy: GeneratedCampaignStrategy = {
+          id: draftId,
+          briefingId: draftId,
+          brandName: savedBrief.brandName?.trim() || 'Borrador sin título',
+          strategySummary: `Borrador rápido (${savedBrief.industry || 'Briefing general'})`,
+          totalBudget: savedBrief.budgetTotal || 0,
+          currency: savedBrief.currency || 'USD',
+          createdAt: new Date().toISOString(),
+          creditCost: 0,
+          creatives: [],
+          complianceChecked: false,
+          status: 'draft',
+        };
+        try {
+          await saveCampaign(owner, draftStrategy);
+          await saveWorkspace(owner, { briefing: savedBrief, strategy: null, step: 'briefing' });
+          setDeployedCampaignsList(prev => [
+            draftStrategy,
+            ...prev.filter(c => c.id !== draftId)
+          ]);
+        } catch (err) {
+          console.error('Error al guardar borrador de brief:', err);
+        }
       }
     }
 
-    setDashboardTab('campaigns');
+    setIsCloseConfirmModalOpen(false);
+    setToastNotification({ text: 'Guardado en campañas', type: 'success' });
+    setStrategy(null);
+    setDeployResult(null);
+    setEditingDraftId(null);
+    setEditingDraftPayload(null);
+    setCurrentStep('briefing');
+    setDashboardTab('agent');
   };
 
-  const handleCloseBrief = async (brief?: ClientBriefing) => {
+  // Descartar y salir a Fase 1 al confirmar en el modal de cierre
+  const handleDiscardDraftAndExitToPhase1 = async () => {
     if (draftTimer.current) {
       window.clearTimeout(draftTimer.current);
       draftTimer.current = null;
     }
 
-    const currentBrief = brief || savedBrief;
-    if (userSession?.isAuthenticated && currentBrief) {
-      const owner = userSession.id;
-      const draftId = editingDraftId || crypto.randomUUID();
-      const draftStrategy: GeneratedCampaignStrategy = {
-        id: draftId,
-        briefingId: draftId,
-        brandName: currentBrief.brandName?.trim() || 'Borrador sin título',
-        strategySummary: `Borrador rápido (${currentBrief.industry || 'Briefing general'})`,
-        totalBudget: currentBrief.budgetTotal || 0,
-        currency: currentBrief.currency || 'USD',
-        createdAt: new Date().toISOString(),
-        creditCost: 0,
-        creatives: [],
-        complianceChecked: false,
-        status: 'draft',
-      };
+    const owner = userSession?.id;
+    const targetId = editingDraftId || strategy?.id;
 
+    if (owner && targetId) {
       try {
-        await saveCampaign(owner, draftStrategy);
-        await saveWorkspace(owner, { briefing: currentBrief, strategy: null, step: 'briefing' });
-        setDeployedCampaignsList(prev => [
-          draftStrategy,
-          ...prev.filter(c => c.id !== draftId)
-        ]);
+        await deleteCampaign(owner, targetId);
       } catch (err) {
-        console.error('Error al guardar borrador de brief al cerrar:', err);
+        console.error('Error al descartar campaña:', err);
       }
+      setDeployedCampaignsList(prev => prev.filter(c => c.id !== targetId));
     }
 
-    setDashboardTab('campaigns');
+    setIsCloseConfirmModalOpen(false);
+    setToastNotification({ text: 'Descartado', type: 'info' });
+    setStrategy(null);
+    setDeployResult(null);
+    setEditingDraftId(null);
+    setEditingDraftPayload(null);
+    setCurrentStep('briefing');
+    setDashboardTab('agent');
   };
 
   // Eliminar Campaña o Borrador
@@ -885,27 +848,12 @@ export function App() {
                     </button>
                   </div>
 
-                  <div className="flex items-center gap-3 px-2 self-end sm:self-auto flex-wrap">
-                    <span className="text-[11px] text-emerald-600 font-semibold flex items-center gap-1.5 hidden md:flex">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                      <span>Guardado en tiempo real en Mis Campañas</span>
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (builderMode === 'meta_builder') {
-                          void handleCloseBuilder();
-                        } else {
-                          void handleCloseBrief();
-                        }
-                      }}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold transition cursor-pointer shadow-2xs"
-                      title="Cerrar formulario y ver campañas"
-                    >
-                      <X className="w-3.5 h-3.5 text-slate-500" />
-                      <span>Cerrar Formulario</span>
-                    </button>
-                  </div>
+                  {editingDraftId && (
+                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold self-end sm:self-auto">
+                      <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                      <span>Editando borrador</span>
+                    </div>
+                  )}
                 </div>
 
                 {builderMode === 'meta_builder' ? (
@@ -915,9 +863,8 @@ export function App() {
                     metaState={metaState}
                     onSubmit={handleMetaBuilderSubmit}
                     onDraftChange={handleMetaBuilderDraftChange}
-                    onSaveDraft={handleSaveDraftMetaBuilder}
-                    onClose={handleCloseBuilder}
-                    onCancel={() => handleCloseBuilder()}
+                    showCloseButton={Boolean(editingDraftId)}
+                    onClose={() => setIsCloseConfirmModalOpen(true)}
                     isLoading={isLoadingStrategy}
                   />
                 ) : (
@@ -925,9 +872,8 @@ export function App() {
                     initialData={savedBrief}
                     onDraftChange={handleBriefDraftChange}
                     onSubmit={handleBriefSubmit}
-                    onSaveDraft={handleSaveDraftBrief}
-                    onClose={handleCloseBrief}
-                    onCancel={() => handleCloseBrief()}
+                    showCloseButton={Boolean(editingDraftId)}
+                    onClose={() => setIsCloseConfirmModalOpen(true)}
                     isLoading={isLoadingStrategy}
                     submitButtonText="Formular Plan de Pauta con TICO"
                   />
@@ -942,6 +888,7 @@ export function App() {
                 strategy={strategy}
                 onApprove={handleApproveStrategy}
                 onBack={() => setCurrentStep('briefing')}
+                onClose={() => setIsCloseConfirmModalOpen(true)}
                 isDeploying={isDeploying}
                 userCredits={userSession.credits}
                 onAddCredits={handleAddCredits}
@@ -953,6 +900,7 @@ export function App() {
                 strategy={strategy}
                 deployResult={deployResult}
                 onReset={handleResetStudio}
+                onClose={() => setIsCloseConfirmModalOpen(true)}
                 creditsRemaining={userSession.credits}
               />
             )}
@@ -1108,6 +1056,94 @@ export function App() {
             metaState={metaState}
             googleState={googleState}
           />
+        )}
+
+        {/* Modal de Confirmación de Cierre (Guardar o Descartar Borrador) */}
+        {isCloseConfirmModalOpen && (
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="close-modal-title"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150"
+          >
+            <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl border border-slate-200 space-y-5 animate-in zoom-in-95 duration-150">
+              <div className="flex items-start justify-between gap-3">
+                <div className="w-11 h-11 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 border border-amber-200/80">
+                  <HelpCircle className="w-6 h-6" />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsCloseConfirmModalOpen(false)}
+                  className="text-slate-400 hover:text-slate-600 p-1.5 rounded-xl hover:bg-slate-100 transition cursor-pointer"
+                  title="Cerrar modal"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div>
+                <h3 id="close-modal-title" className="text-lg sm:text-xl font-extrabold text-slate-900 font-['Outfit']">
+                  ¿Deseas guardar o descartar este borrador?
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-600 mt-2 leading-relaxed">
+                  Puedes guardar el avance actual en la sección <strong>Mis campañas</strong> para retomarlo más adelante, o descartarlo para volver a la fase 1 de Tico Agent.
+                </p>
+              </div>
+
+              <div className="flex flex-col sm:flex-row-reverse items-stretch sm:items-center gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => void handleSaveDraftAndExitToPhase1()}
+                  className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm transition-all shadow-xs cursor-pointer"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Guardar Borrador</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => void handleDiscardDraftAndExitToPhase1()}
+                  className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs sm:text-sm transition-all cursor-pointer"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>Descartar</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsCloseConfirmModalOpen(false)}
+                  className="flex items-center justify-center px-4 py-2.5 rounded-xl bg-white hover:bg-slate-100 text-slate-600 border border-slate-200 font-semibold text-xs sm:text-sm transition cursor-pointer"
+                >
+                  <span>Cancelar</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Notificación Toast flotante ("Guardado en campañas" / "Descartado") */}
+        {toastNotification && (
+          <div
+            role="status"
+            className="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-xl border bg-slate-900 text-white border-slate-700 animate-in fade-in slide-in-from-bottom-5 duration-200"
+          >
+            {toastNotification.type === 'success' ? (
+              <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+            ) : (
+              <Info className="w-5 h-5 text-sky-400 shrink-0" />
+            )}
+            <span className="text-sm font-semibold tracking-wide">
+              {toastNotification.text}
+            </span>
+            <button
+              type="button"
+              onClick={() => setToastNotification(null)}
+              className="ml-2 text-slate-400 hover:text-white cursor-pointer"
+              title="Cerrar notificación"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         )}
       </DashboardLayout>
     );
