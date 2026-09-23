@@ -109,16 +109,55 @@ export const HomeOverview: React.FC<HomeOverviewProps> = ({
     <div className="space-y-8 animate-in fade-in duration-300">
       
       {/* 1. Header de Bienvenida y Estado General */}
-      <div className="bg-gradient-to-br from-slate-900 via-slate-950 to-indigo-950 rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden border border-slate-800">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />
-        <div className="absolute bottom-0 right-1/4 w-72 h-72 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+      <div 
+        className="rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden border border-blue-900/40"
+        style={{
+          background: 'linear-gradient(135deg, #05163f 0%, #081d56 40%, #0d256e 70%, #152778 100%)'
+        }}
+      >
+        {/* Decorative Wave & Ambient Glow (matching reference design) */}
+        <div className="absolute right-0 bottom-0 top-0 w-full sm:w-2/3 pointer-events-none overflow-hidden select-none">
+          <div className="absolute -right-10 -bottom-10 w-96 h-96 bg-purple-600/30 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute right-1/4 top-1/4 w-72 h-72 bg-blue-500/20 rounded-full blur-3xl pointer-events-none" />
+          
+          <svg 
+            className="absolute right-0 bottom-0 h-full w-[420px] max-w-full opacity-80"
+            viewBox="0 0 400 200" 
+            preserveAspectRatio="none" 
+            fill="none"
+          >
+            <path 
+              d="M 50 200 C 140 200, 180 120, 260 110 C 330 100, 360 40, 400 20 L 400 200 Z" 
+              fill="url(#wave-gradient-1)" 
+              opacity="0.85"
+            />
+            <path 
+              d="M 160 200 C 230 200, 270 140, 330 130 C 370 120, 385 80, 400 60 L 400 200 Z" 
+              fill="url(#wave-gradient-2)" 
+              opacity="0.9"
+            />
+            <defs>
+              <linearGradient id="wave-gradient-1" x1="0%" y1="100%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#1e3a8a" stopOpacity="0.4" />
+                <stop offset="40%" stopColor="#2563eb" stopOpacity="0.8" />
+                <stop offset="80%" stopColor="#7c3aed" stopOpacity="0.9" />
+                <stop offset="100%" stopColor="#9333ea" stopOpacity="0.95" />
+              </linearGradient>
+              <linearGradient id="wave-gradient-2" x1="0%" y1="100%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#2563eb" stopOpacity="0.6" />
+                <stop offset="50%" stopColor="#6366f1" stopOpacity="0.85" />
+                <stop offset="100%" stopColor="#a855f7" stopOpacity="0.95" />
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
 
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2">
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight font-['Outfit']">
+            <h1 className="text-2xl sm:text-3xl font-black tracking-tight font-['Outfit'] text-white">
               Hola, {userSession.name}
             </h1>
-            <p className="text-slate-300 text-xs sm:text-sm max-w-xl leading-relaxed">
+            <p className="text-blue-100/80 text-xs sm:text-sm max-w-xl leading-relaxed">
               Bienvenido a tu centro de comando publicitario. Aquí tienes el resumen de estado de tu cuenta, los pasos pendientes de configuración y tu saldo de créditos.
             </p>
           </div>
@@ -126,32 +165,34 @@ export const HomeOverview: React.FC<HomeOverviewProps> = ({
           {/* Quick Metrics Header Pill */}
           <div className="flex flex-wrap items-center gap-3">
             {/* Meta Status */}
-            <div className="px-4 py-2.5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
-              <div className="flex items-center gap-1.5 mb-1">
+            <div className="px-4 py-2.5 rounded-2xl bg-[#0b2158]/75 border border-blue-400/25 backdrop-blur-md shadow-lg shadow-black/10 min-w-[140px]">
+              <div className="flex items-center gap-1.5 mb-1.5">
                 <MetaBrandLogo className="w-3.5 h-3.5 shrink-0" />
-                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Meta Ads API</span>
+                <span className="text-[10px] text-sky-300 font-bold uppercase tracking-wider">Meta Ads API</span>
               </div>
-              <div className="flex items-center gap-1.5">
-                <span className={`w-2 h-2 rounded-full ${
-                  metaState.status === 'ready_to_deploy' ? 'bg-emerald-400' :
-                  metaState.status === 'connected_needs_perms' ? 'bg-amber-400' : 'bg-slate-400'
+              <div className="flex items-center gap-2">
+                <span className={`w-2.5 h-2.5 rounded-full ${
+                  metaState.status === 'ready_to_deploy' ? 'bg-[#00d26a] shadow-[0_0_8px_rgba(0,210,106,0.6)]' :
+                  metaState.status === 'connected_needs_perms' ? 'bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.6)]' : 'bg-slate-400'
                 }`} />
-                <span className="text-xs font-bold capitalize">
-                  {metaState.status === 'ready_to_deploy' ? 'Listo para PAUSED' :
+                <span className="text-xs sm:text-sm font-bold text-white tracking-tight">
+                  {metaState.status === 'ready_to_deploy' ? 'Listo Para PAUSED' :
                    metaState.status === 'connected_needs_perms' ? 'Requiere permisos' : 'Desconectado'}
                 </span>
               </div>
             </div>
 
             {/* Google Status */}
-            <div className="px-4 py-2.5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
-              <div className="flex items-center gap-1.5 mb-1">
+            <div className="px-4 py-2.5 rounded-2xl bg-[#0b2158]/75 border border-blue-400/25 backdrop-blur-md shadow-lg shadow-black/10 min-w-[130px]">
+              <div className="flex items-center gap-1.5 mb-1.5">
                 <GoogleBrandLogo className="w-3.5 h-3.5 shrink-0" />
-                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Google Ads</span>
+                <span className="text-[10px] text-sky-300 font-bold uppercase tracking-wider">Google Ads</span>
               </div>
-              <div className="flex items-center gap-1.5">
-                <span className={`w-2 h-2 rounded-full ${googleState?.isConnected ? 'bg-emerald-400' : 'bg-slate-400'}`} />
-                <span className="text-xs font-bold">
+              <div className="flex items-center gap-2">
+                <span className={`w-2.5 h-2.5 rounded-full ${
+                  googleState?.isConnected ? 'bg-[#00d26a] shadow-[0_0_8px_rgba(0,210,106,0.6)]' : 'bg-slate-400'
+                }`} />
+                <span className="text-xs sm:text-sm font-bold text-white tracking-tight">
                   {googleState?.isConnected ? 'Conectado' : 'Pendiente'}
                 </span>
               </div>
@@ -300,36 +341,56 @@ export const HomeOverview: React.FC<HomeOverviewProps> = ({
               </span>
             </div>
 
-            {/* Saldo Card */}
-            <div className="p-5 rounded-2xl bg-gradient-to-br from-amber-500 via-amber-600 to-indigo-700 text-white shadow-md relative overflow-hidden">
-              <div className="text-xs font-semibold text-amber-100 uppercase tracking-wider">
-                Saldo de Cuenta
-              </div>
-              <div className="text-4xl font-black font-['Outfit'] mt-1 flex items-baseline gap-2">
-                <span>{userSession.credits}</span>
-                <span className="text-sm font-medium text-amber-200">créditos</span>
-              </div>
-              <p className="text-[11px] text-amber-100/90 mt-2">
-                {userSession.credits >= 5 
-                  ? `Suficiente para ~${Math.floor(userSession.credits / 5)} despliegues completos en Meta Ads.`
-                  : 'Saldo bajo. Recarga para continuar creando campañas.'}
-              </p>
+            {/* Saldo Card (matching Image 1) */}
+            <div 
+              className="p-6 sm:p-7 rounded-[28px] text-white shadow-xl shadow-blue-600/20 relative overflow-hidden"
+              style={{
+                background: 'linear-gradient(110deg, #0091ff 0%, #2f65f8 48%, #9947ff 100%)'
+              }}
+            >
+              {/* Subtle ambient lighting inside card */}
+              <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-2xl pointer-events-none" />
 
-              <div className="mt-4 pt-3 border-t border-white/20 flex items-center justify-between gap-3">
-                <button
-                  type="button"
-                  onClick={() => onAddCredits(20)}
-                  className="flex-1 py-2 px-3 rounded-xl bg-white hover:bg-amber-50 text-slate-950 text-xs font-extrabold transition-all shadow-xs cursor-pointer text-center"
-                >
-                  Recargar (+20 cr)
-                </button>
-                <button
-                  type="button"
-                  onClick={onOpenCreditsModal}
-                  className="py-2 px-3 rounded-xl bg-black/20 hover:bg-black/30 text-white text-xs font-bold transition-all cursor-pointer"
-                >
-                  Detalles
-                </button>
+              <div className="relative z-10">
+                <div className="text-xs sm:text-[13px] font-black uppercase tracking-wider text-white font-['Outfit']">
+                  SALDO DE CUENTA
+                </div>
+
+                <div className="flex items-baseline gap-2.5 my-3">
+                  <span className="text-5xl sm:text-6xl font-black font-['Outfit'] text-white leading-none tracking-tight">
+                    {userSession.credits}
+                  </span>
+                  <span className="text-xl sm:text-2xl font-black font-['Outfit'] text-amber-300">
+                    créditos
+                  </span>
+                </div>
+
+                <p className="text-xs sm:text-[13px] text-white/95 font-medium leading-relaxed max-w-sm">
+                  {userSession.credits >= 5 
+                    ? `Suficiente para ~${Math.floor(userSession.credits / 5)} despliegues completos en Meta Ads.`
+                    : 'Saldo bajo. Recarga para continuar creando campañas.'}
+                </p>
+
+                {/* Horizontal divider */}
+                <div className="h-px w-full bg-white/25 my-5" />
+
+                {/* Pill Buttons */}
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => onAddCredits(20)}
+                    className="flex-1 py-3 px-5 sm:px-6 rounded-full bg-white hover:bg-slate-50 text-[#1b357e] text-xs sm:text-sm font-black transition-all shadow-md shadow-blue-950/15 cursor-pointer text-center active:scale-[0.98]"
+                  >
+                    Recargar (+20 cr)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onOpenCreditsModal}
+                    className="py-3 px-6 sm:px-7 rounded-full bg-white/20 hover:bg-white/30 text-white text-xs sm:text-sm font-bold transition-all cursor-pointer backdrop-blur-sm border border-white/10 active:scale-[0.98]"
+                  >
+                    Detalles
+                  </button>
+                </div>
               </div>
             </div>
 

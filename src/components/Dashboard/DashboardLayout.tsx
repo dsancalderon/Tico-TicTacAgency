@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { TicoLogo } from '../TicoLogo';
 import { CreditsWidget } from './CreditsWidget';
+import { LogoutConfirmModal } from './LogoutConfirmModal';
 import { 
   LogOut, 
   Menu, 
@@ -46,6 +47,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSidebarHovered, setIsSidebarHovered] = useState(false);
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
   useEffect(() => {
     forceResetScroll();
@@ -190,7 +192,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 
               <button
                 type="button"
-                onClick={onLogout}
+                onClick={() => setIsLogoutModalOpen(true)}
                 title="Cerrar Sesión"
                 className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
               >
@@ -324,7 +326,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 
                 <button
                   type="button"
-                  onClick={onLogout}
+                  onClick={() => setIsLogoutModalOpen(true)}
                   title="Cerrar Sesión"
                   className="p-1.5 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
                 >
@@ -341,7 +343,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                 </div>
                 <button
                   type="button"
-                  onClick={onLogout}
+                  onClick={() => setIsLogoutModalOpen(true)}
                   title="Cerrar Sesión"
                   className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
                 >
@@ -409,7 +411,10 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
               <div className="p-4 border-t border-slate-100">
                 <button
                   type="button"
-                  onClick={onLogout}
+                  onClick={() => {
+                    setIsMobileMenuOpen(false);
+                    setIsLogoutModalOpen(true);
+                  }}
                   className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-slate-100 hover:bg-rose-50 hover:text-rose-600 text-slate-700 text-xs font-bold transition-colors cursor-pointer"
                 >
                   <LogOut className="w-4 h-4" />
@@ -437,6 +442,16 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         </div>
 
       </div>
+
+      {/* Confirmation Modal: ¿Deseas cerrar sesión? */}
+      <LogoutConfirmModal
+        isOpen={isLogoutModalOpen}
+        onClose={() => setIsLogoutModalOpen(false)}
+        onConfirm={() => {
+          setIsLogoutModalOpen(false);
+          onLogout();
+        }}
+      />
 
     </div>
   );
