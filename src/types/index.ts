@@ -48,7 +48,7 @@ export interface SavedMetaConnection {
   businessManagerName?: string;
   adAccountId?: string;
   adAccountName?: string;
-  token?: string; // Token de acceso permanente para reactivar
+  token?: string; // En memoria durante la sesión activa (RAM); nunca persistido en localStorage ni en base de datos
   appName?: string;
   appId?: string;
   userName?: string;

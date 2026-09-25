@@ -75,8 +75,12 @@ export function saveWorkspace(userId: string, draft: WorkspaceDraft) {
 export async function saveConnection(userId: string, platform: 'meta' | 'google', state: MetaConnectionState | GoogleConnectionState) {
   await assertOwner(userId);
   const { userAccessToken, ...settings } = state as MetaConnectionState;
+  const safeSettings = {
+    ...settings,
+    savedConnections: settings.savedConnections?.map(({ token, ...rest }) => rest)
+  };
   const { error } = await requireSupabase().rpc('save_ad_connection', {
-    p_platform: platform, p_settings: settings,
+    p_platform: platform, p_settings: safeSettings,
     p_token: platform === 'meta' ? (userAccessToken ?? null) : null,
   });
   if (error) throw new Error('No se pudo guardar la conexión. Vuelve a intentarlo.');

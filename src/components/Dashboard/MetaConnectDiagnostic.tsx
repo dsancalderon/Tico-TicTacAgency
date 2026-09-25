@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   CheckCircle2, 
   ShieldCheck, 
@@ -10,15 +10,15 @@ import {
   BookOpen, 
   ExternalLink, 
   Copy, 
-  Layers,
-  Briefcase,
-  Info,
-  RefreshCw,
-  AlertCircle,
-  Image as ImageIcon,
-  ChevronDown,
-  Trash2,
-  Plus
+  Layers, 
+  Briefcase, 
+  Info, 
+  RefreshCw, 
+  AlertCircle, 
+  Image as ImageIcon, 
+  ChevronDown, 
+  Trash2, 
+  Plus 
 } from 'lucide-react';
 import type { MetaConnectionState, MetaAvailableAccount as AvailableAccount, SavedMetaConnection } from '../../types';
 import { verifyMetaTokenApi, verifyMetaAccountApi, testMetaCreationApi } from '../../services/api';
@@ -26,12 +26,29 @@ import { MetaBrandLogo } from '../BrandLogos';
 
 const LOCAL_STORAGE_SAVED_CONNECTIONS_KEY = 'tico_saved_meta_connections';
 
+// Sanitizar para asegurar que NUNCA se almacene ningún token en localStorage
+export const sanitizeSavedConnections = (connections: SavedMetaConnection[]): SavedMetaConnection[] => {
+  return (connections || []).map(({ token, ...safe }) => safe);
+};
+
+const saveToLocalStorageSafely = (connections: SavedMetaConnection[]) => {
+  try {
+    const sanitized = sanitizeSavedConnections(connections);
+    localStorage.setItem(LOCAL_STORAGE_SAVED_CONNECTIONS_KEY, JSON.stringify(sanitized));
+  } catch {}
+};
+
 const loadLocalSavedConnections = (): SavedMetaConnection[] => {
   try {
     const raw = localStorage.getItem(LOCAL_STORAGE_SAVED_CONNECTIONS_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) return parsed;
+      if (Array.isArray(parsed)) {
+        // Purgar inmediatamente cualquier token que pudiera haber quedado en el localStorage del usuario
+        const sanitized = sanitizeSavedConnections(parsed);
+        localStorage.setItem(LOCAL_STORAGE_SAVED_CONNECTIONS_KEY, JSON.stringify(sanitized));
+        return sanitized;
+      }
     }
   } catch {}
   return [];
@@ -91,22 +108,28 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
     details?: any;
   }>({ status: 'idle', message: '' });
 
-  // Saved Meta Connections State (Portafolios Comerciales Guardados)
+  // Cache de tokens en memoria de la sesión activa (RAM) - NUNCA en disco ni en base de datos
+  const sessionTokenCache = useRef<Record<string, string>>({});
+
+  // Saved Meta Connections State (Portafolios Comerciales Guardados - solo metadatos)
   const [savedConnections, setSavedConnections] = useState<SavedMetaConnection[]>(() => {
     if (metaState.savedConnections && metaState.savedConnections.length > 0) {
-      return metaState.savedConnections;
+      return sanitizeSavedConnections(metaState.savedConnections);
     }
     const localList = loadLocalSavedConnections();
     if (localList.length > 0) return localList;
     if (metaState.isConnected && (metaState.adAccountId || metaState.userAccessToken)) {
+      const primaryId = metaState.businessManagerId || metaState.adAccountId || 'meta-conn-primary';
+      if (metaState.userAccessToken) {
+        sessionTokenCache.current[primaryId] = metaState.userAccessToken;
+      }
       return [{
-        id: metaState.businessManagerId || metaState.adAccountId || 'meta-conn-primary',
+        id: primaryId,
         portfolioName: metaState.businessManagerName || (metaState.isRealToken ? 'Portafolio Comercial Meta' : 'TicTac Agency Performance Sandbox'),
         businessManagerId: metaState.businessManagerId,
         businessManagerName: metaState.businessManagerName,
         adAccountId: metaState.adAccountId,
         adAccountName: metaState.adAccountName,
-        token: metaState.userAccessToken,
         appName: metaState.appName,
         appId: metaState.appId,
         userName: metaState.userName,
@@ -126,13 +149,12 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
     return [];
   });
 
-  // Sincronizar conexiones guardadas si cambian desde el workspace
+  // Sincronizar conexiones guardadas si cambian desde el workspace (asegurando almacenamiento seguro sin tokens)
   useEffect(() => {
     if (metaState.savedConnections && metaState.savedConnections.length > 0) {
-      setSavedConnections(metaState.savedConnections);
-      try {
-        localStorage.setItem(LOCAL_STORAGE_SAVED_CONNECTIONS_KEY, JSON.stringify(metaState.savedConnections));
-      } catch {}
+      const sanitized = sanitizeSavedConnections(metaState.savedConnections);
+      setSavedConnections(sanitized);
+      saveToLocalStorageSafely(sanitized);
     }
   }, [metaState.savedConnections]);
 
@@ -316,12 +338,12 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
 
         const updatedSaved = [
           newSavedConn,
-          ...savedConnections.filter(c => c.id !== newSavedConn.id && (newSavedConn.token ? c.token !== newSavedConn.token : true))
+          ...savedConnections.filter(c => c.id !== newSavedConn.id && (c.adAccountId ? c.adAccountId !== newSavedConn.adAccountId : true))
         ];
-        setSavedConnections(updatedSaved);
-        try {
-          localStorage.setItem(LOCAL_STORAGE_SAVED_CONNECTIONS_KEY, JSON.stringify(updatedSaved));
-        } catch {}
+        sessionTokenCache.current[connId] = cleanToken;
+        const sanitizedSaved = sanitizeSavedConnections(updatedSaved);
+        setSavedConnections(sanitizedSaved);
+        saveToLocalStorageSafely(sanitizedSaved);
 
         if (chosenAcc) {
           setSelectedAccountId(chosenAcc.id);
@@ -359,7 +381,7 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
               `✅ Cuenta publicitaria vinculada: ${chosenAcc.name} (${chosenAcc.id}).`,
               `✅ Cuentas asociadas encontradas: ${userAccounts.length}`
             ],
-            savedConnections: updatedSaved
+            savedConnections: sanitizedSaved
           });
 
           setTestResult({
@@ -402,7 +424,7 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
               `✅ Portafolio comercial registrado: ${portfolioName}.`,
               `⚠️ Sin cuentas publicitarias asignadas directamente al Usuario del Sistema en Meta Business Suite.`
             ],
-            savedConnections: updatedSaved
+            savedConnections: sanitizedSaved
           });
 
           setTestResult({
@@ -574,7 +596,6 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
         businessManagerName: chosenAcc.businessName,
         adAccountId: chosenAcc.id,
         adAccountName: chosenAcc.name,
-        token: 'EAAB_Demo_Verified_Token',
         appName: 'TicTac Demo App',
         appId: 'demo_app_001',
         userName: 'Usuario Sandbox',
@@ -595,14 +616,14 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
         connectedAt: new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })
       };
 
+      sessionTokenCache.current['meta_demo_sandbox'] = 'EAAB_Demo_Verified_Token';
       const updatedSaved = [
         demoConn,
         ...savedConnections.filter(c => c.id !== demoConn.id)
       ];
-      setSavedConnections(updatedSaved);
-      try {
-        localStorage.setItem(LOCAL_STORAGE_SAVED_CONNECTIONS_KEY, JSON.stringify(updatedSaved));
-      } catch {}
+      const sanitizedSaved = sanitizeSavedConnections(updatedSaved);
+      setSavedConnections(sanitizedSaved);
+      saveToLocalStorageSafely(sanitizedSaved);
 
       onUpdateMetaState({
         isConnected: true,
@@ -635,7 +656,7 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
           `Cuenta publicitaria seleccionada: ${chosenAcc.name} (${chosenAcc.id}).`,
           'Píxel de conversiones vinculado y listo.'
         ],
-        savedConnections: updatedSaved
+        savedConnections: sanitizedSaved
       });
 
       setTestResult({
@@ -650,8 +671,7 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
     setSelectedAccountId(acc.id);
     if (metaState.isConnected) {
       const updatedList = savedConnections.map(c => {
-        const isThisConn = (c.token && c.token === metaState.userAccessToken) ||
-                           (c.businessManagerId && c.businessManagerId === metaState.businessManagerId) ||
+        const isThisConn = (c.businessManagerId && c.businessManagerId === metaState.businessManagerId) ||
                            (c.adAccountId && c.adAccountId === metaState.adAccountId);
         if (isThisConn) {
           return {
@@ -668,10 +688,9 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
         }
         return c;
       });
-      setSavedConnections(updatedList);
-      try {
-        localStorage.setItem(LOCAL_STORAGE_SAVED_CONNECTIONS_KEY, JSON.stringify(updatedList));
-      } catch {}
+      const sanitized = sanitizeSavedConnections(updatedList);
+      setSavedConnections(sanitized);
+      saveToLocalStorageSafely(sanitized);
 
       onUpdateMetaState({
         ...metaState,
@@ -689,7 +708,7 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
           ...metaState.diagnostics.filter(d => !d.startsWith('✅ Cuenta publicitaria vinculada:')),
           `✅ Cuenta publicitaria vinculada: ${acc.name} (${acc.id}).`
         ],
-        savedConnections: updatedList
+        savedConnections: sanitized
       });
     }
   };
@@ -783,7 +802,8 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
 
   // 6. Select a Saved Connection (Portafolio Comercial)
   const handleSelectSavedConnection = (conn: SavedMetaConnection) => {
-    setInputToken(conn.token || '');
+    const activeToken = sessionTokenCache.current[conn.id] || conn.token || metaState.userAccessToken || '';
+    setInputToken(activeToken);
     setInputAdAccountId(conn.adAccountId || '');
     setSelectedAccountId(conn.adAccountId || '');
 
@@ -812,7 +832,7 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
       isConnected: true,
       isRealToken: conn.isRealToken ?? true,
       status: conn.status || (conn.adAccountId ? 'ready_to_deploy' : 'connected_needs_perms'),
-      userAccessToken: conn.token || '',
+      userAccessToken: activeToken,
       appName: conn.appName || 'Tico Performance Ads',
       appId: conn.appId,
       userName: conn.userName || 'Usuario Meta',
@@ -838,32 +858,32 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
         `✅ App oficial en Meta: ${conn.appName || 'Tico Performance Ads'}`,
         `✅ Conexión lista para orquestar campañas.`
       ],
-      savedConnections
+      savedConnections: sanitizeSavedConnections(savedConnections)
     });
   };
 
   // 7. Delete a Saved Connection at any time
   const handleDeleteSavedConnection = (connId: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
+    delete sessionTokenCache.current[connId];
     const deletedConn = savedConnections.find(c => c.id === connId);
     const updatedList = savedConnections.filter(c => c.id !== connId);
-    setSavedConnections(updatedList);
-    try {
-      localStorage.setItem(LOCAL_STORAGE_SAVED_CONNECTIONS_KEY, JSON.stringify(updatedList));
-    } catch {}
+    const sanitizedList = sanitizeSavedConnections(updatedList);
+    setSavedConnections(sanitizedList);
+    saveToLocalStorageSafely(sanitizedList);
 
     const isCurrentActive = metaState.isConnected && (
-      (deletedConn?.token && metaState.userAccessToken === deletedConn.token) ||
       (deletedConn?.businessManagerId && metaState.businessManagerId === deletedConn.businessManagerId) ||
       (deletedConn?.adAccountId && metaState.adAccountId === deletedConn.adAccountId) ||
       (deletedConn?.id === connId)
     );
 
     if (isCurrentActive) {
-      if (updatedList.length > 0) {
+      if (sanitizedList.length > 0) {
         // Pasar al siguiente portafolio comercial guardado
-        const nextConn = updatedList[0];
-        setInputToken(nextConn.token || '');
+        const nextConn = sanitizedList[0];
+        const nextToken = sessionTokenCache.current[nextConn.id] || nextConn.token || '';
+        setInputToken(nextToken);
         setInputAdAccountId(nextConn.adAccountId || '');
         setSelectedAccountId(nextConn.adAccountId || '');
         const accs = nextConn.availableAccounts && nextConn.availableAccounts.length > 0 ? nextConn.availableAccounts : [];
@@ -873,7 +893,7 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
           isConnected: true,
           isRealToken: nextConn.isRealToken ?? true,
           status: nextConn.status || (nextConn.adAccountId ? 'ready_to_deploy' : 'connected_needs_perms'),
-          userAccessToken: nextConn.token || '',
+          userAccessToken: nextToken,
           appName: nextConn.appName || 'Tico Performance Ads',
           appId: nextConn.appId,
           userName: nextConn.userName || 'Usuario Meta',
@@ -896,7 +916,7 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
           diagnostics: [
             `ℹ️ Conexión eliminada. Se activó el portafolio comercial restante: ${nextConn.portfolioName}.`
           ],
-          savedConnections: updatedList
+          savedConnections: sanitizedList
         });
       } else {
         handleDisconnect();
@@ -904,7 +924,7 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
     } else {
       onUpdateMetaState({
         ...metaState,
-        savedConnections: updatedList
+        savedConnections: sanitizedList
       });
     }
   };
