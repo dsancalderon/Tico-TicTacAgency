@@ -104,7 +104,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col font-['Plus_Jakarta_Sans']">
+    <div className="dashboard-user-area min-h-screen bg-slate-50 text-[#0a194f] flex flex-col font-['Plus_Jakarta_Sans']">
       
       {/* ========================================================================= */}
       {/* 1. TOP NAVBAR PRINCIPAL (CON LOGO DE TICO IDÉNTICO AL DE LA PÁGINA PRINCIPAL) */}
@@ -431,7 +431,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         {/* 4. CONTENIDO PRINCIPAL DE CADA SECCIÓN (POSICIÓN FIJA Y ESTABLE)           */}
         {/* ========================================================================= */}
         <div className="flex-1 flex flex-col min-w-0 overflow-x-hidden">
-          <main className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <main className="dashboard-user-content flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             {children}
           </main>
 

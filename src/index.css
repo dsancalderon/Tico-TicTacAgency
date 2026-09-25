@@ -31,6 +31,30 @@
   }
 }
 
+/*
+ * Unified typography palette for the authenticated workspace.
+ * Keep semantic feedback colors and text placed on dark/brand surfaces intact,
+ * while replacing the neutral slate scale with the navy used on Inicio.
+ */
+.dashboard-user-area {
+  color: #0a194f;
+}
+
+.dashboard-user-content .text-slate-900,
+.dashboard-user-content .text-slate-800,
+.dashboard-user-content .text-slate-700,
+.dashboard-user-content .text-slate-600 {
+  color: #0a194f;
+}
+
+.dashboard-user-content .text-slate-500 {
+  color: rgb(10 25 79 / 72%);
+}
+
+.dashboard-user-content .text-slate-400 {
+  color: rgb(10 25 79 / 55%);
+}
+
 /* YCloud-style Prismatic Iridescent Refraction Beam */
 .prism-beam {
   position: absolute;
