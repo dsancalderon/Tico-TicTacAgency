@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   CheckCircle2, 
-  ShieldCheck, 
   Zap, 
   Check, 
   Key, 
@@ -919,70 +918,6 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
             </button>
           </div>
         </form>
-
-        {/* Permisos Oficiales Verificados (si está conectado) */}
-        {metaState.isConnected && (
-          <div className="pt-6 border-t border-slate-100 space-y-6">
-            {/* Permissions Matrix */}
-            <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
-            <div className="flex items-center justify-between text-xs font-bold text-slate-700 uppercase tracking-wider">
-              <span className="flex items-center gap-1.5">
-                <ShieldCheck className="w-4 h-4 text-indigo-600" />
-                <span>Permisos Oficiales Verificados en Meta</span>
-              </span>
-              <span className="text-emerald-700 text-xs font-bold bg-emerald-100 px-2.5 py-0.5 rounded-full">
-                100% Verificado
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
-              <div className="flex items-center gap-2 text-xs bg-white p-3 rounded-xl border border-slate-200">
-                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-white text-[11px] ${
-                  metaState.permissions.adsManagement ? 'bg-emerald-600' : 'bg-slate-300'
-                }`}>
-                  <Check className="w-3 h-3" />
-                </span>
-                <span className="font-semibold text-slate-800">ads_management</span>
-              </div>
-
-              <div className="flex items-center gap-2 text-xs bg-white p-3 rounded-xl border border-slate-200">
-                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-white text-[11px] ${
-                  metaState.permissions.pagesReadEngagement ? 'bg-emerald-600' : 'bg-slate-300'
-                }`}>
-                  <Check className="w-3 h-3" />
-                </span>
-                <span className="font-semibold text-slate-800">ads_read / pages_read_engagement</span>
-              </div>
-
-              <div className="flex items-center gap-2 text-xs bg-white p-3 rounded-xl border border-slate-200">
-                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-white text-[11px] ${
-                  metaState.permissions.businessManagement ? 'bg-emerald-600' : 'bg-slate-300'
-                }`}>
-                  <Check className="w-3 h-3" />
-                </span>
-                <span className="font-semibold text-slate-800">business_management</span>
-              </div>
-            </div>
-          </div>
-          </div>
-        )}
-
-        {/* Diagnóstico de Integración Meta Ads (Misma estructura que Google Ads) */}
-        <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
-          <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider block">
-            Diagnóstico de Integración Meta Ads
-          </span>
-          <div className="space-y-1.5">
-            {metaState.diagnostics.map((d, i) => (
-              <div key={i} className="flex items-start gap-2 text-xs text-slate-600">
-                <span className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${
-                  metaState.isConnected ? 'bg-emerald-500' : 'bg-slate-400'
-                }`} />
-                <span>{d}</span>
-              </div>
-            ))}
-          </div>
-        </div>
 
         {/* Enlaces Oficiales (Misma estructura que Google Ads) */}
         <div className="pt-2 flex flex-wrap items-center gap-4 text-xs text-slate-500">
