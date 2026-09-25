@@ -1705,38 +1705,18 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
       {/* 2. ESPACIO DEDICADO: PORTAFOLIOS COMERCIALES Y CONEXIONES GUARDADAS       */}
       {/* ========================================================================= */}
       <div className="bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-8 shadow-xs space-y-5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
-          <div className="flex items-center gap-3.5">
-            <div className="w-10 h-10 rounded-2xl bg-blue-50 border border-blue-200/70 text-blue-600 flex items-center justify-center shrink-0">
-              <Briefcase className="w-5 h-5 text-blue-600" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2.5">
-                <h3 className="text-base sm:text-lg font-extrabold text-[#0a194f] font-['Outfit']">
-                  Portafolios Comerciales y Conexiones Guardadas
-                </h3>
-                <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200 font-mono">
-                  {savedConnections.length} {savedConnections.length === 1 ? 'portafolio' : 'portafolios'}
-                </span>
-              </div>
-              <p className="text-xs text-[#0a194f]/80 mt-0.5">
-                Conexiones guardadas por Portafolio Comercial de Meta. Puedes seguir agregando más tokens arriba, alternar entre portafolios o eliminarlos en cualquier momento.
-              </p>
-            </div>
+        <div className="flex items-center gap-3.5 pb-4 border-b border-slate-100">
+          <div className="w-10 h-10 rounded-2xl bg-blue-50 border border-blue-200/70 text-blue-600 flex items-center justify-center shrink-0">
+            <Briefcase className="w-5 h-5 text-blue-600" />
           </div>
-
-          <button
-            type="button"
-            onClick={() => {
-              setInputToken('');
-              setInputAdAccountId('');
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold border border-blue-200/80 transition-colors cursor-pointer self-start sm:self-auto shrink-0"
-          >
-            <Plus className="w-4 h-4" />
-            <span>+ Agregar otro token / portafolio</span>
-          </button>
+          <div>
+            <h3 className="text-base sm:text-lg font-extrabold text-[#0a194f] font-['Outfit']">
+              Portafolios Comerciales y Conexiones Guardadas
+            </h3>
+            <p className="text-xs text-[#0a194f]/80 mt-0.5">
+              Conexiones guardadas por Portafolio Comercial de Meta. Puedes seguir agregando más tokens arriba, alternar entre portafolios o eliminarlos en cualquier momento.
+            </p>
+          </div>
         </div>
 
         {/* Lista de Conexiones Guardadas o Estado Vacío */}
