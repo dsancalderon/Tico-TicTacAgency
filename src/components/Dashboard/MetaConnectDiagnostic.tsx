@@ -77,7 +77,6 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
   const [isGuideOpen, setIsGuideOpen] = useState(false);
 
   // Connected State
-  const [selectedAccountId, setSelectedAccountId] = useState(metaState.adAccountId || '');
   const [realAccounts, setRealAccounts] = useState<AvailableAccount[]>(() => {
     if (metaState.availableAccounts && metaState.availableAccounts.length > 0) {
       return metaState.availableAccounts;
@@ -150,8 +149,13 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
   });
 
   // Sincronizar conexiones guardadas si cambian desde el workspace (asegurando almacenamiento seguro sin tokens)
+  const isInitialMount = useRef(true);
   useEffect(() => {
-    if (metaState.savedConnections && metaState.savedConnections.length > 0) {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+    if (metaState.savedConnections !== undefined) {
       const sanitized = sanitizeSavedConnections(metaState.savedConnections);
       setSavedConnections(sanitized);
       saveToLocalStorageSafely(sanitized);
@@ -357,7 +361,6 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
         saveToLocalStorageSafely(sanitizedSaved);
 
         if (chosenAcc) {
-          setSelectedAccountId(chosenAcc.id);
           setIsConnecting(false);
 
           onUpdateMetaState({
@@ -396,7 +399,6 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
           });
         } else {
           // Token válido pero sin cuenta asignada todavía
-          setSelectedAccountId('');
           setIsConnecting(false);
 
           onUpdateMetaState({
@@ -472,7 +474,6 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
 
         if (userAccounts.length > 0) {
           const chosen = userAccounts[0];
-          setSelectedAccountId(chosen.id);
           onUpdateMetaState({
             ...metaState,
             status: 'ready_to_deploy',
@@ -587,81 +588,15 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
     }, 600);
   };
 
-  // 3. Switch Account
-  const handleSelectAccount = (acc: AvailableAccount, conn?: SavedMetaConnection) => {
-    setSelectedAccountId(acc.id);
-    const targetConnId = conn?.id || metaState.businessManagerId || metaState.adAccountId;
-    const activeToken = conn 
-      ? (sessionTokenCache.current[conn.id] || conn.token || metaState.userAccessToken || '')
-      : (metaState.userAccessToken || '');
 
-    if (conn && conn.id) {
-      sessionTokenCache.current[conn.id] = activeToken;
-    }
 
-    const updatedList = savedConnections.map(c => {
-      const isTarget = conn 
-        ? c.id === conn.id 
-        : ((c.businessManagerId && c.businessManagerId === metaState.businessManagerId) ||
-           (c.adAccountId && c.adAccountId === metaState.adAccountId) ||
-           (c.id === targetConnId));
-      if (isTarget) {
-        return {
-          ...c,
-          adAccountId: acc.id,
-          adAccountName: acc.name,
-          businessManagerId: acc.businessId || c.businessManagerId,
-          businessManagerName: acc.businessName || c.businessManagerName,
-          pixelId: acc.pixelId || c.pixelId,
-          pixelName: acc.pixelName || c.pixelName,
-          pageId: acc.pageId || c.pageId,
-          pageName: acc.pageName || c.pageName
-        };
-      }
-      return c;
-    });
-    const sanitized = sanitizeSavedConnections(updatedList);
+  // 5. Disconnect (Keeps savedConnections safe!)
+  const handleDisconnect = (remainingList?: SavedMetaConnection[]) => {
+    const listToKeep = remainingList !== undefined ? remainingList : savedConnections;
+    const sanitized = sanitizeSavedConnections(listToKeep);
     setSavedConnections(sanitized);
     saveToLocalStorageSafely(sanitized);
 
-    const accountsToUse = conn?.availableAccounts && conn.availableAccounts.length > 0 
-      ? conn.availableAccounts 
-      : (realAccounts.length > 0 ? realAccounts : [acc]);
-
-    setRealAccounts(accountsToUse);
-
-    onUpdateMetaState({
-      ...metaState,
-      isConnected: true,
-      isRealToken: conn?.isRealToken ?? metaState.isRealToken ?? true,
-      status: 'ready_to_deploy',
-      userAccessToken: activeToken,
-      appName: conn?.appName || metaState.appName || 'Tico Performance Ads',
-      appId: conn?.appId || metaState.appId,
-      userName: conn?.userName || metaState.userName || 'Usuario Meta',
-      userId: conn?.userId || metaState.userId,
-      userType: conn?.userType || metaState.userType || 'SYSTEM_USER',
-      adAccountId: acc.id,
-      adAccountName: acc.name,
-      businessManagerId: acc.businessId || conn?.businessManagerId || metaState.businessManagerId,
-      businessManagerName: acc.businessName || conn?.businessManagerName || conn?.portfolioName || metaState.businessManagerName,
-      pixelId: acc.pixelId || conn?.pixelId || metaState.pixelId,
-      pixelName: acc.pixelName || conn?.pixelName || metaState.pixelName,
-      pageId: acc.pageId || conn?.pageId || metaState.pageId,
-      pageName: acc.pageName || conn?.pageName || metaState.pageName,
-      availableAccounts: accountsToUse,
-      permissions: conn?.permissions || metaState.permissions,
-      diagnostics: [
-        `✅ Portafolio comercial activado: ${conn?.portfolioName || acc.businessName || 'Meta Business Suite'}`,
-        `✅ Cuenta publicitaria vinculada: ${acc.name} (${acc.id}).`,
-        `✅ Conexión lista para orquestar campañas.`
-      ],
-      savedConnections: sanitized
-    });
-  };
-
-  // 5. Disconnect (Keeps savedConnections safe!)
-  const handleDisconnect = () => {
     onUpdateMetaState({
       isConnected: false,
       isRealToken: false,
@@ -686,10 +621,9 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
         businessManagement: false
       },
       diagnostics: ['La cuenta se encuentra desconectada. Selecciona una conexión guardada abajo o ingresa un nuevo token para continuar.'],
-      savedConnections
+      savedConnections: sanitized
     });
     setRealAccounts([]);
-    setSelectedAccountId('');
     setAuthError(null);
     setInputToken('');
     setInputAdAccountId('');
@@ -700,7 +634,6 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
     const activeToken = sessionTokenCache.current[conn.id] || conn.token || metaState.userAccessToken || '';
     setInputToken('');
     setInputAdAccountId('');
-    setSelectedAccountId(conn.adAccountId || '');
 
     const accountsToUse = conn.availableAccounts && conn.availableAccounts.length > 0
       ? conn.availableAccounts
@@ -763,8 +696,17 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
 
   // 7. Delete a Saved Connection at any time
   const handleDeleteSavedConnection = (connId: string, e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     delete sessionTokenCache.current[connId];
+    setExpandedConnIds(prev => {
+      const next = { ...prev };
+      delete next[connId];
+      return next;
+    });
+
     const deletedConn = savedConnections.find(c => c.id === connId);
     const updatedList = savedConnections.filter(c => c.id !== connId);
     const sanitizedList = sanitizeSavedConnections(updatedList);
@@ -782,9 +724,8 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
         // Pasar al siguiente portafolio comercial guardado
         const nextConn = sanitizedList[0];
         const nextToken = sessionTokenCache.current[nextConn.id] || nextConn.token || '';
-        setInputToken(nextToken);
-        setInputAdAccountId(nextConn.adAccountId || '');
-        setSelectedAccountId(nextConn.adAccountId || '');
+        setInputToken('');
+        setInputAdAccountId('');
         const accs = nextConn.availableAccounts && nextConn.availableAccounts.length > 0 ? nextConn.availableAccounts : [];
         setRealAccounts(accs);
         onUpdateMetaState({
@@ -813,12 +754,12 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
             businessManagement: true
           },
           diagnostics: [
-            `ℹ️ Conexión eliminada. Se activó el portafolio comercial restante: ${nextConn.portfolioName}.`
+            `ℹ️ Portafolio comercial eliminado. Se activó el portafolio restante: ${nextConn.portfolioName || nextConn.businessManagerName}.`
           ],
           savedConnections: sanitizedList
         });
       } else {
-        handleDisconnect();
+        handleDisconnect(sanitizedList);
       }
     } else {
       onUpdateMetaState({
@@ -1084,53 +1025,51 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
                         pageId: conn.pageId
                       }] : []));
 
-              const selectedAccId = isActive ? (metaState.adAccountId || selectedAccountId) : conn.adAccountId;
-
               return (
                 <div
                   key={conn.id}
-                  className={`w-full rounded-2xl sm:rounded-3xl border transition-all ${
+                  className={`w-full rounded-2xl border transition-all ${
                     isActive
-                      ? 'border-blue-500 bg-white shadow-md ring-2 ring-blue-500/10'
-                      : 'border-slate-200/90 bg-white hover:border-slate-300 shadow-xs'
+                      ? 'border-blue-500 bg-white shadow-xs ring-1 ring-blue-500/20'
+                      : 'border-slate-200 bg-white hover:border-slate-300 shadow-2xs'
                   }`}
                 >
                   {/* Fila Principal de la Ficha (Siempre Visible) */}
-                  <div className="p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="flex items-center gap-3.5 sm:gap-4 min-w-0">
-                      <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 border ${
+                  <div className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${
                         isActive
-                          ? 'bg-blue-600 text-white border-blue-500 shadow-xs'
+                          ? 'bg-blue-600 text-white border-blue-500 shadow-2xs'
                           : 'bg-slate-100 text-slate-600 border-slate-200'
                       }`}>
-                        <Briefcase className="w-5 h-5" />
+                        <Briefcase className="w-4.5 h-4.5" />
                       </div>
 
                       <div className="min-w-0 space-y-0.5">
-                        <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
                           Portafolio Comercial
                         </span>
-                        <h4 className="text-base sm:text-lg font-black text-[#0a194f] font-['Outfit'] leading-tight truncate">
+                        <h4 className="text-sm sm:text-base font-extrabold text-[#0a194f] font-['Outfit'] leading-tight truncate">
                           {conn.portfolioName || conn.businessManagerName || 'Portafolio Comercial Meta'}
                         </h4>
-                        <div className="text-xs font-mono text-slate-500 font-semibold">
+                        <div className="text-[11px] font-mono text-slate-500 font-medium">
                           ID BM: {conn.businessManagerId || 'Sin ID detectado'}
                         </div>
                       </div>
                     </div>
 
                     {/* Acciones del Encabezado */}
-                    <div className="flex items-center gap-2 sm:gap-3 self-end sm:self-auto shrink-0">
+                    <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
                       {isActive ? (
-                        <span className="px-3.5 py-1.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1.5 shadow-2xs">
-                          <Check className="w-3.5 h-3.5 text-emerald-600 stroke-[2.5]" />
+                        <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1 shadow-2xs">
+                          <Check className="w-3 h-3 text-emerald-600 stroke-[2.5]" />
                           <span>Activo</span>
                         </span>
                       ) : (
                         <button
                           type="button"
                           onClick={() => handleSelectSavedConnection(conn)}
-                          className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-blue-600 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+                          className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-blue-600 text-white text-xs font-bold transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer"
                         >
                           <Briefcase className="w-3.5 h-3.5" />
                           <span>Usar este Portafolio</span>
@@ -1141,11 +1080,11 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
                       <button
                         type="button"
                         onClick={() => toggleConnExpanded(conn.id, isActive)}
-                        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 transition-all cursor-pointer"
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 transition-all cursor-pointer"
                         title={isExpanded ? 'Ocultar detalles' : 'Ver cuentas y detalles'}
                       >
-                        <span className="text-xs">{isExpanded ? 'Menos detalles' : 'Ver cuentas y detalles'}</span>
-                        <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
+                        <span>{isExpanded ? 'Menos detalles' : 'Ver cuentas y detalles'}</span>
+                        <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
                       </button>
 
                       {/* Botón Borrar */}
@@ -1153,19 +1092,19 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
                         type="button"
                         onClick={(e) => handleDeleteSavedConnection(conn.id, e)}
                         title="Eliminar este portafolio de guardados"
-                        className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-all cursor-pointer"
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-all cursor-pointer"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-4 h-4 pointer-events-none" />
                       </button>
                     </div>
                   </div>
 
                   {/* Contenido Desplegable (Cuentas Publicitarias + Activos + Detalles) */}
                   {isExpanded && (
-                    <div className="border-t border-slate-100 p-5 sm:p-6 bg-slate-50/60 rounded-b-2xl sm:rounded-b-3xl space-y-5">
-                      {/* Cuentas Publicitarias Disponibles en Meta */}
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between text-xs font-bold text-slate-700 uppercase tracking-wider">
+                    <div className="border-t border-slate-100 p-3.5 sm:p-4 bg-slate-50/50 rounded-b-2xl space-y-3.5">
+                      {/* Cuentas Publicitarias Disponibles en Meta (Solo Informativo) */}
+                      <div className="space-y-2.5">
+                        <div className="flex items-center justify-between text-[11px] font-bold text-slate-600 uppercase tracking-wider">
                           <span>Cuentas Publicitarias Disponibles en Meta ({accountsForConn.length}):</span>
                           {isActive && (
                             <button
@@ -1174,66 +1113,61 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
                               disabled={isRefreshingAccounts}
                               className="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 font-semibold cursor-pointer lowercase"
                             >
-                              <RefreshCw className={`w-3.5 h-3.5 ${isRefreshingAccounts ? 'animate-spin' : ''}`} />
+                              <RefreshCw className={`w-3 h-3 ${isRefreshingAccounts ? 'animate-spin' : ''}`} />
                               <span>{isRefreshingAccounts ? 'actualizando...' : 'recargar cuentas'}</span>
                             </button>
                           )}
                         </div>
 
                         {accountsForConn.length > 0 ? (
-                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
                             {accountsForConn.map((acc) => {
-                              const isSelected = selectedAccId === acc.id;
+                              const isPrimary = conn.adAccountId === acc.id;
                               return (
                                 <div
                                   key={acc.id}
-                                  onClick={() => handleSelectAccount(acc, conn)}
-                                  className={`p-4 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${
-                                    isSelected
-                                      ? 'border-blue-600 bg-blue-50/50 shadow-xs ring-2 ring-blue-600/20'
-                                      : 'border-slate-200 bg-white hover:border-slate-300'
-                                  }`}
+                                  className="p-3 rounded-xl border border-slate-200/80 bg-white flex flex-col justify-between shadow-2xs"
                                 >
                                   <div>
-                                    <div className="flex items-center justify-between text-xs font-bold mb-1.5">
-                                      <span className={`font-mono text-[10px] px-2 py-0.5 rounded ${
-                                        isSelected ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700'
-                                      }`}>
+                                    <div className="flex items-center justify-between text-xs font-bold mb-1">
+                                      <span className="font-mono text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-medium">
                                         {acc.id}
                                       </span>
-                                      <span className="text-emerald-600 text-[10px] font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                                      <span className="text-emerald-700 text-[10px] font-bold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200/60">
                                         {acc.status}
                                       </span>
                                     </div>
-                                    <div className="text-xs font-bold text-slate-900 leading-snug">
+                                    <div className="text-xs font-bold text-slate-900 leading-snug truncate" title={acc.name}>
                                       {acc.name}
                                     </div>
-                                    <div className="text-[11px] text-slate-500 mt-1 truncate">
+                                    <div className="text-[11px] text-slate-500 mt-0.5 truncate">
                                       {acc.businessName || conn.portfolioName}
                                     </div>
                                   </div>
 
-                                  <div className="mt-3.5 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs">
-                                    <span className="text-slate-500 text-[11px]">Moneda: <strong>{acc.currency}</strong></span>
-                                    <span className={`text-[11px] font-bold ${isSelected ? 'text-blue-700' : 'text-slate-400'}`}>
-                                      {isSelected ? '✓ Seleccionada' : 'Elegir esta cuenta'}
-                                    </span>
+                                  <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
+                                    <span className="text-slate-500">Moneda: <strong className="text-slate-700">{acc.currency}</strong></span>
+                                    {isPrimary && (
+                                      <span className="text-[10px] font-semibold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-100">
+                                        Principal
+                                      </span>
+                                    )}
                                   </div>
                                 </div>
                               );
                             })}
                           </div>
                         ) : (
-                          <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900">
+                          <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900">
                             0 cuentas publicitarias asignadas directamente a este portafolio en Meta Business Suite.
                           </div>
                         )}
                       </div>
 
                       {/* Grid de Activos: Píxel, Fanpage y Detalles del Token */}
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                        <div className="p-3.5 rounded-2xl bg-white border border-slate-200">
-                          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+                        <div className="p-3 rounded-xl bg-white border border-slate-200/80 shadow-2xs">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">
                             Píxel de Seguimiento
                           </span>
                           <div className="text-xs font-bold text-slate-900 truncate">
@@ -1244,8 +1178,8 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
                           </span>
                         </div>
 
-                        <div className="p-3.5 rounded-2xl bg-white border border-slate-200">
-                          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                        <div className="p-3 rounded-xl bg-white border border-slate-200/80 shadow-2xs">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">
                             Página de Anunciante (Fanpage)
                           </span>
                           <div className="text-xs font-bold text-slate-900 truncate">
@@ -1256,8 +1190,8 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
                           </span>
                         </div>
 
-                        <div className="p-3.5 rounded-2xl bg-white border border-slate-200">
-                          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                        <div className="p-3 rounded-xl bg-white border border-slate-200/80 shadow-2xs">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-0.5">
                             Usuario del Sistema
                           </span>
                           <div className="text-xs font-bold text-slate-900 truncate">
@@ -1271,20 +1205,20 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
 
                       {/* Permisos Oficiales del Portafolio */}
                       {conn.permissions && (
-                        <div className="pt-2 border-t border-slate-200/60 flex flex-wrap items-center justify-between gap-3 text-xs">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Permisos:</span>
-                            <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-semibold ${
+                        <div className="pt-2 border-t border-slate-200/60 flex flex-wrap items-center justify-between gap-2.5 text-xs">
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Permisos:</span>
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium ${
                               conn.permissions.adsManagement ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-500'
                             }`}>
                               <Check className="w-3 h-3" /> ads_management
                             </span>
-                            <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-semibold ${
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium ${
                               conn.permissions.pagesReadEngagement ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-500'
                             }`}>
                               <Check className="w-3 h-3" /> pages_read_engagement
                             </span>
-                            <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-semibold ${
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium ${
                               conn.permissions.businessManagement ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-500'
                             }`}>
                               <Check className="w-3 h-3" /> business_management
