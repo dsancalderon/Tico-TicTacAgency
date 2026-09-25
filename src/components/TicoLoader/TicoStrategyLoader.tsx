@@ -6,7 +6,35 @@ import { TICO_PATHS, TICO_RING, TICO_VIEWBOX } from '../TicoMascot';
 import { useScrollLock } from '../../utils/scrollLock';
 import './tico-loader.css';
 
-const captions = ['Formulando estrategia...', 'Analizando creativos...', 'Casi listo...'];
+const captions = [
+  'Interpretando tu briefing...',
+  'Definiendo el público objetivo...',
+  'Construyendo los mensajes...',
+  'Formulando la estrategia...',
+  'Analizando creativos...',
+  'Preparando la revisión...',
+];
+
+/** Illustrative stages, not backend completion percentages. */
+function StageIllustration({ phase }: { phase: number }) {
+  const draw = { initial: { pathLength: 0, opacity: 0 }, animate: { pathLength: 1, opacity: .8 }, transition: { duration: 1.3, ease: easeInOut } };
+  return <motion.g key={phase} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: .35 }} strokeWidth={7}>
+    {phase === 1 && <>
+      <motion.circle cx={183} cy={275} r={64} {...draw} />
+      <motion.circle cx={183} cy={275} r={36} {...draw} />
+      <motion.path d="M183 275l64-64m-29 0h29v29" {...draw} />
+    </>}
+    {phase === 2 && <>
+      <motion.path d="M116 216h134v99H166l-32 25v-25h-18Z" {...draw} />
+      <motion.path d="M140 243h86m-86 24h68m-68 24h45" {...draw} />
+    </>}
+    {phase === 4 && <>
+      <motion.rect x={108} y={209} width={132} height={113} rx={12} {...draw} />
+      <motion.path d="M130 338h126V230m-139 69 34-35 29 24 24-20 26 30" {...draw} />
+      <motion.circle cx={205} cy={237} r={10} {...draw} />
+    </>}
+  </motion.g>;
+}
 
 function ThinkingDot({ time, index }: { time: MotionValue<number>; index: number }) {
   const opacity = useTransform(time, t => t < 2.5
@@ -20,7 +48,7 @@ function StrategyBar({ time, index }: { time: MotionValue<number>; index: number
     strokeWidth={8} style={{ pathLength }} />;
 }
 
-/** One clock drives every part: first pass 0–7s, then only planning/closing (2.5–7s). */
+/** Six 2.5s stages; subsequent passes skip the initial briefing stage. */
 export function TicoStrategyLoader() {
   const id = useId().replace(/:/g, '');
   const time = useMotionValue(0);
@@ -38,10 +66,11 @@ export function TicoStrategyLoader() {
 
   useAnimationFrame(ms => {
     const seconds = ms / 1000;
-    const cycle = seconds < 7 ? seconds : 2.5 + (seconds - 7) % 4.5;
+    const cycle = seconds < 15 ? seconds : 2.5 + (seconds - 15) % 12.5;
     elapsed.set(seconds);
-    time.set(cycle);
-    const nextPhase = cycle < 2.5 ? 0 : cycle < 5 ? 1 : 2;
+    // Preserve the original mascot choreography while extending its planning segment.
+    time.set(cycle < 2.5 ? cycle : cycle < 12.5 ? 2.5 + (cycle - 2.5) / 4 : 5 + (cycle - 12.5) * .8);
+    const nextPhase = Math.min(5, Math.floor(cycle / 2.5));
     if (phaseRef.current !== nextPhase) {
       phaseRef.current = nextPhase;
       setPhase(nextPhase);
@@ -102,11 +131,12 @@ export function TicoStrategyLoader() {
                 <motion.path d={TICO_PATHS.smile} strokeWidth={20.85} style={{ opacity: smileOpacity }} />
               </motion.g>
               <g color="#8B5CF6">{[0, 1, 2].map(index => <ThinkingDot key={index} time={time} index={index} />)}</g>
-              <motion.g style={{ opacity: chartOpacity }}>
+              <motion.g style={{ opacity: chartOpacity }} visibility={phase === 3 || phase === 5 ? 'visible' : 'hidden'}>
                 <path d="M94 348H277" strokeWidth={5} opacity={.4} />
                 {[0, 1, 2].map(index => <StrategyBar key={index} time={time} index={index} />)}
                 <motion.path d="M153 195l18 17 35-36" strokeWidth={8} style={{ pathLength: checkLength }} />
               </motion.g>
+              {(phase === 1 || phase === 2 || phase === 4) && <StageIllustration phase={phase} />}
               <motion.g style={{ opacity: handsOpacity }} strokeWidth={7}>
                 <motion.g style={{ x: handLeft }}>
                   <ellipse cx={24} cy={290} rx={17} ry={23} fill="#3B82F6" fillOpacity={.04} />

@@ -168,10 +168,10 @@ export function App() {
     if (!workspaceOwner || workspaceOwner !== userSession?.id || isLoadingStrategy || isDeploying) return;
     const owner = workspaceOwner;
     const version = ++saveVersion.current;
-    setSaveStatus('Guardando…');
+    setSaveStatus('');
     const timer = window.setTimeout(() => {
       saveWorkspace(owner, { briefing: savedBrief, strategy, step: currentStep }).then(() => {
-        if (activeOwner.current === owner && version === saveVersion.current) setSaveStatus('Cambios guardados');
+        if (activeOwner.current === owner && version === saveVersion.current) setSaveStatus('');
       }).catch(error => {
         if (activeOwner.current === owner && version === saveVersion.current) setSaveStatus(error.message);
       });
@@ -188,7 +188,7 @@ export function App() {
     try {
       await saveConnection(owner, platform, state);
       if (activeOwner.current !== owner) return;
-      setSaveStatus('Conexión guardada');
+      setSaveStatus('');
     } catch (error) {
       if (activeOwner.current === owner) setSaveStatus(error instanceof Error ? error.message : 'No se pudo guardar la conexión.');
     }
@@ -711,16 +711,7 @@ export function App() {
             caption="Cargando tu espacio y tus datos…"
           />
         )}
-        <div className="mb-4 flex gap-3 items-center text-xs text-slate-600">
-          <span role="status">{saveStatus}</span>
-          <button type="button" className="underline" onClick={() => {
-            const owner = userSession.id;
-            setSaveStatus('Guardando…');
-            void saveWorkspace(owner, { briefing: savedBrief, strategy, step: currentStep })
-              .then(() => { if (activeOwner.current === owner) setSaveStatus('Cambios guardados'); })
-              .catch(error => { if (activeOwner.current === owner) setSaveStatus(error.message); });
-          }}>Guardar ahora</button>
-        </div>
+        {saveStatus && <p role="alert" className="mb-4 text-xs text-rose-700">{saveStatus}</p>}
         {authNotice && (
           <div role="status" className="mb-6 flex items-center justify-between gap-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-900">
             <span>{authNotice}</span>
