@@ -4,6 +4,7 @@ import { easeInOut, motion, useAnimationFrame, useMotionValue, useTransform } fr
 import type { MotionValue } from 'framer-motion';
 import { TICO_PATHS, TICO_RING, TICO_VIEWBOX } from '../TicoMascot';
 import { useScrollLock } from '../../utils/scrollLock';
+import './tico-loader.css';
 
 const captions = ['Formulando estrategia...', 'Analizando creativos...', 'Casi listo...'];
 
@@ -64,15 +65,16 @@ export function TicoStrategyLoader() {
   const checkLength = useTransform(time, [5, 5.5], [0, 1], { ease: easeInOut });
   // This is cycle progress, deliberately not a percentage of the network request.
   const progress = useTransform(time, [0, 2.5, 5, 6.65, 7], [0, .28, .7, 1, 1], { ease: easeInOut });
-  const dotX = useTransform(progress, p => p * 144);
+  const dotX = useTransform(progress, p => `${p * 100}%`);
   const trackOpacity = useTransform(time, [0, .2, 2.5, 2.75, 6.65, 7], [0, 1, 0, 1, 1, 0]);
 
   return createPortal(
     <motion.div className="fixed inset-0 z-[110] grid place-items-center overflow-hidden bg-[#F8FAFC] text-[#0a194f]"
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: .25 }}
       data-testid="strategy-loader" data-phase={phase}>
-      <div className="flex flex-col items-center p-10">
-        <motion.div style={{ y }} className="mb-9 w-[148px] sm:w-[164px]" aria-hidden="true">
+      <div className="tico-loader-content">
+        <div className="tico-loader-art" aria-hidden="true">
+        <motion.div style={{ y }} className="relative mx-auto mt-3 w-[112px]">
           <svg viewBox={`0 0 ${TICO_VIEWBOX.width} ${TICO_VIEWBOX.height}`} fill="none"
             preserveAspectRatio="xMidYMid meet" className="block h-auto w-full overflow-visible">
             <defs>
@@ -118,14 +120,15 @@ export function TicoStrategyLoader() {
             </g>
           </svg>
         </motion.div>
+        </div>
         <div aria-hidden="true" className="font-['Outfit'] text-[38px] font-semibold leading-none tracking-[-1.8px]">tico<span className="text-[#8B5CF6]">.</span></div>
         <p role="status" aria-live="polite" aria-atomic="true" className="mt-4 mb-6 min-w-56 text-center text-xs text-[#0a194f]/70">{captions[phase]}</p>
-        <div aria-hidden="true" className="relative h-[3px] w-36 rounded-full bg-[#e9ecf5]">
+        <div aria-hidden="true" className="relative h-[3px] w-[112px] rounded-full bg-[#e9ecf5]">
           <motion.div className="absolute inset-0 origin-left rounded-full bg-gradient-to-r from-[#3B82F6] to-[#8B5CF6]" style={{ scaleX: progress, opacity: trackOpacity }} />
-          <motion.span className="absolute -top-[2px] -left-[3px] h-[7px] w-[7px] rounded-full bg-[#8B5CF6] shadow-[0_0_9px_#8B5CF650]" style={{ x: dotX, opacity: trackOpacity }} />
+          <motion.span className="absolute -top-[2px] -ml-[3px] h-[7px] w-[7px] rounded-full bg-[#8B5CF6] shadow-[0_0_9px_#8B5CF650]" style={{ left: dotX, opacity: trackOpacity }} />
         </div>
       </div>
-      <div aria-hidden="true" className="absolute bottom-8 text-[9px] font-bold tracking-[.24em] text-[#778197]">TICTAC <span className="font-normal">AGENCY</span></div>
+      <div aria-hidden="true" className="tico-loader-signature">TICTAC <span>AGENCY</span></div>
     </motion.div>, document.body
   );
 }
