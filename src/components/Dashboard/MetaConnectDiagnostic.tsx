@@ -17,8 +17,7 @@ import {
   AlertCircle, 
   Image as ImageIcon, 
   ChevronDown, 
-  Trash2, 
-  Plus 
+  Trash2 
 } from 'lucide-react';
 import type { MetaConnectionState, MetaAvailableAccount as AvailableAccount, SavedMetaConnection } from '../../types';
 import { verifyMetaTokenApi, verifyMetaAccountApi, testMetaCreationApi } from '../../services/api';
@@ -70,8 +69,8 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
   onUpdateMetaState
 }) => {
   // Connection Form State
-  const [inputToken, setInputToken] = useState(metaState.userAccessToken || '');
-  const [inputAdAccountId, setInputAdAccountId] = useState(metaState.adAccountId || '');
+  const [inputToken, setInputToken] = useState('');
+  const [inputAdAccountId, setInputAdAccountId] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
@@ -263,6 +262,11 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
       setAuthError('Por favor ingresa tu Token de Acceso de Meta (System User Token o Graph API Token).');
       return;
     }
+
+    // Limpiar campos de texto al usar el botón
+    setInputToken('');
+    setInputAdAccountId('');
+    setShowPassword(false);
 
     setIsConnecting(true);
 
@@ -595,6 +599,8 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
   const handleConnectDemo = () => {
     setIsConnecting(true);
     setAuthError(null);
+    setInputToken('');
+    setInputAdAccountId('');
 
     setTimeout(() => {
       setIsConnecting(false);
@@ -959,43 +965,10 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
               Conecta tu Token de Usuario del Sistema (System User Token) de Meta Business Manager para orquestar campañas en Facebook e Instagram en estado PAUSED.
             </p>
           </div>
-
-          {metaState.isConnected && (
-            <button
-              type="button"
-              onClick={handleDisconnect}
-              className="px-3.5 py-1.5 rounded-full text-xs font-bold text-rose-600 hover:bg-rose-50 border border-rose-200 transition-colors cursor-pointer"
-            >
-              Desconectar Meta
-            </button>
-          )}
         </div>
 
         {/* Formulario de Conexión Meta Ads (Misma estructura de Google Ads) */}
         <form onSubmit={handleConnectWithToken} className="space-y-4 max-w-xl">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-slate-100">
-            <div className="flex items-center gap-2">
-              <Key className="w-4 h-4 text-blue-600" />
-              <span className="text-xs font-bold text-[#0a194f]">
-                {metaState.isConnected ? 'Agregar otro Token o Actualizar Portafolio' : 'Ingresa tu Token de Acceso de Meta'}
-              </span>
-            </div>
-            {metaState.isConnected && (
-              <button
-                type="button"
-                onClick={() => {
-                  setInputToken('');
-                  setInputAdAccountId('');
-                  setAuthError(null);
-                }}
-                className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-800 cursor-pointer self-start sm:self-auto"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Limpiar para ingresar otro token</span>
-              </button>
-            )}
-          </div>
-
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label className="block text-xs font-bold text-slate-700">
@@ -1056,14 +1029,7 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
                   <span>Verificando con Meta Graph API...</span>
                 </>
               ) : (
-                <>
-                  <Key className="w-3.5 h-3.5" />
-                  <span>
-                    {metaState.isConnected && inputToken.trim() === (metaState.userAccessToken || '').trim()
-                      ? 'Actualizar Vinculación'
-                      : '+ Vincular y Guardar Portafolio'}
-                  </span>
-                </>
+                <span>Vincular y guardar</span>
               )}
             </button>
 
