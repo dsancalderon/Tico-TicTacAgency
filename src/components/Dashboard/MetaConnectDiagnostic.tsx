@@ -98,11 +98,15 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
     }
     return [];
   });
-  const [manualAccountId, setManualAccountId] = useState('');
-  const [customPageId, setCustomPageId] = useState(metaState.pageId || '');
-  const [isVerifyingManualAccount, setIsVerifyingManualAccount] = useState(false);
-  const [manualAccountError, setManualAccountError] = useState<string | null>(null);
   const [isRefreshingAccounts, setIsRefreshingAccounts] = useState(false);
+  const [expandedConnIds, setExpandedConnIds] = useState<Record<string, boolean>>({});
+
+  const toggleConnExpanded = (connId: string, defaultOpen: boolean) => {
+    setExpandedConnIds(prev => ({
+      ...prev,
+      [connId]: prev[connId] !== undefined ? !prev[connId] : !defaultOpen
+    }));
+  };
 
   // Cache de tokens en memoria de la sesión activa (RAM) - NUNCA en disco ni en base de datos
   const sessionTokenCache = useRef<Record<string, string>>({});
@@ -445,7 +449,7 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
     const token = metaState.userAccessToken || inputToken;
     if (!token) return;
     setIsRefreshingAccounts(true);
-    setManualAccountError(null);
+    setAuthError(null);
 
     try {
       const res = await verifyMetaTokenApi(token);
@@ -487,83 +491,15 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
             ]
           });
         } else {
-          setManualAccountError('Meta aún no reporta cuentas publicitarias asignadas a este Usuario del Sistema. Asegúrate de haber hecho clic en "Asignar activos" > "Cuentas publicitarias" > "Control total" y haber guardado los cambios en Meta Business Suite.');
+          setAuthError('Meta aún no reporta cuentas publicitarias asignadas a este Usuario del Sistema. Asegúrate de haber hecho clic en "Asignar activos" > "Cuentas publicitarias" > "Control total" y haber guardado los cambios en Meta Business Suite.');
         }
       } else {
-        setManualAccountError(res.diagnostic?.error || res.error || 'No se pudo consultar las cuentas en Meta.');
+        setAuthError(res.diagnostic?.error || res.error || 'No se pudo consultar las cuentas en Meta.');
       }
     } catch (err: any) {
-      setManualAccountError(`Error al consultar Meta: ${err.message}`);
+      setAuthError(`Error al consultar Meta: ${err.message}`);
     } finally {
       setIsRefreshingAccounts(false);
-    }
-  };
-
-  // Verificar y vincular manualmente una cuenta publicitaria por su ID
-  const handleVerifyManualAccount = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    const token = metaState.userAccessToken || inputToken;
-    const accountId = manualAccountId.trim();
-    if (!accountId) {
-      setManualAccountError('Por favor ingresa el ID de tu Cuenta Publicitaria (ej: act_1234567890).');
-      return;
-    }
-    if (!token) {
-      setManualAccountError('Token no disponible para verificar la cuenta.');
-      return;
-    }
-
-    setIsVerifyingManualAccount(true);
-    setManualAccountError(null);
-
-    try {
-      const res = await verifyMetaAccountApi(accountId, token);
-      if (res.success && res.account) {
-        const acc = res.account;
-        const newAcc: AvailableAccount = {
-          id: acc.id,
-          name: acc.name,
-          businessName: acc.business?.name || 'Meta Business Suite',
-          businessId: acc.business?.id,
-          currency: acc.currency || 'USD',
-          status: acc.status === 1 ? 'ACTIVA' : (acc.statusLabel || 'EN_REVISION'),
-          pixelName: acc.pixel?.name,
-          pixelId: acc.pixel?.id,
-          pageName: acc.page?.name,
-          pageId: acc.page?.id
-        };
-
-        const existing = realAccounts.filter(a => a.id !== newAcc.id);
-        const updated = [newAcc, ...existing];
-        setRealAccounts(updated);
-        setSelectedAccountId(newAcc.id);
-        setManualAccountId('');
-
-        onUpdateMetaState({
-          ...metaState,
-          status: 'ready_to_deploy',
-          adAccountId: newAcc.id,
-          adAccountName: newAcc.name,
-          businessManagerId: newAcc.businessId || metaState.businessManagerId,
-          businessManagerName: newAcc.businessName || metaState.businessManagerName,
-          pixelId: newAcc.pixelId || metaState.pixelId,
-          pixelName: newAcc.pixelName || metaState.pixelName,
-          pageId: newAcc.pageId || metaState.pageId,
-          pageName: newAcc.pageName || metaState.pageName,
-          availableAccounts: updated,
-          diagnostics: [
-            ...metaState.diagnostics.filter(d => !d.startsWith('✅ Cuenta publicitaria') && !d.startsWith('⚠️ Sin cuentas')),
-            `✅ Cuenta publicitaria verificada en Meta: ${newAcc.name} (${newAcc.id}).`
-          ]
-        });
-      } else {
-        const err = res.error || 'No se pudo verificar la cuenta en Meta.';
-        setManualAccountError(err);
-      }
-    } catch (err: any) {
-      setManualAccountError(`Error al consultar la cuenta publicitaria: ${err.message}`);
-    } finally {
-      setIsVerifyingManualAccount(false);
     }
   };
 
@@ -652,50 +588,76 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
   };
 
   // 3. Switch Account
-  const handleSelectAccount = (acc: AvailableAccount) => {
+  const handleSelectAccount = (acc: AvailableAccount, conn?: SavedMetaConnection) => {
     setSelectedAccountId(acc.id);
-    if (metaState.isConnected) {
-      const updatedList = savedConnections.map(c => {
-        const isThisConn = (c.businessManagerId && c.businessManagerId === metaState.businessManagerId) ||
-                           (c.adAccountId && c.adAccountId === metaState.adAccountId);
-        if (isThisConn) {
-          return {
-            ...c,
-            adAccountId: acc.id,
-            adAccountName: acc.name,
-            businessManagerId: acc.businessId || c.businessManagerId,
-            businessManagerName: acc.businessName || c.businessManagerName,
-            pixelId: acc.pixelId || c.pixelId,
-            pixelName: acc.pixelName || c.pixelName,
-            pageId: acc.pageId || c.pageId,
-            pageName: acc.pageName || c.pageName
-          };
-        }
-        return c;
-      });
-      const sanitized = sanitizeSavedConnections(updatedList);
-      setSavedConnections(sanitized);
-      saveToLocalStorageSafely(sanitized);
+    const targetConnId = conn?.id || metaState.businessManagerId || metaState.adAccountId;
+    const activeToken = conn 
+      ? (sessionTokenCache.current[conn.id] || conn.token || metaState.userAccessToken || '')
+      : (metaState.userAccessToken || '');
 
-      onUpdateMetaState({
-        ...metaState,
-        status: 'ready_to_deploy',
-        adAccountId: acc.id,
-        adAccountName: acc.name,
-        businessManagerId: acc.businessId || metaState.businessManagerId,
-        businessManagerName: acc.businessName || metaState.businessManagerName,
-        pixelId: acc.pixelId || metaState.pixelId,
-        pixelName: acc.pixelName || metaState.pixelName,
-        pageId: acc.pageId || metaState.pageId,
-        pageName: acc.pageName || metaState.pageName,
-        availableAccounts: realAccounts,
-        diagnostics: [
-          ...metaState.diagnostics.filter(d => !d.startsWith('✅ Cuenta publicitaria vinculada:')),
-          `✅ Cuenta publicitaria vinculada: ${acc.name} (${acc.id}).`
-        ],
-        savedConnections: sanitized
-      });
+    if (conn && conn.id) {
+      sessionTokenCache.current[conn.id] = activeToken;
     }
+
+    const updatedList = savedConnections.map(c => {
+      const isTarget = conn 
+        ? c.id === conn.id 
+        : ((c.businessManagerId && c.businessManagerId === metaState.businessManagerId) ||
+           (c.adAccountId && c.adAccountId === metaState.adAccountId) ||
+           (c.id === targetConnId));
+      if (isTarget) {
+        return {
+          ...c,
+          adAccountId: acc.id,
+          adAccountName: acc.name,
+          businessManagerId: acc.businessId || c.businessManagerId,
+          businessManagerName: acc.businessName || c.businessManagerName,
+          pixelId: acc.pixelId || c.pixelId,
+          pixelName: acc.pixelName || c.pixelName,
+          pageId: acc.pageId || c.pageId,
+          pageName: acc.pageName || c.pageName
+        };
+      }
+      return c;
+    });
+    const sanitized = sanitizeSavedConnections(updatedList);
+    setSavedConnections(sanitized);
+    saveToLocalStorageSafely(sanitized);
+
+    const accountsToUse = conn?.availableAccounts && conn.availableAccounts.length > 0 
+      ? conn.availableAccounts 
+      : (realAccounts.length > 0 ? realAccounts : [acc]);
+
+    setRealAccounts(accountsToUse);
+
+    onUpdateMetaState({
+      ...metaState,
+      isConnected: true,
+      isRealToken: conn?.isRealToken ?? metaState.isRealToken ?? true,
+      status: 'ready_to_deploy',
+      userAccessToken: activeToken,
+      appName: conn?.appName || metaState.appName || 'Tico Performance Ads',
+      appId: conn?.appId || metaState.appId,
+      userName: conn?.userName || metaState.userName || 'Usuario Meta',
+      userId: conn?.userId || metaState.userId,
+      userType: conn?.userType || metaState.userType || 'SYSTEM_USER',
+      adAccountId: acc.id,
+      adAccountName: acc.name,
+      businessManagerId: acc.businessId || conn?.businessManagerId || metaState.businessManagerId,
+      businessManagerName: acc.businessName || conn?.businessManagerName || conn?.portfolioName || metaState.businessManagerName,
+      pixelId: acc.pixelId || conn?.pixelId || metaState.pixelId,
+      pixelName: acc.pixelName || conn?.pixelName || metaState.pixelName,
+      pageId: acc.pageId || conn?.pageId || metaState.pageId,
+      pageName: acc.pageName || conn?.pageName || metaState.pageName,
+      availableAccounts: accountsToUse,
+      permissions: conn?.permissions || metaState.permissions,
+      diagnostics: [
+        `✅ Portafolio comercial activado: ${conn?.portfolioName || acc.businessName || 'Meta Business Suite'}`,
+        `✅ Cuenta publicitaria vinculada: ${acc.name} (${acc.id}).`,
+        `✅ Conexión lista para orquestar campañas.`
+      ],
+      savedConnections: sanitized
+    });
   };
 
   // 5. Disconnect (Keeps savedConnections safe!)
@@ -728,8 +690,6 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
     });
     setRealAccounts([]);
     setSelectedAccountId('');
-    setManualAccountId('');
-    setManualAccountError(null);
     setAuthError(null);
     setInputToken('');
     setInputAdAccountId('');
@@ -738,8 +698,8 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
   // 6. Select a Saved Connection (Portafolio Comercial)
   const handleSelectSavedConnection = (conn: SavedMetaConnection) => {
     const activeToken = sessionTokenCache.current[conn.id] || conn.token || metaState.userAccessToken || '';
-    setInputToken(activeToken);
-    setInputAdAccountId(conn.adAccountId || '');
+    setInputToken('');
+    setInputAdAccountId('');
     setSelectedAccountId(conn.adAccountId || '');
 
     const accountsToUse = conn.availableAccounts && conn.availableAccounts.length > 0
@@ -758,8 +718,13 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
         }] : []);
 
     setRealAccounts(accountsToUse);
-    setCustomPageId(conn.pageId || '');
     setAuthError(null);
+
+    // Auto-expandir este portafolio al seleccionarlo
+    setExpandedConnIds(prev => ({
+      ...prev,
+      [conn.id]: true
+    }));
 
     onUpdateMetaState({
       ...metaState,
@@ -961,207 +926,11 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
           </div>
         </form>
 
-        {/* Controles de Cuentas y Prueba en Pausa (si está conectado) */}
+        {/* Permisos Oficiales Verificados (si está conectado) */}
         {metaState.isConnected && (
           <div className="pt-6 border-t border-slate-100 space-y-6">
-
-          {/* ========================================================================= */}
-          {/* CASO A: TIENE CUENTAS PUBLICITARIAS EN META                               */}
-          {/* ========================================================================= */}
-          {currentAccounts.length > 0 ? (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between text-xs font-bold text-slate-700 uppercase tracking-wider">
-                <span>Cuentas Publicitarias Disponibles en Meta ({currentAccounts.length}):</span>
-                <button
-                  type="button"
-                  onClick={handleRefreshAccounts}
-                  disabled={isRefreshingAccounts}
-                  className="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 font-semibold cursor-pointer lowercase"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${isRefreshingAccounts ? 'animate-spin' : ''}`} />
-                  <span>{isRefreshingAccounts ? 'actualizando...' : 'recargar cuentas'}</span>
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {currentAccounts.map((acc) => {
-                  const isSelected = (metaState.adAccountId || selectedAccountId) === acc.id;
-                  return (
-                    <div
-                      key={acc.id}
-                      onClick={() => handleSelectAccount(acc)}
-                      className={`p-4 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${
-                        isSelected
-                          ? 'border-blue-600 bg-blue-50/50 shadow-xs ring-2 ring-blue-600/20'
-                          : 'border-slate-200 bg-slate-50/60 hover:bg-white hover:border-slate-300'
-                      }`}
-                    >
-                      <div>
-                        <div className="flex items-center justify-between text-xs font-bold mb-1.5">
-                          <span className={`font-mono text-[10px] px-2 py-0.5 rounded ${
-                            isSelected ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-700'
-                          }`}>
-                            {acc.id}
-                          </span>
-                          <span className="text-emerald-600 text-[10px] font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                            {acc.status}
-                          </span>
-                        </div>
-                        <div className="text-xs font-bold text-slate-900 leading-snug">
-                          {acc.name}
-                        </div>
-                        <div className="text-[11px] text-slate-500 mt-1 truncate">
-                          {acc.businessName}
-                        </div>
-                      </div>
-
-                      <div className="mt-4 pt-3 border-t border-slate-200/70 flex items-center justify-between text-xs">
-                        <span className="text-slate-500 text-[11px]">Moneda: <strong>{acc.currency}</strong></span>
-                        <span className={`text-[11px] font-bold ${isSelected ? 'text-blue-700' : 'text-slate-400'}`}>
-                          {isSelected ? '✓ Seleccionada' : 'Elegir esta cuenta'}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          ) : (
-            /* ========================================================================= */
-            /* CASO B: 0 CUENTAS ASIGNADAS AL USUARIO DEL SISTEMA EN META BUSINESS SUITE */
-            /* ========================================================================= */
-            <div className="p-6 rounded-3xl bg-amber-50/80 border border-amber-200/90 space-y-5">
-              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                <div className="flex items-start gap-3.5">
-                  <div className="w-10 h-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center font-bold shadow-xs shrink-0 mt-0.5">
-                    <AlertCircle className="w-6 h-6" />
-                  </div>
-                  <div className="space-y-1">
-                    <h4 className="text-sm sm:text-base font-extrabold text-amber-950 font-['Outfit']">
-                      0 Cuentas Publicitarias Asignadas al Usuario en Meta
-                    </h4>
-                    <p className="text-xs text-amber-900/90 leading-relaxed max-w-2xl">
-                      Tu token es 100% oficial y pertenece a la App <strong>{metaState.appName || 'Tico Performance Ads'}</strong> y al Usuario <strong>{metaState.userName || 'Tico'}</strong>, pero Meta reporta que este usuario aún no tiene vinculada ninguna Cuenta Publicitaria en tu Business Suite.
-                    </p>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleRefreshAccounts}
-                  disabled={isRefreshingAccounts}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 disabled:opacity-60 text-white text-xs font-bold transition-all shadow-xs shrink-0 cursor-pointer self-start sm:self-auto"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${isRefreshingAccounts ? 'animate-spin' : ''}`} />
-                  <span>{isRefreshingAccounts ? 'Consultando Meta...' : 'Recargar Cuentas de Meta'}</span>
-                </button>
-              </div>
-
-              {/* Formulario Rápido: Vincular Directamente por ID */}
-              <div className="p-4 sm:p-5 rounded-2xl bg-white border border-amber-200/90 space-y-3 shadow-xs">
-                <div className="text-xs font-bold text-slate-800 flex items-center gap-2">
-                  <Key className="w-4 h-4 text-blue-600" />
-                  <span>Opción 1: ¿Conoces el ID de tu Cuenta Publicitaria? Ingrésalo aquí:</span>
-                </div>
-                <div className="flex flex-col sm:flex-row gap-2">
-                  <input
-                    type="text"
-                    value={manualAccountId}
-                    onChange={(e) => { setManualAccountId(e.target.value); setManualAccountError(null); }}
-                    placeholder="act_1234567890 o solo los números"
-                    className="flex-1 bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-xs font-mono text-slate-900 focus:outline-none focus:border-blue-600 focus:bg-white"
-                  />
-                  <button
-                    type="button"
-                    disabled={isVerifyingManualAccount || !manualAccountId.trim()}
-                    onClick={handleVerifyManualAccount}
-                    className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
-                  >
-                    {isVerifyingManualAccount ? (
-                      <>
-                        <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        <span>Consultando en Meta...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Check className="w-3.5 h-3.5" />
-                        <span>Verificar y Cargar Cuenta</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-                {manualAccountError && (
-                  <div className="text-[11px] text-rose-700 bg-rose-50 p-3 rounded-xl border border-rose-200 font-mono">
-                    {manualAccountError}
-                  </div>
-                )}
-              </div>
-
-              {/* Opción 2: Instrucciones para asignar en Business Suite */}
-              <div className="text-xs text-amber-950 bg-amber-100/60 p-4 rounded-2xl border border-amber-200/80 space-y-2.5">
-                <div className="font-bold flex items-center gap-1.5 text-amber-950">
-                  <ExternalLink className="w-3.5 h-3.5 text-amber-800" />
-                  <span>Opción 2: Cómo asignar la Cuenta en Meta Business Suite (3 Clics):</span>
-                </div>
-                <ol className="text-[11px] text-amber-900/95 list-decimal pl-5 space-y-1.5 leading-relaxed">
-                  <li>
-                    Abre <a href="https://business.facebook.com/settings/system-users" target="_blank" rel="noreferrer" className="underline font-bold text-blue-700 hover:text-blue-900">Meta Business Suite &gt; Configuración del Negocio &gt; Usuarios del Sistema</a> y selecciona al usuario <strong>"{metaState.userName || 'Tico'}"</strong>.
-                  </li>
-                  <li>
-                    Haz clic en el botón <strong>"Asignar activos"</strong> &gt; selecciona la pestaña <strong>"Cuentas publicitarias"</strong> (la segunda columna al lado de Apps).
-                  </li>
-                  <li>
-                    Marca tu cuenta de anuncios, activa el interruptor <strong>"Control total / Administrar campañas"</strong> y haz clic en <strong>"Guardar cambios"</strong>.
-                  </li>
-                  <li>
-                    Regresa aquí y haz clic en el botón <strong>"Recargar Cuentas de Meta"</strong> de arriba.
-                  </li>
-                </ol>
-              </div>
-            </div>
-          )}
-
-          {/* Asset Details Grid Oficial */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                Portfolio Comercial (Business Manager)
-              </span>
-              <div className="text-sm font-bold text-slate-900 truncate">
-                {metaState.businessManagerName || (metaState.businessManagerId ? `Portfolio ${metaState.businessManagerId}` : 'Meta Business Suite')}
-              </div>
-              <span className="text-[11px] font-mono text-slate-500">
-                {metaState.businessManagerId || 'Detectado desde Meta'}
-              </span>
-            </div>
-
-            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                Píxel de Seguimiento
-              </span>
-              <div className="text-sm font-bold text-slate-900 truncate">
-                {metaState.pixelName || (metaState.pixelId ? `Píxel ${metaState.pixelId}` : 'Sin píxel configurado')}
-              </div>
-              <span className="text-[11px] font-mono text-slate-500">
-                {metaState.pixelId || 'No detectado en esta cuenta'}
-              </span>
-            </div>
-
-            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                Página de Anunciante (Fanpage)
-              </span>
-              <div className="text-sm font-bold text-slate-900 truncate">
-                {metaState.pageName || (metaState.pageId ? `Página ${metaState.pageId}` : (customPageId ? `Página ${customPageId}` : 'Sin página asociada'))}
-              </div>
-              <span className="text-[11px] font-mono text-slate-500">
-                {metaState.pageId || customPageId || 'No asignada al usuario'}
-              </span>
-            </div>
-          </div>
-
-          {/* Permissions Matrix */}
-          <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+            {/* Permissions Matrix */}
+            <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
             <div className="flex items-center justify-between text-xs font-bold text-slate-700 uppercase tracking-wider">
               <span className="flex items-center gap-1.5">
                 <ShieldCheck className="w-4 h-4 text-indigo-600" />
@@ -1287,7 +1056,7 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="flex flex-col gap-4 w-full">
             {savedConnections.map((conn) => {
               const isActive = metaState.isConnected && (
                 (metaState.userAccessToken && conn.token && metaState.userAccessToken === conn.token) ||
@@ -1296,97 +1065,241 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
                 (conn.id === metaState.businessManagerId)
               );
 
+              const isExpanded = expandedConnIds[conn.id] !== undefined ? expandedConnIds[conn.id] : isActive;
+
+              const accountsForConn: AvailableAccount[] = isActive
+                ? currentAccounts
+                : (conn.availableAccounts && conn.availableAccounts.length > 0
+                    ? conn.availableAccounts
+                    : (conn.adAccountId ? [{
+                        id: conn.adAccountId,
+                        name: conn.adAccountName || 'Cuenta Publicitaria Principal',
+                        businessName: conn.businessManagerName || conn.portfolioName,
+                        businessId: conn.businessManagerId,
+                        currency: 'USD',
+                        status: 'ACTIVA',
+                        pixelName: conn.pixelName,
+                        pixelId: conn.pixelId,
+                        pageName: conn.pageName,
+                        pageId: conn.pageId
+                      }] : []));
+
+              const selectedAccId = isActive ? (metaState.adAccountId || selectedAccountId) : conn.adAccountId;
+
               return (
                 <div
                   key={conn.id}
-                  className={`p-5 rounded-2xl border transition-all flex flex-col justify-between space-y-4 ${
+                  className={`w-full rounded-2xl sm:rounded-3xl border transition-all ${
                     isActive
-                      ? 'border-blue-600 bg-blue-50/40 shadow-xs ring-2 ring-blue-600/20'
-                      : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-xs'
+                      ? 'border-blue-500 bg-white shadow-md ring-2 ring-blue-500/10'
+                      : 'border-slate-200/90 bg-white hover:border-slate-300 shadow-xs'
                   }`}
                 >
-                  {/* Encabezado de la Tarjeta del Portafolio */}
-                  <div className="space-y-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 flex-1 space-y-0.5">
-                        {/* Nombre del Portafolio Comercial Prominente */}
-                        <div>
-                          <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">
-                            Portafolio Comercial
-                          </span>
-                          <h4 
-                            className="text-sm sm:text-base font-extrabold text-[#0a194f] font-['Outfit'] leading-snug truncate" 
-                            title={conn.portfolioName}
-                          >
-                            {conn.portfolioName || 'Portafolio Comercial Meta'}
-                          </h4>
-                          {conn.businessManagerId && (
-                            <span className="text-[10px] font-mono text-slate-400 block truncate">
-                              ID BM: {conn.businessManagerId}
-                            </span>
-                          )}
-                        </div>
+                  {/* Fila Principal de la Ficha (Siempre Visible) */}
+                  <div className="p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3.5 sm:gap-4 min-w-0">
+                      <div className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 border ${
+                        isActive
+                          ? 'bg-blue-600 text-white border-blue-500 shadow-xs'
+                          : 'bg-slate-100 text-slate-600 border-slate-200'
+                      }`}>
+                        <Briefcase className="w-5 h-5" />
                       </div>
 
-                      {/* Botón de Eliminación con icono de papelera */}
+                      <div className="min-w-0 space-y-0.5">
+                        <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">
+                          Portafolio Comercial
+                        </span>
+                        <h4 className="text-base sm:text-lg font-black text-[#0a194f] font-['Outfit'] leading-tight truncate">
+                          {conn.portfolioName || conn.businessManagerName || 'Portafolio Comercial Meta'}
+                        </h4>
+                        <div className="text-xs font-mono text-slate-500 font-semibold">
+                          ID BM: {conn.businessManagerId || 'Sin ID detectado'}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Acciones del Encabezado */}
+                    <div className="flex items-center gap-2 sm:gap-3 self-end sm:self-auto shrink-0">
+                      {isActive ? (
+                        <span className="px-3.5 py-1.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1.5 shadow-2xs">
+                          <Check className="w-3.5 h-3.5 text-emerald-600 stroke-[2.5]" />
+                          <span>Activo</span>
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleSelectSavedConnection(conn)}
+                          className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-blue-600 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <Briefcase className="w-3.5 h-3.5" />
+                          <span>Usar este Portafolio</span>
+                        </button>
+                      )}
+
+                      {/* Botón Desplegable */}
+                      <button
+                        type="button"
+                        onClick={() => toggleConnExpanded(conn.id, isActive)}
+                        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 transition-all cursor-pointer"
+                        title={isExpanded ? 'Ocultar detalles' : 'Ver cuentas y detalles'}
+                      >
+                        <span className="text-xs">{isExpanded ? 'Menos detalles' : 'Ver cuentas y detalles'}</span>
+                        <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
+                      </button>
+
+                      {/* Botón Borrar */}
                       <button
                         type="button"
                         onClick={(e) => handleDeleteSavedConnection(conn.id, e)}
                         title="Eliminar este portafolio de guardados"
-                        className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-all cursor-pointer shrink-0"
+                        className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-all cursor-pointer"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
+                  </div>
 
-                    {/* Metadata de la Conexión */}
-                    <div className="pt-2 border-t border-slate-100 space-y-1.5 text-xs">
-                      <div className="flex items-center justify-between text-slate-700">
-                        <span className="text-slate-400 text-[11px]">Cuenta Publicitaria:</span>
-                        <span className="font-bold font-mono text-[11px] truncate max-w-[200px]" title={conn.adAccountName || conn.adAccountId}>
-                          {conn.adAccountName ? `${conn.adAccountName} (${conn.adAccountId})` : (conn.adAccountId || 'No asignada')}
-                        </span>
+                  {/* Contenido Desplegable (Cuentas Publicitarias + Activos + Detalles) */}
+                  {isExpanded && (
+                    <div className="border-t border-slate-100 p-5 sm:p-6 bg-slate-50/60 rounded-b-2xl sm:rounded-b-3xl space-y-5">
+                      {/* Cuentas Publicitarias Disponibles en Meta */}
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between text-xs font-bold text-slate-700 uppercase tracking-wider">
+                          <span>Cuentas Publicitarias Disponibles en Meta ({accountsForConn.length}):</span>
+                          {isActive && (
+                            <button
+                              type="button"
+                              onClick={handleRefreshAccounts}
+                              disabled={isRefreshingAccounts}
+                              className="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 font-semibold cursor-pointer lowercase"
+                            >
+                              <RefreshCw className={`w-3.5 h-3.5 ${isRefreshingAccounts ? 'animate-spin' : ''}`} />
+                              <span>{isRefreshingAccounts ? 'actualizando...' : 'recargar cuentas'}</span>
+                            </button>
+                          )}
+                        </div>
+
+                        {accountsForConn.length > 0 ? (
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            {accountsForConn.map((acc) => {
+                              const isSelected = selectedAccId === acc.id;
+                              return (
+                                <div
+                                  key={acc.id}
+                                  onClick={() => handleSelectAccount(acc, conn)}
+                                  className={`p-4 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${
+                                    isSelected
+                                      ? 'border-blue-600 bg-blue-50/50 shadow-xs ring-2 ring-blue-600/20'
+                                      : 'border-slate-200 bg-white hover:border-slate-300'
+                                  }`}
+                                >
+                                  <div>
+                                    <div className="flex items-center justify-between text-xs font-bold mb-1.5">
+                                      <span className={`font-mono text-[10px] px-2 py-0.5 rounded ${
+                                        isSelected ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700'
+                                      }`}>
+                                        {acc.id}
+                                      </span>
+                                      <span className="text-emerald-600 text-[10px] font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                                        {acc.status}
+                                      </span>
+                                    </div>
+                                    <div className="text-xs font-bold text-slate-900 leading-snug">
+                                      {acc.name}
+                                    </div>
+                                    <div className="text-[11px] text-slate-500 mt-1 truncate">
+                                      {acc.businessName || conn.portfolioName}
+                                    </div>
+                                  </div>
+
+                                  <div className="mt-3.5 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs">
+                                    <span className="text-slate-500 text-[11px]">Moneda: <strong>{acc.currency}</strong></span>
+                                    <span className={`text-[11px] font-bold ${isSelected ? 'text-blue-700' : 'text-slate-400'}`}>
+                                      {isSelected ? '✓ Seleccionada' : 'Elegir esta cuenta'}
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900">
+                            0 cuentas publicitarias asignadas directamente a este portafolio en Meta Business Suite.
+                          </div>
+                        )}
                       </div>
 
-                      {conn.appName && (
-                        <div className="flex items-center justify-between text-slate-700">
-                          <span className="text-slate-400 text-[11px]">App Meta:</span>
-                          <span className="font-medium text-[11px] truncate max-w-[200px]">{conn.appName}</span>
+                      {/* Grid de Activos: Píxel, Fanpage y Detalles del Token */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div className="p-3.5 rounded-2xl bg-white border border-slate-200">
+                          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                            Píxel de Seguimiento
+                          </span>
+                          <div className="text-xs font-bold text-slate-900 truncate">
+                            {conn.pixelName || (conn.pixelId ? `Píxel ${conn.pixelId}` : 'Sin píxel configurado')}
+                          </div>
+                          <span className="text-[10px] font-mono text-slate-500">
+                            {conn.pixelId || 'No detectado en esta cuenta'}
+                          </span>
                         </div>
-                      )}
 
-                      {conn.userName && (
-                        <div className="flex items-center justify-between text-slate-700">
-                          <span className="text-slate-400 text-[11px]">Usuario del Sistema:</span>
-                          <span className="font-medium text-[11px] truncate max-w-[200px]">{conn.userName}</span>
+                        <div className="p-3.5 rounded-2xl bg-white border border-slate-200">
+                          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                            Página de Anunciante (Fanpage)
+                          </span>
+                          <div className="text-xs font-bold text-slate-900 truncate">
+                            {conn.pageName || (conn.pageId ? `Página ${conn.pageId}` : 'Sin página asociada')}
+                          </div>
+                          <span className="text-[10px] font-mono text-slate-500">
+                            {conn.pageId || 'No asignada al usuario'}
+                          </span>
                         </div>
-                      )}
 
-                      <div className="flex items-center justify-between text-slate-500 pt-0.5">
-                        <span className="text-[10px] text-slate-400">Vinculado el:</span>
-                        <span className="text-[10px] font-mono text-slate-400">{conn.connectedAt}</span>
+                        <div className="p-3.5 rounded-2xl bg-white border border-slate-200">
+                          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                            Usuario del Sistema
+                          </span>
+                          <div className="text-xs font-bold text-slate-900 truncate">
+                            {conn.userName || 'Usuario Meta'} ({conn.userType || 'SYSTEM_USER'})
+                          </div>
+                          <span className="text-[10px] text-slate-400">
+                            Vinculado el: <span className="font-mono">{conn.connectedAt}</span>
+                          </span>
+                        </div>
                       </div>
+
+                      {/* Permisos Oficiales del Portafolio */}
+                      {conn.permissions && (
+                        <div className="pt-2 border-t border-slate-200/60 flex flex-wrap items-center justify-between gap-3 text-xs">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Permisos:</span>
+                            <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-semibold ${
+                              conn.permissions.adsManagement ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-500'
+                            }`}>
+                              <Check className="w-3 h-3" /> ads_management
+                            </span>
+                            <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-semibold ${
+                              conn.permissions.pagesReadEngagement ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-500'
+                            }`}>
+                              <Check className="w-3 h-3" /> pages_read_engagement
+                            </span>
+                            <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[10px] font-semibold ${
+                              conn.permissions.businessManagement ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-500'
+                            }`}>
+                              <Check className="w-3 h-3" /> business_management
+                            </span>
+                          </div>
+
+                          {conn.appName && (
+                            <span className="text-[11px] text-slate-500">
+                              App en Meta: <strong className="text-slate-700">{conn.appName}</strong>
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
-                  </div>
-
-                  {/* Acciones: Activo o Seleccionar */}
-                  <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2.5">
-                    {isActive ? (
-                      <div className="text-[11px] font-bold text-emerald-700 flex items-center gap-1.5 py-1">
-                        <Check className="w-3.5 h-3.5 text-emerald-600" />
-                        <span>Portafolio activo para orquestar pauta</span>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => handleSelectSavedConnection(conn)}
-                        className="w-full py-2 px-3 rounded-xl bg-slate-900 hover:bg-blue-600 text-white text-xs font-bold transition-all shadow-2xs flex items-center justify-center gap-1.5 cursor-pointer"
-                      >
-                        <Briefcase className="w-3.5 h-3.5" />
-                        <span>Usar este Portafolio</span>
-                      </button>
-                    )}
-                  </div>
+                  )}
                 </div>
               );
             })}
