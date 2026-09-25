@@ -5,8 +5,6 @@ import {
   Zap, 
   Check, 
   Key, 
-  Play, 
-  XCircle, 
   BookOpen, 
   ExternalLink, 
   Copy, 
@@ -15,12 +13,11 @@ import {
   Info, 
   RefreshCw, 
   AlertCircle, 
-  Image as ImageIcon, 
   ChevronDown, 
   Trash2 
 } from 'lucide-react';
 import type { MetaConnectionState, MetaAvailableAccount as AvailableAccount, SavedMetaConnection } from '../../types';
-import { verifyMetaTokenApi, verifyMetaAccountApi, testMetaCreationApi } from '../../services/api';
+import { verifyMetaTokenApi, verifyMetaAccountApi } from '../../services/api';
 import { MetaBrandLogo } from '../BrandLogos';
 
 const LOCAL_STORAGE_SAVED_CONNECTIONS_KEY = 'tico_saved_meta_connections';
@@ -106,12 +103,6 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
   const [isVerifyingManualAccount, setIsVerifyingManualAccount] = useState(false);
   const [manualAccountError, setManualAccountError] = useState<string | null>(null);
   const [isRefreshingAccounts, setIsRefreshingAccounts] = useState(false);
-  const [isTestingCreation, setIsTestingCreation] = useState(false);
-  const [testResult, setTestResult] = useState<{
-    status: 'idle' | 'success' | 'error';
-    message: string;
-    details?: any;
-  }>({ status: 'idle', message: '' });
 
   // Cache de tokens en memoria de la sesión activa (RAM) - NUNCA en disco ni en base de datos
   const sessionTokenCache = useRef<Record<string, string>>({});
@@ -399,11 +390,6 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
             ],
             savedConnections: sanitizedSaved
           });
-
-          setTestResult({
-            status: 'success',
-            message: `¡Conexión oficial con Meta completada con éxito! Portafolio comercial "${portfolioName}" y cuenta publicitaria "${chosenAcc.name}" vinculados.`
-          });
         } else {
           // Token válido pero sin cuenta asignada todavía
           setSelectedAccountId('');
@@ -441,11 +427,6 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
               `⚠️ Sin cuentas publicitarias asignadas directamente al Usuario del Sistema en Meta Business Suite.`
             ],
             savedConnections: sanitizedSaved
-          });
-
-          setTestResult({
-            status: 'idle',
-            message: `Token oficial verificado con éxito para el portafolio "${portfolioName}". Para crear campañas, asigna tu cuenta publicitaria en Meta Business Suite o ingresa su ID abajo.`
           });
         }
       } else {
@@ -504,10 +485,6 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
               ...metaState.diagnostics.filter(d => !d.startsWith('✅ Cuenta publicitaria vinculada:') && !d.startsWith('⚠️ Sin cuentas')),
               `✅ Cuenta publicitaria oficial vinculada: ${chosen.name} (${chosen.id}).`
             ]
-          });
-          setTestResult({
-            status: 'success',
-            message: `¡Se sincronizaron ${userAccounts.length} cuenta(s) oficiales de Meta con éxito! Cuenta activa: ${chosen.name}.`
           });
         } else {
           setManualAccountError('Meta aún no reporta cuentas publicitarias asignadas a este Usuario del Sistema. Asegúrate de haber hecho clic en "Asignar activos" > "Cuentas publicitarias" > "Control total" y haber guardado los cambios en Meta Business Suite.');
@@ -578,11 +555,6 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
             ...metaState.diagnostics.filter(d => !d.startsWith('✅ Cuenta publicitaria') && !d.startsWith('⚠️ Sin cuentas')),
             `✅ Cuenta publicitaria verificada en Meta: ${newAcc.name} (${newAcc.id}).`
           ]
-        });
-
-        setTestResult({
-          status: 'success',
-          message: `¡Cuenta publicitaria ${newAcc.name} (${newAcc.id}) verificada y vinculada en Meta con éxito!`
         });
       } else {
         const err = res.error || 'No se pudo verificar la cuenta en Meta.';
@@ -676,11 +648,6 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
         ],
         savedConnections: sanitizedSaved
       });
-
-      setTestResult({
-        status: 'success',
-        message: `¡Modo demostrativo activado con portafolio "${demoPortfolioName}"! Puedes probar la creación de campañas en PAUSED.`
-      });
     }, 600);
   };
 
@@ -731,55 +698,6 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
     }
   };
 
-  // 4. Test Creation in PAUSED (0 consumo de IA, activos predeterminados)
-  const handleTestCreation = async () => {
-    const targetAccId = metaState.adAccountId || selectedAccountId;
-    if (!targetAccId) {
-      setTestResult({
-        status: 'error',
-        message: 'No hay ninguna cuenta publicitaria seleccionada para realizar la prueba.'
-      });
-      return;
-    }
-
-    setIsTestingCreation(true);
-    setTestResult({
-      status: 'idle',
-      message: 'Enviando petición oficial a Meta Marketing API (status: PAUSED)...'
-    });
-
-    try {
-      const pageToUse = customPageId.trim() || metaState.pageId;
-      const result = await testMetaCreationApi(
-        targetAccId,
-        metaState.userAccessToken,
-        'TicTac Performance',
-        pageToUse
-      );
-
-      if (result.success) {
-        setTestResult({
-          status: 'success',
-          message: result.message || `¡Campaña de prueba orquestada con éxito en Meta! ID de Campaña: ${result.campaignId}. Estado oficial: PAUSED (No genera gasto sin aprobación manual).`,
-          details: result
-        });
-      } else {
-        setTestResult({
-          status: 'error',
-          message: `Respuesta de Meta: ${result.error || result.message}`,
-          details: result.rawError || result.steps
-        });
-      }
-    } catch (err: any) {
-      setTestResult({
-        status: 'error',
-        message: `Error al probar creación en Meta: ${err.message}`
-      });
-    } finally {
-      setIsTestingCreation(false);
-    }
-  };
-
   // 5. Disconnect (Keeps savedConnections safe!)
   const handleDisconnect = () => {
     onUpdateMetaState({
@@ -812,7 +730,6 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
     setSelectedAccountId('');
     setManualAccountId('');
     setManualAccountError(null);
-    setTestResult({ status: 'idle', message: '' });
     setAuthError(null);
     setInputToken('');
     setInputAdAccountId('');
@@ -842,7 +759,6 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
 
     setRealAccounts(accountsToUse);
     setCustomPageId(conn.pageId || '');
-    setTestResult({ status: 'idle', message: '' });
     setAuthError(null);
 
     onUpdateMetaState({
@@ -1241,294 +1157,6 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
               <span className="text-[11px] font-mono text-slate-500">
                 {metaState.pageId || customPageId || 'No asignada al usuario'}
               </span>
-            </div>
-          </div>
-
-          {/* ========================================================================= */}
-          {/* SECCIÓN DEDICADA: PRUEBA DE CONEXIÓN CON PUBLICIDAD PREDETERMINADA        */}
-          {/* ========================================================================= */}
-          <div className="p-6 sm:p-8 rounded-3xl bg-slate-50/90 border border-slate-200 space-y-6 shadow-xs">
-            {/* Header de la sección de prueba */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 border-b border-slate-200">
-              <div className="space-y-1">
-                <div className="flex flex-wrap items-center gap-2 mb-1">
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-bold border border-emerald-200">
-                    <Zap className="w-3.5 h-3.5 text-emerald-600" />
-                    0 Consumo de IA • Activos Predeterminados
-                  </span>
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 text-[11px] font-bold border border-blue-200">
-                    Objetivo: Tráfico Web (PAUSED)
-                  </span>
-                </div>
-                <h3 className="text-lg sm:text-xl font-extrabold text-[#0a194f] font-['Outfit'] flex items-center gap-2">
-                  <Play className="w-5 h-5 text-emerald-600" />
-                  <span>Prueba Oficial de Conexión y Despliegue en Pausa</span>
-                </h3>
-                <p className="text-xs sm:text-sm text-[#0a194f]/80 max-w-2xl">
-                  Prueba la comunicación con Meta Graph API creando una campaña en estado <code>PAUSED</code> con copies, segmentación y creativo de muestra. <strong>Esta prueba no llama a ningún modelo de IA para no generar costos por consumo.</strong>
-                </p>
-              </div>
-
-              <button
-                type="button"
-                disabled={isTestingCreation || !metaState.adAccountId}
-                onClick={handleTestCreation}
-                className={`px-6 py-3.5 rounded-2xl text-xs sm:text-sm font-bold transition-all shadow-md flex items-center justify-center gap-2 shrink-0 cursor-pointer ${
-                  metaState.adAccountId
-                    ? 'bg-slate-950 hover:bg-slate-800 text-white'
-                    : 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                }`}
-              >
-                {isTestingCreation ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    <span>Orquestando en Meta...</span>
-                  </>
-                ) : (
-                  <>
-                    <Play className="w-4 h-4 text-emerald-400" />
-                    <span>Ejecutar Prueba en Pausa (PAUSED)</span>
-                  </>
-                )}
-              </button>
-            </div>
-
-            {/* Banner de Feedback del Resultado de la Prueba */}
-            {testResult.message && (
-              <div className={`p-5 sm:p-6 rounded-2xl border space-y-4 ${
-                testResult.status === 'success'
-                  ? 'bg-emerald-50/90 border-emerald-300 text-emerald-950 shadow-xs'
-                  : testResult.status === 'error'
-                  ? 'bg-rose-50/90 border-rose-300 text-rose-950 shadow-xs'
-                  : 'bg-blue-50/90 border-blue-300 text-blue-950'
-              }`}>
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div className="flex items-start gap-3">
-                    {testResult.status === 'success' && (
-                      <div className="w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-                        <CheckCircle2 className="w-6 h-6" />
-                      </div>
-                    )}
-                    {testResult.status === 'error' && (
-                      <div className="w-10 h-10 rounded-2xl bg-rose-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-                        <XCircle className="w-6 h-6" />
-                      </div>
-                    )}
-                    {testResult.status === 'idle' && (
-                      <div className="w-10 h-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-                        <Zap className="w-6 h-6" />
-                      </div>
-                    )}
-                    <div>
-                      <strong className="text-sm sm:text-base font-extrabold font-['Outfit'] block">
-                        {testResult.status === 'success' ? '¡Conexión Oficial con Meta Ads Certificada!' : (testResult.status === 'error' ? 'Resultado de la Prueba en Meta:' : 'Validando con Meta Marketing API')}
-                      </strong>
-                      <p className="text-xs sm:text-sm mt-0.5 leading-relaxed">
-                        {testResult.message}
-                      </p>
-                    </div>
-                  </div>
-
-                  {testResult.status === 'success' && testResult.details?.adsManagerUrl && (
-                    <a
-                      href={testResult.details.adsManagerUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold shadow-xs transition-colors shrink-0 self-start sm:self-auto cursor-pointer"
-                    >
-                      <span>Abrir en Meta Ads Manager</span>
-                      <ExternalLink className="w-3.5 h-3.5" />
-                    </a>
-                  )}
-                </div>
-
-                {/* Detalle de IDs generados en Meta */}
-                {testResult.status === 'success' && (
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 text-xs">
-                    {testResult.details?.campaignId && (
-                      <div className="p-3 bg-white rounded-xl border border-emerald-200 shadow-2xs">
-                        <span className="text-[10px] uppercase font-bold text-slate-500 block">ID Campaña Meta (PAUSED)</span>
-                        <span className="font-mono font-bold text-slate-900 break-all">{testResult.details.campaignId}</span>
-                      </div>
-                    )}
-                    {testResult.details?.adsetId && (
-                      <div className="p-3 bg-white rounded-xl border border-emerald-200 shadow-2xs">
-                        <span className="text-[10px] uppercase font-bold text-slate-500 block">ID Conjunto de Anuncios</span>
-                        <span className="font-mono font-bold text-slate-900 break-all">{testResult.details.adsetId}</span>
-                      </div>
-                    )}
-                    {testResult.details?.adId ? (
-                      <div className="p-3 bg-white rounded-xl border border-emerald-200 shadow-2xs">
-                        <span className="text-[10px] uppercase font-bold text-slate-500 block">ID Anuncio & Creativo</span>
-                        <span className="font-mono font-bold text-slate-900 break-all">{testResult.details.adId}</span>
-                      </div>
-                    ) : (
-                      <div className="p-3 bg-amber-50 rounded-xl border border-amber-200">
-                        <span className="text-[10px] uppercase font-bold text-amber-800 block">Anuncio Visual</span>
-                        <span className="text-[11px] text-amber-900 leading-tight block">
-                          Campaña y Conjunto listos. Para anuncio visual, asigna tu Fanpage en Business Suite.
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {testResult.status === 'error' && testResult.details && (
-                  <div className="p-3 bg-white/95 rounded-xl border border-rose-200 overflow-x-auto text-[11px] font-mono text-slate-700">
-                    <pre>{JSON.stringify(testResult.details, null, 2)}</pre>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Parámetros & Mock Visual del Anuncio */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-              {/* Columna Izquierda: Parámetros Técnicos (7 cols) */}
-              <div className="lg:col-span-7 space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="p-3.5 rounded-2xl bg-white border border-slate-200 space-y-1 shadow-2xs">
-                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
-                      Segmentación Base
-                    </span>
-                    <div className="text-xs font-bold text-slate-800">
-                      Edades 18 - 65 años
-                    </div>
-                    <span className="text-[11px] text-slate-500 block">
-                      Geolocalización: País de la cuenta publicitaria
-                    </span>
-                  </div>
-
-                  <div className="p-3.5 rounded-2xl bg-white border border-slate-200 space-y-1 shadow-2xs">
-                    <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
-                      Presupuesto & Estado
-                    </span>
-                    <div className="text-xs font-bold text-emerald-700">
-                      Mínimo Diario • 100% PAUSED
-                    </div>
-                    <span className="text-[11px] text-slate-500 block">
-                      0 gasto real sin aprobación manual en Ads Manager
-                    </span>
-                  </div>
-                </div>
-
-                {/* Copies predeterminados */}
-                <div className="p-4 rounded-2xl bg-white border border-slate-200 space-y-2.5 text-xs shadow-2xs">
-                  <div className="font-bold text-slate-800 flex items-center justify-between pb-1 border-b border-slate-100">
-                    <span className="flex items-center gap-1.5">
-                      <BookOpen className="w-4 h-4 text-blue-600" />
-                      <span>Copies & Textos Predeterminados (Sin IA):</span>
-                    </span>
-                    <span className="text-[10px] font-mono text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                      Estáticos
-                    </span>
-                  </div>
-                  <div className="space-y-2 text-[11px]">
-                    <div>
-                      <span className="text-slate-500 font-semibold block mb-0.5">Título (Headline):</span>
-                      <p className="font-bold text-slate-800 bg-slate-50 p-2 rounded-xl border border-slate-100">
-                        TICO Performance | Automatización & Pauta Digital
-                      </p>
-                    </div>
-                    <div>
-                      <span className="text-slate-500 font-semibold block mb-0.5">Texto Principal (Primary Copy):</span>
-                      <p className="font-normal text-slate-700 bg-slate-50 p-2 rounded-xl border border-slate-100 leading-relaxed">
-                        🚀 Impulsa el crecimiento de tu marca con estrategias de alto rendimiento. Campaña de prueba generada automáticamente por TICO Performance para verificar la integración oficial con Meta Marketing API.
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-3 text-slate-600 pt-1">
-                      <span><strong>CTA:</strong> Más información (LEARN_MORE)</span>
-                      <span>•</span>
-                      <span><strong>Destino:</strong> https://tictacagency.co</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Fanpage Helper */}
-                {(!metaState.pageId && !customPageId) ? (
-                  <div className="p-4 rounded-2xl bg-amber-50/80 border border-amber-200/90 text-xs space-y-2 shadow-2xs">
-                    <div className="flex items-center gap-1.5 font-bold text-amber-900 text-xs">
-                      <AlertCircle className="w-4 h-4 text-amber-600" />
-                      <span>¿Tienes el ID de tu Fanpage de Facebook? (Opcional)</span>
-                    </div>
-                    <p className="text-[11px] text-amber-900 leading-relaxed">
-                      Si lo tienes a mano, puedes ingresarlo aquí para asociarlo al creativo. Si lo dejas vacío, la prueba creará exitosamente la <strong>Campaña y Conjunto de Anuncios</strong> en PAUSED certificando la conectividad de la cuenta.
-                    </p>
-                    <div className="flex gap-2 pt-1">
-                      <input
-                        type="text"
-                        value={customPageId}
-                        onChange={(e) => setCustomPageId(e.target.value)}
-                        placeholder="Ej: 109283748291029 (ID de Fanpage de Facebook)"
-                        className="flex-1 bg-white border border-amber-300 rounded-xl px-3.5 py-2 text-xs font-mono text-slate-900 focus:outline-none focus:border-blue-600"
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 flex items-center justify-between shadow-2xs">
-                    <span className="font-semibold">
-                      Página lista para el anuncio: <strong>{customPageId || metaState.pageName || metaState.pageId}</strong>
-                    </span>
-                    {customPageId && (
-                      <button
-                        type="button"
-                        onClick={() => setCustomPageId('')}
-                        className="text-[11px] text-slate-500 hover:text-slate-900 underline cursor-pointer"
-                      >
-                        Cambiar
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Columna Derecha: Mock Visual del Anuncio (5 cols) */}
-              <div className="lg:col-span-5 bg-white border border-slate-200/90 rounded-3xl p-5 space-y-3.5 shadow-sm">
-                <div className="flex items-center justify-between text-xs pb-2.5 border-b border-slate-100">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold shadow-xs">
-                      T
-                    </div>
-                    <div>
-                      <div className="text-xs font-bold text-slate-900 leading-tight">
-                        TicTac Performance
-                      </div>
-                      <div className="text-[10px] text-slate-400">Publicidad • Prueba en Pausa</div>
-                    </div>
-                  </div>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 font-mono text-slate-600 font-semibold border border-slate-200">
-                    PAUSED
-                  </span>
-                </div>
-
-                <p className="text-xs text-slate-700 leading-relaxed line-clamp-3">
-                  🚀 Impulsa el crecimiento de tu marca con estrategias de alto rendimiento. Campaña de prueba generada automáticamente por TICO Performance para verificar la integración...
-                </p>
-
-                {/* Creativo de imagen de ejemplo */}
-                <div className="relative rounded-2xl overflow-hidden border border-slate-200 aspect-[16/9] bg-slate-900 shadow-xs">
-                  <img
-                    src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=1200&auto=format&fit=crop&q=80"
-                    alt="Creativo de prueba publicitaria"
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute top-2.5 left-2.5 px-2.5 py-1 rounded-lg bg-black/60 text-white text-[10px] font-mono backdrop-blur-xs flex items-center gap-1.5">
-                    <ImageIcon className="w-3 h-3 text-emerald-400" />
-                    <span>Creativo de Muestra</span>
-                  </div>
-                </div>
-
-                <div className="pt-1 flex items-center justify-between gap-2">
-                  <div className="text-xs truncate flex-1">
-                    <span className="text-[10px] text-slate-400 block uppercase font-bold tracking-wider">TICTACAGENCY.CO</span>
-                    <strong className="text-slate-900 font-bold block truncate text-xs">
-                      TICO Performance | Automatización
-                    </strong>
-                  </div>
-                  <span className="px-3.5 py-1.5 rounded-xl bg-slate-100 border border-slate-300 text-slate-800 text-xs font-bold shrink-0">
-                    Más información
-                  </span>
-                </div>
-              </div>
             </div>
           </div>
 
