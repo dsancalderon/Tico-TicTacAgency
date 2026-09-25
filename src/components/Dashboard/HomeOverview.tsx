@@ -1,4 +1,5 @@
 import React from 'react';
+import { TicoConnectionNetwork } from './TicoConnectionNetwork';
 import type { 
   UserSession, 
   MetaConnectionState, 
@@ -152,9 +153,9 @@ export const HomeOverview: React.FC<HomeOverviewProps> = ({
           </svg>
         </div>
 
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-2">
-            <h1 className="text-2xl sm:text-3xl font-normal tracking-tight font-['Outfit'] text-white">
+        <div className="relative z-10 tico-welcome-layout">
+          <div className="space-y-2 min-w-0">
+            <h1 className="text-2xl sm:text-3xl break-words font-normal tracking-tight font-['Outfit'] text-white">
               Hola, {userSession.name}
             </h1>
             <p className="text-blue-100/80 text-xs sm:text-sm max-w-xl leading-relaxed">
@@ -162,42 +163,7 @@ export const HomeOverview: React.FC<HomeOverviewProps> = ({
             </p>
           </div>
 
-          {/* Quick Metrics Header Pill */}
-          <div className="flex flex-wrap items-center gap-3">
-            {/* Meta Status */}
-            <div className="px-4 py-2.5 rounded-2xl bg-[#0b2158]/75 border border-blue-400/25 backdrop-blur-md shadow-lg shadow-black/10 min-w-[140px]">
-              <div className="flex items-center gap-1.5 mb-1.5">
-                <MetaBrandLogo className="w-3.5 h-3.5 shrink-0" />
-                <span className="text-[10px] text-sky-300 font-bold uppercase tracking-wider">Meta Ads API</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className={`w-2.5 h-2.5 rounded-full ${
-                  metaState.status === 'ready_to_deploy' ? 'bg-[#00d26a] shadow-[0_0_8px_rgba(0,210,106,0.6)]' :
-                  metaState.status === 'connected_needs_perms' ? 'bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.6)]' : 'bg-slate-400'
-                }`} />
-                <span className="text-xs sm:text-sm font-bold text-white tracking-tight">
-                  {metaState.status === 'ready_to_deploy' ? 'Listo' :
-                   metaState.status === 'connected_needs_perms' ? 'Requiere permisos' : 'Desconectado'}
-                </span>
-              </div>
-            </div>
-
-            {/* Google Status */}
-            <div className="px-4 py-2.5 rounded-2xl bg-[#0b2158]/75 border border-blue-400/25 backdrop-blur-md shadow-lg shadow-black/10 min-w-[130px]">
-              <div className="flex items-center gap-1.5 mb-1.5">
-                <GoogleAdsBrandLogo className="w-3.5 h-3.5 shrink-0" />
-                <span className="text-[10px] text-sky-300 font-bold uppercase tracking-wider">Google Ads</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className={`w-2.5 h-2.5 rounded-full ${
-                  googleState?.isConnected ? 'bg-[#00d26a] shadow-[0_0_8px_rgba(0,210,106,0.6)]' : 'bg-slate-400'
-                }`} />
-                <span className="text-xs sm:text-sm font-bold text-white tracking-tight">
-                  {googleState?.isConnected ? 'Conectado' : 'Pendiente'}
-                </span>
-              </div>
-            </div>
-          </div>
+          <TicoConnectionNetwork metaState={metaState} googleState={googleState} onOpenConnections={() => onNavigateTab('connections')} />
         </div>
       </div>
 
@@ -446,3 +412,4 @@ export const HomeOverview: React.FC<HomeOverviewProps> = ({
     </div>
   );
 };
+
