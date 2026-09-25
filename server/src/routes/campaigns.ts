@@ -46,13 +46,12 @@ campaignsRouter.post('/generate-meta-builder', async (req: Request, res: Respons
 
 // Endpoint diagnóstico para verificar el estado de la clave de Gemini en el servidor
 campaignsRouter.get('/gemini-status', (_req: Request, res: Response) => {
-  const key = (process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || '').trim();
+  const key = (process.env.GEMINI_API_KEY || '').trim();
   const configured = Boolean(key && !key.includes('your_'));
   return res.json({
     configured,
     provider: 'Google AI Studio',
-    model: 'gemini-3.6-flash',
-    prefix: configured ? `${key.slice(0, 4)}...${key.slice(-3)}` : null
+    model: 'gemini-3.6-flash'
   });
 });
 

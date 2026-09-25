@@ -20,8 +20,8 @@ function isTestEnvironment(): boolean {
 }
 
 export async function generateStrategyFromBrief(brief: StrategyRequest) {
-  const apiKey = (process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || '').trim();
-  console.log('[TICO-AI] Generando estrategia para:', brief.brandName, '| GEMINI_API_KEY:', apiKey ? `Detectada (${apiKey.slice(0, 5)}...)` : 'NO configurada');
+  const apiKey = (process.env.GEMINI_API_KEY || '').trim();
+  console.log('[TICO-AI] Generando estrategia para:', brief.brandName, '| GEMINI_API_KEY:', apiKey ? 'Configurada' : 'NO configurada');
   const includeMeta = brief.preferredPlatforms === 'meta' || brief.preferredPlatforms === 'both';
   const includeGoogle = brief.preferredPlatforms === 'google' || brief.preferredPlatforms === 'both';
 
@@ -229,7 +229,7 @@ Debes responder ÚNICAMENTE un objeto JSON válido con las siguientes propiedade
  * Formula sugerencias estratégicas con IA (Gemini 3.6 Flash) para los bloques delegados en MetaAdBuilder
  */
 export async function generateMetaBuilderStrategy(payload: any) {
-  const apiKey = (process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || '').trim();
+  const apiKey = (process.env.GEMINI_API_KEY || '').trim();
   const brandName = payload.brandName || 'Marca';
   const mode = payload.mode || 'full_campaign';
   const websiteUrl = payload.websiteUrl || '';
@@ -237,7 +237,7 @@ export async function generateMetaBuilderStrategy(payload: any) {
   const targetAudience = payload.targetAudience || '';
   const additionalNotes = payload.additionalNotes || '';
 
-  console.log('[TICO-AI] Procesando estrategia unificada de Meta Ads para:', brandName, '| Industria:', industry || 'N/A', '| Modo:', mode, '| Clave:', apiKey ? `Detectada (${apiKey.slice(0, 5)}...)` : 'NO configurada');
+  console.log('[TICO-AI] Procesando estrategia unificada de Meta Ads para:', brandName, '| Industria:', industry || 'N/A', '| Modo:', mode, '| Clave:', apiKey ? 'Configurada' : 'NO configurada');
 
   // Fallback determinista si no hay clave de Gemini
   const generateFallback = () => {

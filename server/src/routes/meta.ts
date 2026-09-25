@@ -14,11 +14,11 @@ export const metaRouter = Router();
 // Endpoint para verificar un token de acceso real de Meta Graph API
 metaRouter.post('/verify-token', async (req: Request, res: Response) => {
   try {
-    const token = req.body.token || process.env.META_ACCESS_TOKEN;
+    const token = req.body.token;
     if (!token) {
       return res.status(400).json({
         success: false,
-        error: 'No se suministró ningún Access Token de Meta y no está configurado en .env.'
+        error: 'No se suministró ningún Access Token de Meta.'
       });
     }
 
@@ -36,8 +36,8 @@ metaRouter.post('/verify-token', async (req: Request, res: Response) => {
 // Endpoint para verificar una cuenta publicitaria específica
 metaRouter.post('/verify-account', async (req: Request, res: Response) => {
   try {
-    const token = req.body.token || process.env.META_ACCESS_TOKEN;
-    const adAccountId = req.body.adAccountId || process.env.META_AD_ACCOUNT_ID;
+    const token = req.body.token;
+    const adAccountId = req.body.adAccountId;
 
     if (!token) {
       return res.status(400).json({ success: false, error: 'Token de acceso no proporcionado.' });
@@ -57,8 +57,14 @@ metaRouter.post('/verify-account', async (req: Request, res: Response) => {
 // Endpoint para listar campañas existentes de una cuenta publicitaria
 metaRouter.post('/campaigns-list', async (req: Request, res: Response) => {
   try {
-    const token = req.body.token || process.env.META_ACCESS_TOKEN;
-    const adAccountId = req.body.adAccountId || process.env.META_AD_ACCOUNT_ID;
+    const token = req.body.token;
+    const adAccountId = req.body.adAccountId;
+    if (!token) {
+      return res.status(400).json({ success: false, error: 'Token de acceso no proporcionado.' });
+    }
+    if (!adAccountId) {
+      return res.status(400).json({ success: false, error: 'ID de cuenta publicitaria no proporcionado.' });
+    }
     const result = await fetchMetaCampaigns(token, adAccountId);
     return res.json(result);
   } catch (error: any) {
@@ -70,9 +76,15 @@ metaRouter.post('/campaigns-list', async (req: Request, res: Response) => {
 // Endpoint para listar conjuntos de anuncios de una campaña
 metaRouter.post('/adsets-list', async (req: Request, res: Response) => {
   try {
-    const token = req.body.token || process.env.META_ACCESS_TOKEN;
-    const adAccountId = req.body.adAccountId || process.env.META_AD_ACCOUNT_ID;
+    const token = req.body.token;
+    const adAccountId = req.body.adAccountId;
     const campaignId = req.body.campaignId;
+    if (!token) {
+      return res.status(400).json({ success: false, error: 'Token de acceso no proporcionado.' });
+    }
+    if (!adAccountId) {
+      return res.status(400).json({ success: false, error: 'ID de cuenta publicitaria no proporcionado.' });
+    }
     const result = await fetchMetaAdSets(token, adAccountId, campaignId);
     return res.json(result);
   } catch (error: any) {
@@ -88,6 +100,9 @@ metaRouter.post('/deploy-builder', async (req: Request, res: Response) => {
     if (!payload) {
       return res.status(400).json({ success: false, error: 'Payload de configuración no suministrado.' });
     }
+    if (!token) {
+      return res.status(400).json({ success: false, error: 'Token de acceso no suministrado para el despliegue.' });
+    }
     const result = await deployMetaBuilder(payload, token, adAccountId);
     return res.json(result);
   } catch (error: any) {
@@ -99,15 +114,15 @@ metaRouter.post('/deploy-builder', async (req: Request, res: Response) => {
 // Endpoint para realizar una prueba real de creación de campaña en PAUSED (sin consumo de IA)
 metaRouter.post('/test-creation', async (req: Request, res: Response) => {
   try {
-    const token = req.body.token || process.env.META_ACCESS_TOKEN;
-    const adAccountId = req.body.adAccountId || process.env.META_AD_ACCOUNT_ID;
+    const token = req.body.token;
+    const adAccountId = req.body.adAccountId;
     const brandName = req.body.brandName || 'TicTac Performance';
     const pageId = req.body.pageId;
 
-    if (!token && !process.env.META_ACCESS_TOKEN) {
+    if (!token) {
       return res.status(400).json({ success: false, error: 'Token de acceso no suministrado.' });
     }
-    if (!adAccountId && !process.env.META_AD_ACCOUNT_ID) {
+    if (!adAccountId) {
       return res.status(400).json({ success: false, error: 'ID de cuenta publicitaria no suministrado.' });
     }
 

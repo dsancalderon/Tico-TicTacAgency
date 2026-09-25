@@ -16,16 +16,42 @@ dotenv.config({ path: path.resolve(__dirname, '../../.env.local'), override: fal
 export const app = express();
 const PORT = process.env.PORT || 4000;
 
+// Configuración de lista blanca estricta para CORS
+const allowedOrigins = new Set([
+  process.env.CLIENT_ORIGIN,
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+  'http://localhost:4173',
+  'http://127.0.0.1:4173',
+  ...(process.env.ALLOWED_ORIGINS || '').split(',').map(s => s.trim())
+].filter(Boolean));
+
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || origin.includes('localhost') || origin.endsWith('.vercel.app') || origin === process.env.CLIENT_ORIGIN) {
-      callback(null, true);
-    } else {
-      callback(null, false);
+    // Permitir peticiones sin origen (same-origin, herramientas de servidor, healthchecks)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.has(origin)) {
+      return callback(null, true);
     }
+    // Si se despliega en Vercel y se especifica el prefijo oficial de la app
+    const officialVercelHost = process.env.VERCEL_PROJECT_PRODUCTION_URL;
+    if (officialVercelHost && origin === `https://${officialVercelHost}`) {
+      return callback(null, true);
+    }
+    return callback(new Error(`CORS no permitido para el origen: ${origin}`));
   },
   credentials: true
 }));
+
+// Cabeceras de seguridad HTTP estándar (Defensa en profundidad)
+app.use((_req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  next();
+});
 
 app.use(express.json());
 

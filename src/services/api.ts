@@ -43,7 +43,8 @@ async function verifyMetaAccountClientDirect(adAccountId: string, token: string)
 
   try {
     const res = await fetch(
-      `https://graph.facebook.com/v21.0/${formattedId}?fields=id,name,account_status,currency,amount_spent,business,promote_pages{id,name},adspixels{id,name},min_daily_budget&access_token=${encodeURIComponent(token.trim())}`
+      `https://graph.facebook.com/v21.0/${formattedId}?fields=id,name,account_status,currency,amount_spent,business,promote_pages{id,name},adspixels{id,name},min_daily_budget`,
+      { headers: { Authorization: `Bearer ${token.trim()}` } }
     );
     const data = await res.json();
 
@@ -90,7 +91,9 @@ async function verifyMetaAccountClientDirect(adAccountId: string, token: string)
 async function verifyMetaTokenClientDirect(token: string) {
   try {
     const cleanToken = token.trim();
-    const userRes = await fetch(`https://graph.facebook.com/v21.0/me?fields=id,name,email&access_token=${encodeURIComponent(cleanToken)}`);
+    const userRes = await fetch(`https://graph.facebook.com/v21.0/me?fields=id,name,email`, {
+      headers: { Authorization: `Bearer ${cleanToken}` }
+    });
     const userData = await userRes.json();
     if (!userRes.ok || userData.error) {
       return {
@@ -111,7 +114,8 @@ async function verifyMetaTokenClientDirect(token: string) {
 
     try {
       const debugRes = await fetch(
-        `https://graph.facebook.com/v21.0/debug_token?input_token=${encodeURIComponent(cleanToken)}&access_token=${encodeURIComponent(cleanToken)}`
+        `https://graph.facebook.com/v21.0/debug_token?input_token=${encodeURIComponent(cleanToken)}`,
+        { headers: { Authorization: `Bearer ${cleanToken}` } }
       );
       const debugData = await debugRes.json();
       if (debugData.data) {
@@ -140,7 +144,9 @@ async function verifyMetaTokenClientDirect(token: string) {
 
     if (permissions.allGranted.length === 0) {
       try {
-        const permRes = await fetch(`https://graph.facebook.com/v21.0/me/permissions?access_token=${encodeURIComponent(cleanToken)}`);
+        const permRes = await fetch(`https://graph.facebook.com/v21.0/me/permissions`, {
+          headers: { Authorization: `Bearer ${cleanToken}` }
+        });
         const permData = await permRes.json();
         if (permData.data && Array.isArray(permData.data)) {
           const granted = permData.data.filter((p: any) => p.status === 'granted').map((p: any) => p.permission);
@@ -159,7 +165,8 @@ async function verifyMetaTokenClientDirect(token: string) {
     let adAccounts: any[] = [];
     try {
       const adAccRes = await fetch(
-        `https://graph.facebook.com/v21.0/me/adaccounts?fields=id,name,account_id,account_status,currency,amount_spent,business,adspixels{id,name},promote_pages{id,name}&access_token=${encodeURIComponent(cleanToken)}`
+        `https://graph.facebook.com/v21.0/me/adaccounts?fields=id,name,account_id,account_status,currency,amount_spent,business,adspixels{id,name},promote_pages{id,name}`,
+        { headers: { Authorization: `Bearer ${cleanToken}` } }
       );
       const adAccData = await adAccRes.json();
       if (adAccData.data && Array.isArray(adAccData.data)) {
@@ -189,7 +196,9 @@ async function verifyMetaTokenClientDirect(token: string) {
 
     let businesses: any[] = [];
     try {
-      const bRes = await fetch(`https://graph.facebook.com/v21.0/me/businesses?fields=id,name&access_token=${encodeURIComponent(cleanToken)}`);
+      const bRes = await fetch(`https://graph.facebook.com/v21.0/me/businesses?fields=id,name`, {
+        headers: { Authorization: `Bearer ${cleanToken}` }
+      });
       const bData = await bRes.json();
       if (bData.data && Array.isArray(bData.data)) {
         businesses = bData.data.map((b: any) => ({ id: b.id, name: b.name }));
@@ -200,7 +209,9 @@ async function verifyMetaTokenClientDirect(token: string) {
 
     let pages: any[] = [];
     try {
-      const pRes = await fetch(`https://graph.facebook.com/v21.0/me/accounts?fields=id,name&access_token=${encodeURIComponent(cleanToken)}`);
+      const pRes = await fetch(`https://graph.facebook.com/v21.0/me/accounts?fields=id,name`, {
+        headers: { Authorization: `Bearer ${cleanToken}` }
+      });
       const pData = await pRes.json();
       if (pData.data && Array.isArray(pData.data)) {
         pages = pData.data.map((p: any) => ({ id: p.id, name: p.name }));
@@ -342,7 +353,8 @@ export async function testMetaCreationClientDirect(
 
   try {
     const accRes = await fetch(
-      `https://graph.facebook.com/v21.0/${accountId}?fields=currency,min_daily_budget,promote_pages{id,name}&access_token=${encodeURIComponent(cleanToken)}`
+      `https://graph.facebook.com/v21.0/${accountId}?fields=currency,min_daily_budget,promote_pages{id,name}`,
+      { headers: { Authorization: `Bearer ${cleanToken}` } }
     );
     const accData = await accRes.json();
     if (accData && !accData.error) {
@@ -364,7 +376,9 @@ export async function testMetaCreationClientDirect(
 
   if (!detectedPageId) {
     try {
-      const pageRes = await fetch(`https://graph.facebook.com/v21.0/me/accounts?fields=id,name&access_token=${encodeURIComponent(cleanToken)}`);
+      const pageRes = await fetch(`https://graph.facebook.com/v21.0/me/accounts?fields=id,name`, {
+        headers: { Authorization: `Bearer ${cleanToken}` }
+      });
       const pageData = await pageRes.json();
       if (pageData?.data?.[0]?.id) {
         detectedPageId = pageData.data[0].id;

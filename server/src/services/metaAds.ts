@@ -68,7 +68,9 @@ export async function verifyMetaToken(token: string): Promise<MetaTokenDiagnosti
     const cleanToken = token.trim();
 
     // 1. Validar identidad con /me
-    const userRes = await fetch(`${GRAPH_BASE_URL}/me?fields=id,name,email&access_token=${encodeURIComponent(cleanToken)}`);
+    const userRes = await fetch(`${GRAPH_BASE_URL}/me?fields=id,name,email`, {
+      headers: { Authorization: `Bearer ${cleanToken}` }
+    });
     const userData = await userRes.json() as any;
 
     if (!userRes.ok || userData.error) {
@@ -91,7 +93,8 @@ export async function verifyMetaToken(token: string): Promise<MetaTokenDiagnosti
 
     try {
       const debugRes = await fetch(
-        `${GRAPH_BASE_URL}/debug_token?input_token=${encodeURIComponent(cleanToken)}&access_token=${encodeURIComponent(cleanToken)}`
+        `${GRAPH_BASE_URL}/debug_token?input_token=${encodeURIComponent(cleanToken)}`,
+        { headers: { Authorization: `Bearer ${cleanToken}` } }
       );
       const debugData = await debugRes.json() as any;
 
@@ -122,7 +125,9 @@ export async function verifyMetaToken(token: string): Promise<MetaTokenDiagnosti
     // 3. Si debug_token no aportó permisos, consultar /me/permissions
     if (permissions.allGranted.length === 0) {
       try {
-        const permRes = await fetch(`${GRAPH_BASE_URL}/me/permissions?access_token=${encodeURIComponent(cleanToken)}`);
+        const permRes = await fetch(`${GRAPH_BASE_URL}/me/permissions`, {
+          headers: { Authorization: `Bearer ${cleanToken}` }
+        });
         const permData = await permRes.json() as any;
 
         if (permData.data && Array.isArray(permData.data)) {
@@ -146,7 +151,8 @@ export async function verifyMetaToken(token: string): Promise<MetaTokenDiagnosti
     let adAccounts: any[] = [];
     try {
       const adAccRes = await fetch(
-        `${GRAPH_BASE_URL}/me/adaccounts?fields=id,name,account_id,account_status,currency,amount_spent,business,adspixels{id,name},promote_pages{id,name}&access_token=${encodeURIComponent(cleanToken)}`
+        `${GRAPH_BASE_URL}/me/adaccounts?fields=id,name,account_id,account_status,currency,amount_spent,business,adspixels{id,name},promote_pages{id,name}`,
+        { headers: { Authorization: `Bearer ${cleanToken}` } }
       );
       const adAccData = await adAccRes.json() as any;
 
@@ -178,7 +184,9 @@ export async function verifyMetaToken(token: string): Promise<MetaTokenDiagnosti
     // 5. Obtener Businesses y Páginas del usuario/token
     let businesses: any[] = [];
     try {
-      const bRes = await fetch(`${GRAPH_BASE_URL}/me/businesses?fields=id,name&access_token=${encodeURIComponent(cleanToken)}`);
+      const bRes = await fetch(`${GRAPH_BASE_URL}/me/businesses?fields=id,name`, {
+        headers: { Authorization: `Bearer ${cleanToken}` }
+      });
       const bData = await bRes.json() as any;
       if (bData.data && Array.isArray(bData.data)) {
         businesses = bData.data.map((b: any) => ({ id: b.id, name: b.name }));
@@ -189,7 +197,9 @@ export async function verifyMetaToken(token: string): Promise<MetaTokenDiagnosti
 
     let pages: any[] = [];
     try {
-      const pRes = await fetch(`${GRAPH_BASE_URL}/me/accounts?fields=id,name&access_token=${encodeURIComponent(cleanToken)}`);
+      const pRes = await fetch(`${GRAPH_BASE_URL}/me/accounts?fields=id,name`, {
+        headers: { Authorization: `Bearer ${cleanToken}` }
+      });
       const pData = await pRes.json() as any;
       if (pData.data && Array.isArray(pData.data)) {
         pages = pData.data.map((p: any) => ({ id: p.id, name: p.name }));
@@ -229,7 +239,8 @@ export async function verifyMetaAdAccount(token: string, rawAccountId: string) {
 
   try {
     const res = await fetch(
-      `${GRAPH_BASE_URL}/${formattedId}?fields=id,name,account_status,currency,amount_spent,business,promote_pages{id,name},adspixels{id,name},min_daily_budget&access_token=${encodeURIComponent(token)}`
+      `${GRAPH_BASE_URL}/${formattedId}?fields=id,name,account_status,currency,amount_spent,business,promote_pages{id,name},adspixels{id,name},min_daily_budget`,
+      { headers: { Authorization: `Bearer ${token.trim()}` } }
     );
     const data = await res.json() as any;
 
@@ -343,7 +354,8 @@ export async function deployMetaTestCampaign(params: {
 
   try {
     const accRes = await fetch(
-      `${GRAPH_BASE_URL}/${accountId}?fields=currency,min_daily_budget,promote_pages{id,name}&access_token=${encodeURIComponent(cleanToken)}`
+      `${GRAPH_BASE_URL}/${accountId}?fields=currency,min_daily_budget,promote_pages{id,name}`,
+      { headers: { Authorization: `Bearer ${cleanToken}` } }
     );
     const accData = await accRes.json() as any;
     if (accData && !accData.error) {
@@ -367,7 +379,9 @@ export async function deployMetaTestCampaign(params: {
   // Si aún no hay página, intentar consultar /me/accounts
   if (!detectedPageId) {
     try {
-      const pageRes = await fetch(`${GRAPH_BASE_URL}/me/accounts?fields=id,name&access_token=${encodeURIComponent(cleanToken)}`);
+      const pageRes = await fetch(`${GRAPH_BASE_URL}/me/accounts?fields=id,name`, {
+        headers: { Authorization: `Bearer ${cleanToken}` }
+      });
       const pageData = await pageRes.json() as any;
       if (pageData?.data?.[0]?.id) {
         detectedPageId = pageData.data[0].id;
@@ -655,8 +669,8 @@ export async function deployMetaCampaign(
  * Consulta campañas existentes en una cuenta publicitaria de Meta
  */
 export async function fetchMetaCampaigns(token?: string, rawAccountId?: string) {
-  const cleanToken = token || process.env.META_ACCESS_TOKEN;
-  const rawId = rawAccountId || process.env.META_AD_ACCOUNT_ID;
+  const cleanToken = token;
+  const rawId = rawAccountId;
 
   if (!cleanToken || !rawId || cleanToken.includes('your_') || rawId.includes('your_') || cleanToken.startsWith('EAAB_Demo')) {
     // Retorno demo sandbox
@@ -677,14 +691,16 @@ export async function fetchMetaCampaigns(token?: string, rawAccountId?: string) 
     // 1. Intentar consultar con filtro de estados activos y pausados con JSON string URL-encoded
     const encodedStatus = encodeURIComponent('["ACTIVE","PAUSED"]');
     let res = await fetch(
-      `${GRAPH_BASE_URL}/${accountId}/campaigns?fields=id,name,status,objective,effective_status&effective_status=${encodedStatus}&limit=100&access_token=${encodeURIComponent(cleanToken.trim())}`
+      `${GRAPH_BASE_URL}/${accountId}/campaigns?fields=id,name,status,objective,effective_status&effective_status=${encodedStatus}&limit=100`,
+      { headers: { Authorization: `Bearer ${cleanToken.trim()}` } }
     );
     let data = await res.json() as any;
 
     // 2. Si hubo error en el filtro de effective_status, intentar sin filtro para traer todas las campañas
     if (!res.ok || data.error) {
       const fallbackRes = await fetch(
-        `${GRAPH_BASE_URL}/${accountId}/campaigns?fields=id,name,status,objective,effective_status&limit=100&access_token=${encodeURIComponent(cleanToken.trim())}`
+        `${GRAPH_BASE_URL}/${accountId}/campaigns?fields=id,name,status,objective,effective_status&limit=100`,
+        { headers: { Authorization: `Bearer ${cleanToken.trim()}` } }
       );
       const fallbackData = await fallbackRes.json() as any;
       if (fallbackRes.ok && !fallbackData.error) {
@@ -724,8 +740,8 @@ export async function fetchMetaCampaigns(token?: string, rawAccountId?: string) 
  * Consulta conjuntos de anuncios de una campaña específica en Meta Ads
  */
 export async function fetchMetaAdSets(token?: string, rawAccountId?: string, campaignId?: string) {
-  const cleanToken = token || process.env.META_ACCESS_TOKEN;
-  const rawId = rawAccountId || process.env.META_AD_ACCOUNT_ID;
+  const cleanToken = token;
+  const rawId = rawAccountId;
 
   if (!cleanToken || !rawId || cleanToken.includes('your_') || rawId.includes('your_') || cleanToken.startsWith('EAAB_Demo')) {
     // Retorno demo sandbox
@@ -748,7 +764,8 @@ export async function fetchMetaAdSets(token?: string, rawAccountId?: string, cam
   try {
     // 1. Endpoint canónico de Meta Graph API para los adsets de una campaña
     let res = await fetch(
-      `${GRAPH_BASE_URL}/${encodeURIComponent(campaignId)}/adsets?fields=id,name,status,optimization_goal,daily_budget,lifetime_budget&limit=100&access_token=${encodeURIComponent(cleanToken.trim())}`
+      `${GRAPH_BASE_URL}/${encodeURIComponent(campaignId)}/adsets?fields=id,name,status,optimization_goal,daily_budget,lifetime_budget&limit=100`,
+      { headers: { Authorization: `Bearer ${cleanToken.trim()}` } }
     );
     let data = await res.json() as any;
 
@@ -756,7 +773,8 @@ export async function fetchMetaAdSets(token?: string, rawAccountId?: string, cam
     if (!res.ok || data.error) {
       const filterParam = encodeURIComponent(JSON.stringify([{ field: 'campaign.id', operator: 'EQUAL', value: campaignId }]));
       const altRes = await fetch(
-        `${GRAPH_BASE_URL}/${accountId}/adsets?filtering=${filterParam}&fields=id,name,status,optimization_goal,daily_budget,lifetime_budget&limit=100&access_token=${encodeURIComponent(cleanToken.trim())}`
+        `${GRAPH_BASE_URL}/${accountId}/adsets?filtering=${filterParam}&fields=id,name,status,optimization_goal,daily_budget,lifetime_budget&limit=100`,
+        { headers: { Authorization: `Bearer ${cleanToken.trim()}` } }
       );
       const altData = await altRes.json() as any;
       if (altRes.ok && !altData.error) {
@@ -855,7 +873,9 @@ export async function deployMetaBuilder(
     let pageId = payload.pageId;
     if (!pageId) {
       try {
-        const pRes = await fetch(`${GRAPH_BASE_URL}/me/accounts?fields=id,name&access_token=${encodeURIComponent(cleanToken)}`);
+        const pRes = await fetch(`${GRAPH_BASE_URL}/me/accounts?fields=id,name`, {
+          headers: { Authorization: `Bearer ${cleanToken}` }
+        });
         const pData = await pRes.json() as any;
         if (pData?.data?.[0]?.id) {
           pageId = pData.data[0].id;
