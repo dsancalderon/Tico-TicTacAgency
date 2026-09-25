@@ -1,16 +1,22 @@
 .tico-welcome-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(340px, 1.05fr); align-items: center; gap: 16px; }
-.tico-network { position: relative; width: 100%; aspect-ratio: 600 / 240; isolation: isolate; }
+.tico-network { position: relative; width: 100%; height: 120px; isolation: isolate; }
 .tico-network-wires { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
-.tico-network-inputs { stroke: #4675ff; stroke-width: 1.5; opacity: .48; }
+.tico-network-inputs { stroke: #4675ff; stroke-width: 1.5; }
+.tico-network-inputs path { opacity: .48; }
 .tico-network-inputs circle { fill: #6187ff; stroke: none; }
+.tico-network-inputs .tico-network-input-signal { fill: #9bdcff; filter: drop-shadow(0 0 4px #62b9ff); }
+.tico-network-input-node { animation: tico-network-node-pulse 3.6s ease-in-out infinite; }
+.tico-network-input-node:nth-last-child(2) { animation-delay: -1.2s; }
+.tico-network-input-node:last-child { animation-delay: -2.4s; }
+@keyframes tico-network-node-pulse { 0%, 100% { opacity: .45; } 50% { opacity: 1; filter: drop-shadow(0 0 5px #8b9dff); } }
 .tico-network-route { color: #70809e; }
 .tico-network-route.is-connected { color: #27ed97; }
 .tico-network-line { stroke: currentColor; stroke-width: 2; transition: stroke .4s; }
 .tico-network-route.is-connected .tico-network-line { filter: drop-shadow(0 0 5px #20e99566); }
 .tico-network-signal { filter: drop-shadow(0 0 5px #52ffb4); }
 .tico-network-core { position: absolute; left: 27%; top: 23%; width: 21%; height: 54%; display: flex; align-items: center; justify-content: center; }
-.tico-network-orbit { position: absolute; inset: 0; border-radius: 50%; border: 1px solid #6665ff; background: radial-gradient(circle, #2753c499, #5630eb55 65%, #3f44ed22); box-shadow: 0 0 28px #4258ff50, inset 0 0 20px #3955f766; }
-.tico-network-mascot { position: relative; width: 53%; height: auto; filter: brightness(1.65) drop-shadow(0 0 2px #929bff); animation: tico-network-float 4s ease-in-out infinite; }
+.tico-network-orbit { position: absolute; top: 0; left: 50%; height: 100%; aspect-ratio: 1; transform: translateX(-50%); border-radius: 50%; border: 1px solid #6665ff; background: radial-gradient(circle, #2753c499, #5630eb55 65%, #3f44ed22); box-shadow: 0 0 28px #4258ff50, inset 0 0 20px #3955f766; }
+.tico-network-mascot { position: relative; width: auto; height: 85%; aspect-ratio: 367 / 432; filter: brightness(1.65) drop-shadow(0 0 2px #929bff); animation: tico-network-float 4s ease-in-out infinite; }
 .tico-network-core > span { position: absolute; top: 105%; color: white; font-size: clamp(12px, 1.3vw, 17px); font-weight: 800; letter-spacing: .04em; }
 .tico-network-providers { position: absolute; left: 62.5%; right: 0; top: 13%; bottom: 13%; display: flex; flex-direction: column; justify-content: space-between; }
 .tico-network-provider { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 34%; padding: 9px 13px; border: 1px solid #70809e; border-radius: 999px; background: #122753b8; text-align: left; color: #c0cade; cursor: pointer; transition: border-color .4s, background .4s; }
@@ -25,12 +31,5 @@
 .tico-network-status-dot { width: 6px; height: 6px; flex-shrink: 0; margin-left: auto; border-radius: 50%; background: #70809e; }
 .is-connected .tico-network-status-dot { background: #27ed97; box-shadow: 0 0 9px #27ed9780; }
 @keyframes tico-network-float { 0%, 100% { transform: translateY(2px) rotate(-2deg); } 50% { transform: translateY(-5px) rotate(2deg); } }
-@media (max-width: 1023px) { .tico-welcome-layout { grid-template-columns: minmax(0, 1fr); } .tico-network { max-width: 600px; margin: 0 auto; } }
+@media (max-width: 767px) { .tico-welcome-layout { grid-template-columns: minmax(0, 1fr); } .tico-network { max-width: 450px; margin: 0 auto; } }
 @media (max-width: 480px) { .tico-network-provider { gap: 5px; padding: 7px; } .tico-network-brand { width: 18px; height: 18px; } .tico-network-provider-copy > span { font-size: 8px; } .tico-network-provider-copy strong { font-size: 10px; } }
-.tico-network[data-motion="false"] .tico-network-mascot { animation-play-state: paused; }
-.tico-network[data-motion="false"] .tico-network-signal { display: none; }
-
-.tico-network-motion { position: absolute; right: 0; bottom: -10px; font-size: 10px; color: #c0cade; cursor: pointer; padding: 4px; border-radius: 4px; }
-.tico-network-motion:hover { color: white; }
-.tico-network-motion:focus-visible { outline: 2px solid white; }
-

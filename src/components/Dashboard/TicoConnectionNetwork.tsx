@@ -1,5 +1,3 @@
-import { useState } from 'react';
-import { useReducedMotion } from 'framer-motion';
 import type { GoogleConnectionState, MetaConnectionState } from '../../types';
 import { TicoMascot } from '../TicoMascot';
 import { GoogleAdsBrandLogo, MetaBrandLogo } from '../BrandLogos';
@@ -11,11 +9,14 @@ interface Props {
   onOpenConnections: () => void;
 }
 
+const incomingPaths = [
+  'M 0 45 C 95 45 110 120 200 120',
+  'M 0 120 C 90 120 95 45 150 45 S 160 120 200 120',
+  'M 0 205 C 100 205 120 180 145 180 S 170 120 200 120',
+];
+
 /** Derived directly from account state: no timers or duplicate connection state. */
 export function TicoConnectionNetwork({ metaState, googleState, onOpenConnections }: Props) {
-  const reducedMotion = useReducedMotion();
-  const [motionOverride, setMotionOverride] = useState<boolean | null>(null);
-  const motionEnabled = motionOverride ?? !reducedMotion;
   const providers = [
     { id: 'meta', name: 'Meta Ads', connected: metaState.isConnected && metaState.status !== 'disconnected',
       label: metaState.isConnected && metaState.status !== 'disconnected'
@@ -28,11 +29,22 @@ export function TicoConnectionNetwork({ metaState, googleState, onOpenConnection
   ];
 
   return (
-    <div className="tico-network" data-motion={motionEnabled} aria-label="Conexiones de Tico">
-      <svg className="tico-network-wires" viewBox="0 0 600 240" fill="none" aria-hidden="true">
+    <div className="tico-network" aria-label="Conexiones de Tico">
+      <svg className="tico-network-wires" viewBox="0 0 600 240" preserveAspectRatio="none" fill="none" aria-hidden="true">
         <g className="tico-network-inputs">
-          <path d="M 0 45 C 95 45 110 120 200 120 M 0 120 C 90 120 95 45 150 45 S 160 120 200 120 M 0 205 C 100 205 120 180 145 180 S 170 120 200 120" />
-          <circle cx="65" cy="101" r="4" /><circle cx="145" cy="45" r="5" /><circle cx="145" cy="180" r="5" />
+          {incomingPaths.map((path, route) => (
+            <g key={path}>
+              <path d={path} />
+              {[0, 1].map(pulse => (
+                <circle key={pulse} r="3.5" className="tico-network-input-signal">
+                  <animateMotion path={path} dur="3.6s" begin={`${-route * .6 - pulse * 1.8}s`} repeatCount="indefinite" />
+                </circle>
+              ))}
+            </g>
+          ))}
+          <circle className="tico-network-input-node" cx="65" cy="101" r="4" />
+          <circle className="tico-network-input-node" cx="145" cy="45" r="5" />
+          <circle className="tico-network-input-node" cx="145" cy="180" r="5" />
         </g>
         {providers.map(provider => (
           <g key={provider.id} className={`tico-network-route ${provider.connected ? 'is-connected' : ''}`} data-provider={provider.id} data-connected={provider.connected}>
@@ -63,9 +75,6 @@ export function TicoConnectionNetwork({ metaState, googleState, onOpenConnection
         ))}
       </div>
       <span className="sr-only" role="status">{providers.map(p => `${p.name}: ${p.label}`).join('. ')}</span>
-      <button type="button" className="tico-network-motion" onClick={() => setMotionOverride(!motionEnabled)}>
-        {motionEnabled ? 'Pausar animación' : 'Activar animación'}
-      </button>
     </div>
   );
 }
