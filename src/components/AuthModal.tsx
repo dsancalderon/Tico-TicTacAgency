@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Lock, Mail, User, Briefcase } from 'lucide-react';
+import { X, Lock, Mail, User, Briefcase, Eye, EyeOff } from 'lucide-react';
 import { TicoMascot } from './TicoMascot';
 import { requireSupabase, loadUserSession, supabase } from '../services/auth';
 import { useScrollLock } from '../utils/scrollLock';
@@ -25,6 +25,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [isLogin, setIsLogin] = useState(initialMode === 'login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [name, setName] = useState('');
   const [workspace, setWorkspace] = useState('');
   const [loading, setLoading] = useState(false);
@@ -39,6 +40,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setError('');
       setNotice('');
       setPassword('');
+      setShowPassword(false);
     }
   }, [isOpen, initialMode]);
 
@@ -198,15 +200,28 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <Lock className="w-4 h-4" />
             </div>
             <input
-              type="password"
+              type={showPassword ? "text" : "password"}
               minLength={isLogin ? undefined : 12}
               autoComplete={isLogin ? "current-password" : "new-password"}
               required
               placeholder="Contraseña"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-transparent py-2.5 sm:py-3 pr-3.5 pl-1.5 text-sm text-slate-800 placeholder-slate-400 font-medium focus:outline-none"
+              className="w-full bg-transparent py-2.5 sm:py-3 pr-10 pl-1.5 text-sm text-slate-800 placeholder-slate-400 font-medium focus:outline-none"
             />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 p-1 text-slate-400 hover:text-slate-600 rounded-lg transition-colors cursor-pointer flex items-center justify-center"
+              title={showPassword ? "Ocultar contraseña" : "Ver contraseña"}
+              aria-label={showPassword ? "Ocultar contraseña" : "Ver contraseña"}
+            >
+              {showPassword ? (
+                <EyeOff className="w-4 h-4" />
+              ) : (
+                <Eye className="w-4 h-4" />
+              )}
+            </button>
           </div>
 
           {!isLogin && (
