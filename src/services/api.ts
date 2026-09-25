@@ -41,6 +41,22 @@ async function verifyMetaAccountClientDirect(adAccountId: string, token: string)
   const cleanId = adAccountId.trim();
   const formattedId = cleanId.startsWith('act_') ? cleanId : `act_${cleanId}`;
 
+  // En modo sandbox demo, no consultar Meta Graph API real para evitar errores 400 en consola
+  if (token.startsWith('EAAB_Demo') || token.toLowerCase().includes('demo') || formattedId.includes('demo')) {
+    return {
+      success: true,
+      account: {
+        id: formattedId,
+        name: 'TicTac Performance — Cuenta Demo',
+        accountId: formattedId.replace('act_', ''),
+        status: 1,
+        statusLabel: 'ACTIVA',
+        isActive: true,
+        currency: 'USD'
+      }
+    };
+  }
+
   try {
     const res = await fetch(
       `https://graph.facebook.com/v21.0/${formattedId}?fields=id,name,account_status,currency,amount_spent,business,promote_pages{id,name},adspixels{id,name},min_daily_budget`,
@@ -91,6 +107,28 @@ async function verifyMetaAccountClientDirect(adAccountId: string, token: string)
 async function verifyMetaTokenClientDirect(token: string) {
   try {
     const cleanToken = token.trim();
+
+    // En modo sandbox demo, no consultar Meta Graph API real para evitar errores 400 en consola
+    if (cleanToken.startsWith('EAAB_Demo') || cleanToken.toLowerCase().includes('demo')) {
+      return {
+        success: true,
+        diagnostic: {
+          valid: true,
+          app: { id: 'demo_app_001', name: 'TicTac Demo App' },
+          user: { id: 'usr_sandbox_999', name: 'Usuario Sandbox', email: 'demo@tictacagency.com', type: 'SYSTEM_USER' },
+          permissions: {
+            adsManagement: true,
+            pagesReadEngagement: true,
+            businessManagement: true,
+            allGranted: ['ads_management', 'pages_read_engagement', 'business_management']
+          },
+          adAccounts: [],
+          businesses: [{ id: 'bm_demo_001', name: 'TicTac Agency Performance Sandbox' }],
+          pages: [{ id: 'page_demo_001', name: 'TicTac Agency Fanpage' }]
+        }
+      };
+    }
+
     const userRes = await fetch(`https://graph.facebook.com/v21.0/me?fields=id,name,email`, {
       headers: { Authorization: `Bearer ${cleanToken}` }
     });

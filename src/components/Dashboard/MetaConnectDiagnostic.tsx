@@ -26,9 +26,15 @@ import { MetaBrandLogo } from '../BrandLogos';
 
 const LOCAL_STORAGE_SAVED_CONNECTIONS_KEY = 'tico_saved_meta_connections';
 
-// Sanitizar para asegurar que NUNCA se almacene ningún token en localStorage
-export const sanitizeSavedConnections = (connections: SavedMetaConnection[]): SavedMetaConnection[] => {
-  return (connections || []).map(({ token, ...safe }) => safe);
+// Sanitizar para asegurar que NUNCA se almacene ningún token en localStorage y proteger contra elementos corruptos
+export const sanitizeSavedConnections = (connections?: SavedMetaConnection[] | null): SavedMetaConnection[] => {
+  if (!Array.isArray(connections)) return [];
+  return connections
+    .filter((c): c is SavedMetaConnection => Boolean(c && typeof c === 'object'))
+    .map(c => {
+      const { token, ...safe } = c as any;
+      return safe as SavedMetaConnection;
+    });
 };
 
 const saveToLocalStorageSafely = (connections: SavedMetaConnection[]) => {
@@ -178,8 +184,14 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
       setRealAccounts([fallbackAcc]);
     }
 
-    // Si tiene token y está conectado pero aún no tiene lista de cuentas detallada en metaState, consultarla en segundo plano
-    if (metaState.isConnected && metaState.userAccessToken && (!metaState.availableAccounts || metaState.availableAccounts.length === 0)) {
+    // Si tiene token y está conectado pero aún no tiene lista de cuentas detallada en metaState, consultarla en segundo plano (solo para tokens reales, no sandbox demo)
+    if (
+      metaState.isConnected &&
+      metaState.isRealToken &&
+      metaState.userAccessToken &&
+      !metaState.userAccessToken.startsWith('EAAB_Demo') &&
+      (!metaState.availableAccounts || metaState.availableAccounts.length === 0)
+    ) {
       verifyMetaTokenApi(metaState.userAccessToken).then(res => {
         if (res.success && res.diagnostic?.valid && res.diagnostic.adAccounts && res.diagnostic.adAccounts.length > 0) {
           const diag = res.diagnostic;
