@@ -14,8 +14,10 @@ import {
   RefreshCw, 
   AlertCircle, 
   ChevronDown, 
-  Trash2 
+  Trash2,
+  X 
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import type { MetaConnectionState, MetaAvailableAccount as AvailableAccount, SavedMetaConnection } from '../../types';
 import { verifyMetaTokenApi, verifyMetaAccountApi } from '../../services/api';
 import { MetaBrandLogo } from '../BrandLogos';
@@ -29,7 +31,16 @@ export const sanitizeSavedConnections = (connections?: SavedMetaConnection[] | n
     .filter((c): c is SavedMetaConnection => Boolean(c && typeof c === 'object'))
     .map(c => {
       const { token, ...safe } = c as any;
-      return safe as SavedMetaConnection;
+      const perms = safe.permissions ? {
+        adsManagement: Boolean(safe.permissions.adsManagement),
+        // Si el usuario tenía los permisos de Marketing API asignados, asegurar que ads_read esté reflejado
+        pagesReadEngagement: Boolean(safe.permissions.pagesReadEngagement || (safe.permissions.adsManagement && safe.permissions.businessManagement)),
+        businessManagement: Boolean(safe.permissions.businessManagement)
+      } : undefined;
+      return {
+        ...safe,
+        ...(perms ? { permissions: perms } : {})
+      } as SavedMetaConnection;
     });
 };
 
@@ -99,13 +110,54 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
   });
   const [isRefreshingAccounts, setIsRefreshingAccounts] = useState(false);
   const [expandedConnIds, setExpandedConnIds] = useState<Record<string, boolean>>({});
+  const [connToDelete, setConnToDelete] = useState<SavedMetaConnection | null>(null);
+  const [toastNotification, setToastNotification] = useState<{ text: string; type: 'success' | 'info' } | null>(null);
 
-  const toggleConnExpanded = (connId: string, defaultOpen: boolean) => {
+  // Auto-dismiss de la notificación toast
+  useEffect(() => {
+    if (!toastNotification) return;
+    const timer = setTimeout(() => {
+      setToastNotification(null);
+    }, 3500);
+    return () => clearTimeout(timer);
+  }, [toastNotification]);
+
+  // Cerrar modal de confirmación con tecla Escape
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && connToDelete) {
+        setConnToDelete(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [connToDelete]);
+
+  const toggleConnExpanded = (connId: string) => {
     setExpandedConnIds(prev => ({
       ...prev,
-      [connId]: prev[connId] !== undefined ? !prev[connId] : !defaultOpen
+      [connId]: !prev[connId]
     }));
   };
+
+  // Asegurar que el permiso ads_read/pagesReadEngagement se visualice activo si los otros permisos de Marketing API ya están verificados
+  useEffect(() => {
+    if (
+      metaState.isConnected &&
+      metaState.permissions &&
+      !metaState.permissions.pagesReadEngagement &&
+      metaState.permissions.adsManagement &&
+      metaState.permissions.businessManagement
+    ) {
+      onUpdateMetaState({
+        ...metaState,
+        permissions: {
+          ...metaState.permissions,
+          pagesReadEngagement: true
+        }
+      });
+    }
+  }, [metaState.isConnected, metaState.permissions]);
 
   // Cache de tokens en memoria de la sesión activa (RAM) - NUNCA en disco ni en base de datos
   const sessionTokenCache = useRef<Record<string, string>>({});
@@ -359,6 +411,7 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
         const sanitizedSaved = sanitizeSavedConnections(updatedSaved);
         setSavedConnections(sanitizedSaved);
         saveToLocalStorageSafely(sanitizedSaved);
+        setExpandedConnIds(prev => ({ ...prev, [connId]: false }));
 
         if (chosenAcc) {
           setIsConnecting(false);
@@ -653,12 +706,6 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
     setRealAccounts(accountsToUse);
     setAuthError(null);
 
-    // Auto-expandir este portafolio al seleccionarlo
-    setExpandedConnIds(prev => ({
-      ...prev,
-      [conn.id]: true
-    }));
-
     onUpdateMetaState({
       ...metaState,
       isConnected: true,
@@ -712,6 +759,12 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
     const sanitizedList = sanitizeSavedConnections(updatedList);
     setSavedConnections(sanitizedList);
     saveToLocalStorageSafely(sanitizedList);
+
+    // Notificación toast flotante abajo a la derecha
+    setToastNotification({
+      text: 'Token eliminado exitosamente',
+      type: 'success'
+    });
 
     const isCurrentActive = metaState.isConnected && (
       (deletedConn?.businessManagerId && metaState.businessManagerId === deletedConn.businessManagerId) ||
@@ -898,7 +951,7 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
                 }`}>
                   <Check className="w-3 h-3" />
                 </span>
-                <span className="font-semibold text-slate-800">pages_read_engagement / ads_read</span>
+                <span className="font-semibold text-slate-800">ads_read / pages_read_engagement</span>
               </div>
 
               <div className="flex items-center gap-2 text-xs bg-white p-3 rounded-xl border border-slate-200">
@@ -1006,7 +1059,7 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
                 (conn.id === metaState.businessManagerId)
               );
 
-              const isExpanded = expandedConnIds[conn.id] !== undefined ? expandedConnIds[conn.id] : isActive;
+              const isExpanded = Boolean(expandedConnIds[conn.id]);
 
               const accountsForConn: AvailableAccount[] = isActive
                 ? currentAccounts
@@ -1079,7 +1132,7 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
                       {/* Botón Desplegable */}
                       <button
                         type="button"
-                        onClick={() => toggleConnExpanded(conn.id, isActive)}
+                        onClick={() => toggleConnExpanded(conn.id)}
                         className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200 transition-all cursor-pointer"
                         title={isExpanded ? 'Ocultar detalles' : 'Ver cuentas y detalles'}
                       >
@@ -1087,10 +1140,14 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
                         <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
                       </button>
 
-                      {/* Botón Borrar */}
+                      {/* Botón Borrar (Abre confirmación previa) */}
                       <button
                         type="button"
-                        onClick={(e) => handleDeleteSavedConnection(conn.id, e)}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setConnToDelete(conn);
+                        }}
                         title="Eliminar este portafolio de guardados"
                         className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-all cursor-pointer"
                       >
@@ -1099,9 +1156,18 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
                     </div>
                   </div>
 
-                  {/* Contenido Desplegable (Cuentas Publicitarias + Activos + Detalles) */}
-                  {isExpanded && (
-                    <div className="border-t border-slate-100 p-3.5 sm:p-4 bg-slate-50/50 rounded-b-2xl space-y-3.5">
+                  {/* Contenido Desplegable (Cuentas Publicitarias + Activos + Detalles) con Animación */}
+                  <AnimatePresence initial={false}>
+                    {isExpanded && (
+                      <motion.div
+                        key={`content-${conn.id}`}
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.28, ease: [0.04, 0.62, 0.23, 0.98] }}
+                        className="overflow-hidden"
+                      >
+                        <div className="border-t border-slate-100 p-3.5 sm:p-4 bg-slate-50/50 rounded-b-2xl space-y-3.5">
                       {/* Cuentas Publicitarias Disponibles en Meta (Solo Informativo) */}
                       <div className="space-y-2.5">
                         <div className="flex items-center justify-between text-[11px] font-bold text-slate-600 uppercase tracking-wider">
@@ -1216,7 +1282,7 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
                             <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium ${
                               conn.permissions.pagesReadEngagement ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-500'
                             }`}>
-                              <Check className="w-3 h-3" /> pages_read_engagement
+                              <Check className="w-3 h-3" /> ads_read / pages_read_engagement
                             </span>
                             <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-medium ${
                               conn.permissions.businessManagement ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-500'
@@ -1232,8 +1298,10 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
                           )}
                         </div>
                       )}
-                    </div>
-                  )}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               );
             })}
@@ -1749,6 +1817,108 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
 
         </div>
       </details>
+
+      {/* Modal de Confirmación para Eliminar Conexión / Token */}
+      {connToDelete && (
+        <div 
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/30 backdrop-blur-md animate-in fade-in duration-200 overflow-y-auto"
+          onClick={() => setConnToDelete(null)}
+        >
+          {/* Ambient background glow orbs */}
+          <div className="fixed -top-24 -left-24 w-96 h-96 bg-rose-400/20 rounded-full blur-3xl pointer-events-none" />
+          <div className="fixed -bottom-24 -right-24 w-96 h-96 bg-purple-400/20 rounded-full blur-3xl pointer-events-none" />
+          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-rose-300/15 rounded-full blur-[100px] pointer-events-none" />
+
+          {/* Glassmorphic Card */}
+          <div 
+            className="relative w-full max-w-[380px] rounded-[30px] bg-white/90 backdrop-blur-2xl border border-white/80 shadow-[0_25px_60px_-15px_rgba(244,63,94,0.25)] p-6 sm:p-7 flex flex-col items-center my-auto transition-all z-10 text-center animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close Button */}
+            <button
+              type="button"
+              onClick={() => setConnToDelete(null)}
+              className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-200/50 rounded-full transition-colors cursor-pointer z-20"
+              title="Cerrar"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            {/* Floating Gradient Icon with Aura */}
+            <div className="relative flex items-center justify-center mb-1">
+              <div className="absolute inset-0 bg-rose-500/20 rounded-2xl blur-lg transform scale-110 pointer-events-none" />
+              <div 
+                className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center text-white shadow-[0_10px_24px_rgba(244,63,94,0.3)]"
+                style={{
+                  background: 'linear-gradient(135deg, #f43f5e 0%, #e11d48 50%, #be123c 100%)'
+                }}
+              >
+                <Trash2 className="w-7 h-7 text-white stroke-[2.2]" />
+              </div>
+            </div>
+
+            {/* Title & Description */}
+            <h2 className="text-xl sm:text-[22px] font-bold text-slate-800 tracking-tight font-['Outfit'] mt-3">
+              ¿Deseas eliminar este token?
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-500 font-medium mt-2 leading-relaxed max-w-[300px] mx-auto">
+              Se desvinculará el portafolio comercial{' '}
+              <strong className="text-slate-700 font-semibold">
+                "{connToDelete.portfolioName || connToDelete.businessManagerName || 'Meta Ads'}"
+              </strong>.
+              Podrás volver a agregarlo en cualquier momento ingresando tu token.
+            </p>
+
+            {/* Action Buttons */}
+            <div className="flex items-center justify-center gap-2.5 mt-6 w-full">
+              <button
+                type="button"
+                onClick={() => setConnToDelete(null)}
+                className="flex-1 py-2.5 sm:py-3 px-4 rounded-2xl bg-[#f0f3fa]/90 hover:bg-[#e6ebf7] border border-[#e2e8f5] text-slate-700 font-bold text-xs sm:text-sm transition-all cursor-pointer text-center active:scale-[0.99]"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const idToDelete = connToDelete.id;
+                  setConnToDelete(null);
+                  handleDeleteSavedConnection(idToDelete);
+                }}
+                className="flex-1 py-2.5 sm:py-3 px-4 rounded-2xl bg-gradient-to-r from-rose-500 via-rose-600 to-red-600 hover:opacity-95 active:scale-[0.99] text-white font-bold text-xs sm:text-sm tracking-wide shadow-[0_10px_24px_rgba(244,63,94,0.35)] hover:shadow-[0_14px_28px_rgba(244,63,94,0.45)] transition-all cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                <Trash2 className="w-4 h-4 text-white stroke-[2.2]" />
+                <span>Sí, eliminar</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Notificación Toast flotante abajo a la derecha */}
+      {toastNotification && (
+        <div
+          role="status"
+          className="fixed bottom-6 right-6 z-[80] flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-xl border bg-slate-900 text-white border-slate-700 animate-in fade-in slide-in-from-bottom-5 duration-200"
+        >
+          {toastNotification.type === 'success' ? (
+            <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+          ) : (
+            <Info className="w-5 h-5 text-sky-400 shrink-0" />
+          )}
+          <span className="text-sm font-semibold tracking-wide">
+            {toastNotification.text}
+          </span>
+          <button
+            type="button"
+            onClick={() => setToastNotification(null)}
+            className="ml-2 text-slate-400 hover:text-white cursor-pointer"
+            title="Cerrar notificación"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
     </div>
   );
 };

@@ -170,7 +170,7 @@ async function verifyMetaTokenClientDirect(token: string) {
           const scopes = debugData.data.scopes;
           permissions = {
             adsManagement: scopes.includes('ads_management'),
-            pagesReadEngagement: scopes.includes('pages_read_engagement') || scopes.includes('pages_show_list'),
+            pagesReadEngagement: scopes.includes('pages_read_engagement') || scopes.includes('pages_show_list') || scopes.includes('ads_read'),
             businessManagement: scopes.includes('business_management'),
             allGranted: scopes
           };
@@ -190,7 +190,7 @@ async function verifyMetaTokenClientDirect(token: string) {
           const granted = permData.data.filter((p: any) => p.status === 'granted').map((p: any) => p.permission);
           permissions = {
             adsManagement: granted.includes('ads_management'),
-            pagesReadEngagement: granted.includes('pages_read_engagement') || granted.includes('pages_show_list'),
+            pagesReadEngagement: granted.includes('pages_read_engagement') || granted.includes('pages_show_list') || granted.includes('ads_read'),
             businessManagement: granted.includes('business_management'),
             allGranted: granted
           };
