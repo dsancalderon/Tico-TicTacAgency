@@ -111,8 +111,13 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
   const [expandedConnIds, setExpandedConnIds] = useState<Record<string, boolean>>({});
   const [connToDelete, setConnToDelete] = useState<SavedMetaConnection | null>(null);
   const [toastNotification, setToastNotification] = useState<{ text: string; type: 'success' | 'info' } | null>(null);
+  const [connectionNotice, setConnectionNotice] = useState<{
+    type: 'success' | 'error';
+    title: string;
+    message: string;
+  } | null>(null);
 
-  // Auto-dismiss de la notificación toast
+  // Auto-dismiss de la notificación toast abajo a la derecha
   useEffect(() => {
     if (!toastNotification) return;
     const timer = setTimeout(() => {
@@ -121,16 +126,26 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
     return () => clearTimeout(timer);
   }, [toastNotification]);
 
-  // Cerrar modal de confirmación con tecla Escape
+  // Auto-dismiss de la notificación en el medio de la pantalla
+  useEffect(() => {
+    if (!connectionNotice) return;
+    const timer = setTimeout(() => {
+      setConnectionNotice(null);
+    }, 4500);
+    return () => clearTimeout(timer);
+  }, [connectionNotice]);
+
+  // Cerrar modales con tecla Escape
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && connToDelete) {
-        setConnToDelete(null);
+      if (e.key === 'Escape') {
+        if (connectionNotice) setConnectionNotice(null);
+        if (connToDelete) setConnToDelete(null);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [connToDelete]);
+  }, [connToDelete, connectionNotice]);
 
   const toggleConnExpanded = (connId: string) => {
     setExpandedConnIds(prev => ({
@@ -309,7 +324,13 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
     const cleanAccountId = inputAdAccountId.trim();
 
     if (!cleanToken) {
-      setAuthError('Por favor ingresa tu Token de Acceso de Meta (System User Token o Graph API Token).');
+      const msg = 'Por favor ingresa tu Token de Acceso de Meta (System User Token o Graph API Token).';
+      setAuthError(msg);
+      setConnectionNotice({
+        type: 'error',
+        title: 'Token Requerido',
+        message: msg
+      });
       return;
     }
 
@@ -414,6 +435,11 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
 
         if (chosenAcc) {
           setIsConnecting(false);
+          setConnectionNotice({
+            type: 'success',
+            title: '¡Conexión Exitosa!',
+            message: `Portafolio "${portfolioName}" y cuenta publicitaria vinculados correctamente con Meta Ads.`
+          });
 
           onUpdateMetaState({
             isConnected: true,
@@ -452,6 +478,11 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
         } else {
           // Token válido pero sin cuenta asignada todavía
           setIsConnecting(false);
+          setConnectionNotice({
+            type: 'success',
+            title: '¡Token Vinculado!',
+            message: `Portafolio "${portfolioName}" verificado. No olvides asignar cuentas publicitarias en Meta Business Suite.`
+          });
 
           onUpdateMetaState({
             isConnected: true,
@@ -491,10 +522,21 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
         const errMsg = verifyRes.diagnostic?.error || verifyRes.error || 'Token de acceso inválido o expirado en Meta.';
         setAuthError(errMsg);
         setIsConnecting(false);
+        setConnectionNotice({
+          type: 'error',
+          title: 'Conexión Fallida',
+          message: errMsg
+        });
       }
     } catch (err: any) {
-      setAuthError(`Error de conexión con el servidor: ${err.message}`);
+      const errMsg = `Error de conexión con el servidor: ${err.message}`;
+      setAuthError(errMsg);
       setIsConnecting(false);
+      setConnectionNotice({
+        type: 'error',
+        title: 'Error de Conexión',
+        message: errMsg
+      });
     }
   };
 
@@ -636,6 +678,12 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
           'Píxel de conversiones vinculado y listo.'
         ],
         savedConnections: sanitizedSaved
+      });
+
+      setConnectionNotice({
+        type: 'success',
+        title: '¡Entorno Demo Conectado!',
+        message: `Portafolio de prueba "${demoPortfolioName}" vinculado con éxito.`
       });
     }, 600);
   };
@@ -1752,6 +1800,105 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
 
         </div>
       </details>
+
+      {/* Notificación en el medio de la pantalla (Conexión Exitosa o Fallida al vincular token) */}
+      {connectionNotice && (
+        <div 
+          className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto"
+          onClick={() => setConnectionNotice(null)}
+        >
+          {/* Ambient background glow orbs */}
+          {connectionNotice.type === 'success' ? (
+            <>
+              <div className="fixed -top-24 -left-24 w-96 h-96 bg-emerald-400/20 rounded-full blur-3xl pointer-events-none" />
+              <div className="fixed -bottom-24 -right-24 w-96 h-96 bg-teal-400/20 rounded-full blur-3xl pointer-events-none" />
+              <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-emerald-300/15 rounded-full blur-[100px] pointer-events-none" />
+            </>
+          ) : (
+            <>
+              <div className="fixed -top-24 -left-24 w-96 h-96 bg-rose-400/20 rounded-full blur-3xl pointer-events-none" />
+              <div className="fixed -bottom-24 -right-24 w-96 h-96 bg-red-400/20 rounded-full blur-3xl pointer-events-none" />
+              <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-rose-300/15 rounded-full blur-[100px] pointer-events-none" />
+            </>
+          )}
+
+          {/* Glassmorphic Card */}
+          <div 
+            className={`relative w-full max-w-[390px] rounded-[30px] bg-white/95 backdrop-blur-2xl border p-6 sm:p-7 flex flex-col items-center my-auto transition-all z-10 text-center animate-in zoom-in-95 duration-200 ${
+              connectionNotice.type === 'success'
+                ? 'border-emerald-200 shadow-[0_25px_60px_-15px_rgba(16,185,129,0.3)]'
+                : 'border-rose-200 shadow-[0_25px_60px_-15px_rgba(244,63,94,0.3)]'
+            }`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close Button */}
+            <button
+              type="button"
+              onClick={() => setConnectionNotice(null)}
+              className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-200/50 rounded-full transition-colors cursor-pointer z-20"
+              title="Cerrar"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            {/* Floating Gradient Icon with Aura */}
+            <div className="relative flex items-center justify-center mb-1">
+              <div 
+                className={`absolute inset-0 rounded-2xl blur-lg transform scale-110 pointer-events-none ${
+                  connectionNotice.type === 'success' ? 'bg-emerald-500/25' : 'bg-rose-500/25'
+                }`} 
+              />
+              <div 
+                className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center text-white shadow-lg"
+                style={{
+                  background: connectionNotice.type === 'success'
+                    ? 'linear-gradient(135deg, #10b981 0%, #059669 50%, #047857 100%)'
+                    : 'linear-gradient(135deg, #f43f5e 0%, #e11d48 50%, #be123c 100%)'
+                }}
+              >
+                {connectionNotice.type === 'success' ? (
+                  <CheckCircle2 className="w-8 h-8 text-white stroke-[2.2]" />
+                ) : (
+                  <AlertCircle className="w-8 h-8 text-white stroke-[2.2]" />
+                )}
+              </div>
+            </div>
+
+            {/* Title & Description */}
+            <h2 className="text-xl sm:text-[22px] font-bold text-slate-800 tracking-tight font-['Outfit'] mt-3">
+              {connectionNotice.title}
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-600 font-medium mt-2 leading-relaxed max-w-[320px] mx-auto">
+              {connectionNotice.message}
+            </p>
+
+            {/* Action Button */}
+            <div className="mt-6 w-full">
+              <button
+                type="button"
+                onClick={() => setConnectionNotice(null)}
+                className={`w-full py-2.5 sm:py-3 px-4 rounded-2xl text-white font-bold text-xs sm:text-sm tracking-wide transition-all cursor-pointer flex items-center justify-center gap-1.5 active:scale-[0.99] ${
+                  connectionNotice.type === 'success'
+                    ? 'bg-gradient-to-r from-emerald-500 via-emerald-600 to-teal-600 hover:opacity-95 shadow-[0_10px_24px_rgba(16,185,129,0.35)]'
+                    : 'bg-gradient-to-r from-rose-500 via-rose-600 to-red-600 hover:opacity-95 shadow-[0_10px_24px_rgba(244,63,94,0.35)]'
+                }`}
+              >
+                {connectionNotice.type === 'success' ? (
+                  <>
+                    <CheckCircle2 className="w-4 h-4 text-white stroke-[2.2]" />
+                    <span>Continuar</span>
+                  </>
+                ) : (
+                  <>
+                    <X className="w-4 h-4 text-white stroke-[2.2]" />
+                    <span>Entendido</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal de Confirmación para Eliminar Conexión / Token */}
       {connToDelete && (
