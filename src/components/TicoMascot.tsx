@@ -7,6 +7,15 @@ export const TICO_VIEWBOX = { width: 367, height: 432 } as const;
 /** Centro y radio del anillo de la antena, en unidades del viewBox (útil para ondas o destellos). */
 export const TICO_RING = { cx: 183.4, cy: 55.12, r: 37.25 } as const;
 
+/** Shared canonical geometry, including animated variants of the mascot. */
+export const TICO_PATHS = {
+  head: 'M183.4 138.25C291.65 138.25 347.78 136.93 347.78 275.75C347.78 414.57 291.65 413.25 183.4 413.25C75.15 413.25 19.02 414.57 19.02 275.75C19.02 136.93 75.15 138.25 183.4 138.25Z',
+  stem: 'M183.4 138.25V92.38',
+  leftEye: 'M84.81 268.86A33.02 33.02 0 0 1 147.08 265.76',
+  rightEye: 'M219.77 265.76A33.02 33.02 0 0 1 282.04 268.86',
+  smile: 'M146.97 324.01A42.77 42.77 0 0 0 219.83 324.01',
+} as const;
+
 export interface TicoMascotProps extends ComponentPropsWithoutRef<"svg"> {
   /** Texto accesible. Si se omite, la mascota se trata como decorativa (aria-hidden). */
   title?: string;
@@ -74,7 +83,7 @@ export const TicoMascot = forwardRef<SVGSVGElement, TicoMascotProps>(
           <path
             className="tico-head"
             data-part="head"
-            d="M183.4 138.25C291.65 138.25 347.78 136.93 347.78 275.75C347.78 414.57 291.65 413.25 183.4 413.25C75.15 413.25 19.02 414.57 19.02 275.75C19.02 136.93 75.15 138.25 183.4 138.25Z"
+            d={TICO_PATHS.head}
             strokeWidth={29.12}
             pathLength={1}
             style={partStyle}
@@ -82,7 +91,7 @@ export const TicoMascot = forwardRef<SVGSVGElement, TicoMascotProps>(
           <path
             className="tico-antenna-stem"
             data-part="antenna-stem"
-            d="M183.4 138.25V92.38"
+            d={TICO_PATHS.stem}
             strokeWidth={30.5}
             strokeLinecap="butt"
             pathLength={1}
@@ -101,7 +110,7 @@ export const TicoMascot = forwardRef<SVGSVGElement, TicoMascotProps>(
           <path
             className="tico-eye-left"
             data-part="eye-left"
-            d="M84.81 268.86A33.02 33.02 0 0 1 147.08 265.76"
+            d={TICO_PATHS.leftEye}
             strokeWidth={24.43}
             pathLength={1}
             style={partStyle}
@@ -109,7 +118,7 @@ export const TicoMascot = forwardRef<SVGSVGElement, TicoMascotProps>(
           <path
             className="tico-eye-right"
             data-part="eye-right"
-            d="M219.77 265.76A33.02 33.02 0 0 1 282.04 268.86"
+            d={TICO_PATHS.rightEye}
             strokeWidth={24.43}
             pathLength={1}
             style={partStyle}
@@ -117,7 +126,7 @@ export const TicoMascot = forwardRef<SVGSVGElement, TicoMascotProps>(
           <path
             className="tico-smile"
             data-part="smile"
-            d="M146.97 324.01A42.77 42.77 0 0 0 219.83 324.01"
+            d={TICO_PATHS.smile}
             strokeWidth={20.85}
             pathLength={1}
             style={partStyle}

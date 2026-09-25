@@ -47,6 +47,7 @@ import {
   Eraser
 } from 'lucide-react';
 import { TicoLoader } from './components/TicoLoader';
+import { TicoStrategyLoader } from './components/TicoLoader/TicoStrategyLoader';
 import { forceResetScroll } from './utils/scrollLock';
 
 export function App() {
@@ -699,6 +700,7 @@ export function App() {
         isCreditsModalOpen={isCreditsModalOpen}
         onCreditsModalOpenChange={setIsCreditsModalOpen}
       >
+        {isLoadingStrategy && <TicoStrategyLoader />}
         {/* Pantalla de carga animada inicial de Tico en el Dashboard */}
         {showLoader && (
           <TicoLoader
