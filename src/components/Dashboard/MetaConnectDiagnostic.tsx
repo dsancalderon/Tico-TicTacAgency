@@ -16,11 +16,26 @@ import {
   RefreshCw,
   AlertCircle,
   Image as ImageIcon,
-  ChevronDown
+  ChevronDown,
+  Trash2,
+  Plus
 } from 'lucide-react';
-import type { MetaConnectionState, MetaAvailableAccount as AvailableAccount } from '../../types';
+import type { MetaConnectionState, MetaAvailableAccount as AvailableAccount, SavedMetaConnection } from '../../types';
 import { verifyMetaTokenApi, verifyMetaAccountApi, testMetaCreationApi } from '../../services/api';
 import { MetaBrandLogo } from '../BrandLogos';
+
+const LOCAL_STORAGE_SAVED_CONNECTIONS_KEY = 'tico_saved_meta_connections';
+
+const loadLocalSavedConnections = (): SavedMetaConnection[] => {
+  try {
+    const raw = localStorage.getItem(LOCAL_STORAGE_SAVED_CONNECTIONS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch {}
+  return [];
+};
 
 interface MetaConnectDiagnosticProps {
   metaState: MetaConnectionState;
@@ -75,6 +90,51 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
     message: string;
     details?: any;
   }>({ status: 'idle', message: '' });
+
+  // Saved Meta Connections State (Portafolios Comerciales Guardados)
+  const [savedConnections, setSavedConnections] = useState<SavedMetaConnection[]>(() => {
+    if (metaState.savedConnections && metaState.savedConnections.length > 0) {
+      return metaState.savedConnections;
+    }
+    const localList = loadLocalSavedConnections();
+    if (localList.length > 0) return localList;
+    if (metaState.isConnected && (metaState.adAccountId || metaState.userAccessToken)) {
+      return [{
+        id: metaState.businessManagerId || metaState.adAccountId || 'meta-conn-primary',
+        portfolioName: metaState.businessManagerName || (metaState.isRealToken ? 'Portafolio Comercial Meta' : 'TicTac Agency Performance Sandbox'),
+        businessManagerId: metaState.businessManagerId,
+        businessManagerName: metaState.businessManagerName,
+        adAccountId: metaState.adAccountId,
+        adAccountName: metaState.adAccountName,
+        token: metaState.userAccessToken,
+        appName: metaState.appName,
+        appId: metaState.appId,
+        userName: metaState.userName,
+        userId: metaState.userId,
+        userType: metaState.userType,
+        status: metaState.status,
+        isRealToken: metaState.isRealToken,
+        pixelId: metaState.pixelId,
+        pixelName: metaState.pixelName,
+        pageId: metaState.pageId,
+        pageName: metaState.pageName,
+        availableAccounts: metaState.availableAccounts,
+        permissions: metaState.permissions,
+        connectedAt: new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })
+      }];
+    }
+    return [];
+  });
+
+  // Sincronizar conexiones guardadas si cambian desde el workspace
+  useEffect(() => {
+    if (metaState.savedConnections && metaState.savedConnections.length > 0) {
+      setSavedConnections(metaState.savedConnections);
+      try {
+        localStorage.setItem(LOCAL_STORAGE_SAVED_CONNECTIONS_KEY, JSON.stringify(metaState.savedConnections));
+      } catch {}
+    }
+  }, [metaState.savedConnections]);
 
   // Sincronizar cuentas automáticamente al montar o si cambia metaState
   useEffect(() => {
@@ -223,6 +283,46 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
 
         const chosenAcc = matchedAccount || userAccounts[0];
 
+        const portfolioName = chosenAcc?.businessName || diag.businesses?.[0]?.name || (cleanAccountId ? `Portafolio (${cleanAccountId})` : 'Portafolio Comercial Meta');
+        const connId = chosenAcc?.businessId || diag.businesses?.[0]?.id || chosenAcc?.id || `meta_conn_${Date.now()}`;
+
+        const newSavedConn: SavedMetaConnection = {
+          id: connId,
+          portfolioName,
+          businessManagerId: chosenAcc?.businessId || diag.businesses?.[0]?.id,
+          businessManagerName: chosenAcc?.businessName || diag.businesses?.[0]?.name,
+          adAccountId: chosenAcc?.id || cleanAccountId || '',
+          adAccountName: chosenAcc?.name || (cleanAccountId ? `Cuenta ${cleanAccountId}` : ''),
+          token: cleanToken,
+          appName: diag.app?.name || 'Tico Performance Ads',
+          appId: diag.app?.id,
+          userName: diag.user?.name || 'Usuario Meta',
+          userId: diag.user?.id,
+          userType: diag.user?.type || 'SYSTEM_USER',
+          status: chosenAcc ? 'ready_to_deploy' : 'connected_needs_perms',
+          isRealToken: true,
+          pixelId: chosenAcc?.pixelId,
+          pixelName: chosenAcc?.pixelName,
+          pageId: chosenAcc?.pageId || diag.pages?.[0]?.id,
+          pageName: chosenAcc?.pageName || diag.pages?.[0]?.name,
+          availableAccounts: userAccounts,
+          permissions: {
+            adsManagement: diag.permissions?.adsManagement ?? true,
+            pagesReadEngagement: diag.permissions?.pagesReadEngagement ?? true,
+            businessManagement: diag.permissions?.businessManagement ?? true
+          },
+          connectedAt: new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })
+        };
+
+        const updatedSaved = [
+          newSavedConn,
+          ...savedConnections.filter(c => c.id !== newSavedConn.id && (newSavedConn.token ? c.token !== newSavedConn.token : true))
+        ];
+        setSavedConnections(updatedSaved);
+        try {
+          localStorage.setItem(LOCAL_STORAGE_SAVED_CONNECTIONS_KEY, JSON.stringify(updatedSaved));
+        } catch {}
+
         if (chosenAcc) {
           setSelectedAccountId(chosenAcc.id);
           setIsConnecting(false);
@@ -255,14 +355,16 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
               `✅ App oficial en Meta: ${diag.app?.name || 'Tico Performance Ads'} (ID: ${diag.app?.id || 'N/A'})`,
               `✅ Usuario del Sistema verificado: ${diag.user?.name || 'Usuario Meta'} (ID: ${diag.user?.id})`,
               `✅ Permisos de Marketing API verificados (ads_management, ads_read, business_management).`,
+              `✅ Portafolio comercial vinculado: ${portfolioName}.`,
               `✅ Cuenta publicitaria vinculada: ${chosenAcc.name} (${chosenAcc.id}).`,
               `✅ Cuentas asociadas encontradas: ${userAccounts.length}`
-            ]
+            ],
+            savedConnections: updatedSaved
           });
 
           setTestResult({
             status: 'success',
-            message: `¡Conexión oficial con Meta completada con éxito! Cuenta publicitaria vinculada: ${chosenAcc.name}.`
+            message: `¡Conexión oficial con Meta completada con éxito! Portafolio comercial "${portfolioName}" y cuenta publicitaria "${chosenAcc.name}" vinculados.`
           });
         } else {
           // Token válido pero sin cuenta asignada todavía
@@ -297,13 +399,15 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
               `✅ App oficial en Meta: ${diag.app?.name || 'Tico Performance Ads'} (ID: ${diag.app?.id || 'N/A'})`,
               `✅ Usuario del Sistema verificado: ${diag.user?.name || 'Tico'} (ID: ${diag.user?.id})`,
               `✅ Permisos de Marketing API activos: ads_management, ads_read, business_management.`,
+              `✅ Portafolio comercial registrado: ${portfolioName}.`,
               `⚠️ Sin cuentas publicitarias asignadas directamente al Usuario del Sistema en Meta Business Suite.`
-            ]
+            ],
+            savedConnections: updatedSaved
           });
 
           setTestResult({
             status: 'idle',
-            message: `Token oficial verificado con éxito para la App "${diag.app?.name || 'Tico Performance Ads'}" y el usuario "${diag.user?.name || 'Tico'}". Para crear campañas, asigna tu cuenta publicitaria en Meta Business Suite o ingresa su ID abajo.`
+            message: `Token oficial verificado con éxito para el portafolio "${portfolioName}". Para crear campañas, asigna tu cuenta publicitaria en Meta Business Suite o ingresa su ID abajo.`
           });
         }
       } else {
@@ -461,6 +565,44 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
     setTimeout(() => {
       setIsConnecting(false);
       const chosenAcc = defaultAccounts[0];
+      const demoPortfolioName = chosenAcc.businessName || 'TicTac Agency Performance Sandbox';
+
+      const demoConn: SavedMetaConnection = {
+        id: 'meta_demo_sandbox',
+        portfolioName: demoPortfolioName,
+        businessManagerId: 'bm_demo_sandbox',
+        businessManagerName: chosenAcc.businessName,
+        adAccountId: chosenAcc.id,
+        adAccountName: chosenAcc.name,
+        token: 'EAAB_Demo_Verified_Token',
+        appName: 'TicTac Demo App',
+        appId: 'demo_app_001',
+        userName: 'Usuario Sandbox',
+        userId: 'demo_user_123',
+        userType: 'DEMO',
+        status: 'ready_to_deploy',
+        isRealToken: false,
+        pixelId: 'pix_demo_123',
+        pixelName: 'Meta Pixel Conversiones Demo',
+        pageId: 'page_demo_123',
+        pageName: 'TicTac Agency Performance Demo',
+        availableAccounts: defaultAccounts,
+        permissions: {
+          adsManagement: true,
+          pagesReadEngagement: true,
+          businessManagement: true
+        },
+        connectedAt: new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })
+      };
+
+      const updatedSaved = [
+        demoConn,
+        ...savedConnections.filter(c => c.id !== demoConn.id)
+      ];
+      setSavedConnections(updatedSaved);
+      try {
+        localStorage.setItem(LOCAL_STORAGE_SAVED_CONNECTIONS_KEY, JSON.stringify(updatedSaved));
+      } catch {}
 
       onUpdateMetaState({
         isConnected: true,
@@ -489,14 +631,16 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
           'Entorno demostrativo conectado con éxito.',
           'Permiso ads_management simulado (Creación de campañas en PAUSED).',
           'Permiso business_management activo.',
+          `Portafolio comercial: ${demoPortfolioName}.`,
           `Cuenta publicitaria seleccionada: ${chosenAcc.name} (${chosenAcc.id}).`,
           'Píxel de conversiones vinculado y listo.'
-        ]
+        ],
+        savedConnections: updatedSaved
       });
 
       setTestResult({
         status: 'success',
-        message: `¡Modo demostrativo activado! Puedes probar la creación de campañas en PAUSED y la exportación.`
+        message: `¡Modo demostrativo activado con portafolio "${demoPortfolioName}"! Puedes probar la creación de campañas en PAUSED.`
       });
     }, 600);
   };
@@ -505,6 +649,30 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
   const handleSelectAccount = (acc: AvailableAccount) => {
     setSelectedAccountId(acc.id);
     if (metaState.isConnected) {
+      const updatedList = savedConnections.map(c => {
+        const isThisConn = (c.token && c.token === metaState.userAccessToken) ||
+                           (c.businessManagerId && c.businessManagerId === metaState.businessManagerId) ||
+                           (c.adAccountId && c.adAccountId === metaState.adAccountId);
+        if (isThisConn) {
+          return {
+            ...c,
+            adAccountId: acc.id,
+            adAccountName: acc.name,
+            businessManagerId: acc.businessId || c.businessManagerId,
+            businessManagerName: acc.businessName || c.businessManagerName,
+            pixelId: acc.pixelId || c.pixelId,
+            pixelName: acc.pixelName || c.pixelName,
+            pageId: acc.pageId || c.pageId,
+            pageName: acc.pageName || c.pageName
+          };
+        }
+        return c;
+      });
+      setSavedConnections(updatedList);
+      try {
+        localStorage.setItem(LOCAL_STORAGE_SAVED_CONNECTIONS_KEY, JSON.stringify(updatedList));
+      } catch {}
+
       onUpdateMetaState({
         ...metaState,
         status: 'ready_to_deploy',
@@ -520,7 +688,8 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
         diagnostics: [
           ...metaState.diagnostics.filter(d => !d.startsWith('✅ Cuenta publicitaria vinculada:')),
           `✅ Cuenta publicitaria vinculada: ${acc.name} (${acc.id}).`
-        ]
+        ],
+        savedConnections: updatedList
       });
     }
   };
@@ -574,7 +743,7 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
     }
   };
 
-  // 5. Disconnect
+  // 5. Disconnect (Keeps savedConnections safe!)
   const handleDisconnect = () => {
     onUpdateMetaState({
       isConnected: false,
@@ -599,7 +768,8 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
         pagesReadEngagement: false,
         businessManagement: false
       },
-      diagnostics: ['La cuenta se encuentra desconectada. No se pueden orquestar campañas en Meta Ads.']
+      diagnostics: ['La cuenta se encuentra desconectada. Selecciona una conexión guardada abajo o ingresa un nuevo token para continuar.'],
+      savedConnections
     });
     setRealAccounts([]);
     setSelectedAccountId('');
@@ -607,6 +777,136 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
     setManualAccountError(null);
     setTestResult({ status: 'idle', message: '' });
     setAuthError(null);
+    setInputToken('');
+    setInputAdAccountId('');
+  };
+
+  // 6. Select a Saved Connection (Portafolio Comercial)
+  const handleSelectSavedConnection = (conn: SavedMetaConnection) => {
+    setInputToken(conn.token || '');
+    setInputAdAccountId(conn.adAccountId || '');
+    setSelectedAccountId(conn.adAccountId || '');
+
+    const accountsToUse = conn.availableAccounts && conn.availableAccounts.length > 0
+      ? conn.availableAccounts
+      : (conn.adAccountId ? [{
+          id: conn.adAccountId,
+          name: conn.adAccountName || 'Cuenta Publicitaria Principal',
+          businessName: conn.businessManagerName || conn.portfolioName,
+          businessId: conn.businessManagerId,
+          currency: 'USD',
+          status: 'ACTIVA',
+          pixelName: conn.pixelName,
+          pixelId: conn.pixelId,
+          pageName: conn.pageName,
+          pageId: conn.pageId
+        }] : []);
+
+    setRealAccounts(accountsToUse);
+    setCustomPageId(conn.pageId || '');
+    setTestResult({ status: 'idle', message: '' });
+    setAuthError(null);
+
+    onUpdateMetaState({
+      ...metaState,
+      isConnected: true,
+      isRealToken: conn.isRealToken ?? true,
+      status: conn.status || (conn.adAccountId ? 'ready_to_deploy' : 'connected_needs_perms'),
+      userAccessToken: conn.token || '',
+      appName: conn.appName || 'Tico Performance Ads',
+      appId: conn.appId,
+      userName: conn.userName || 'Usuario Meta',
+      userId: conn.userId,
+      userType: conn.userType || 'SYSTEM_USER',
+      businessManagerId: conn.businessManagerId,
+      businessManagerName: conn.businessManagerName || conn.portfolioName,
+      adAccountId: conn.adAccountId,
+      adAccountName: conn.adAccountName,
+      pixelId: conn.pixelId,
+      pixelName: conn.pixelName,
+      pageId: conn.pageId,
+      pageName: conn.pageName,
+      availableAccounts: accountsToUse,
+      permissions: conn.permissions || {
+        adsManagement: true,
+        pagesReadEngagement: true,
+        businessManagement: true
+      },
+      diagnostics: [
+        `✅ Portafolio comercial activado: ${conn.portfolioName}`,
+        conn.adAccountName ? `✅ Cuenta publicitaria vinculada: ${conn.adAccountName} (${conn.adAccountId})` : '⚠️ Sin cuenta publicitaria seleccionada',
+        `✅ App oficial en Meta: ${conn.appName || 'Tico Performance Ads'}`,
+        `✅ Conexión lista para orquestar campañas.`
+      ],
+      savedConnections
+    });
+  };
+
+  // 7. Delete a Saved Connection at any time
+  const handleDeleteSavedConnection = (connId: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    const deletedConn = savedConnections.find(c => c.id === connId);
+    const updatedList = savedConnections.filter(c => c.id !== connId);
+    setSavedConnections(updatedList);
+    try {
+      localStorage.setItem(LOCAL_STORAGE_SAVED_CONNECTIONS_KEY, JSON.stringify(updatedList));
+    } catch {}
+
+    const isCurrentActive = metaState.isConnected && (
+      (deletedConn?.token && metaState.userAccessToken === deletedConn.token) ||
+      (deletedConn?.businessManagerId && metaState.businessManagerId === deletedConn.businessManagerId) ||
+      (deletedConn?.adAccountId && metaState.adAccountId === deletedConn.adAccountId) ||
+      (deletedConn?.id === connId)
+    );
+
+    if (isCurrentActive) {
+      if (updatedList.length > 0) {
+        // Pasar al siguiente portafolio comercial guardado
+        const nextConn = updatedList[0];
+        setInputToken(nextConn.token || '');
+        setInputAdAccountId(nextConn.adAccountId || '');
+        setSelectedAccountId(nextConn.adAccountId || '');
+        const accs = nextConn.availableAccounts && nextConn.availableAccounts.length > 0 ? nextConn.availableAccounts : [];
+        setRealAccounts(accs);
+        onUpdateMetaState({
+          ...metaState,
+          isConnected: true,
+          isRealToken: nextConn.isRealToken ?? true,
+          status: nextConn.status || (nextConn.adAccountId ? 'ready_to_deploy' : 'connected_needs_perms'),
+          userAccessToken: nextConn.token || '',
+          appName: nextConn.appName || 'Tico Performance Ads',
+          appId: nextConn.appId,
+          userName: nextConn.userName || 'Usuario Meta',
+          userId: nextConn.userId,
+          userType: nextConn.userType || 'SYSTEM_USER',
+          businessManagerId: nextConn.businessManagerId,
+          businessManagerName: nextConn.businessManagerName || nextConn.portfolioName,
+          adAccountId: nextConn.adAccountId,
+          adAccountName: nextConn.adAccountName,
+          pixelId: nextConn.pixelId,
+          pixelName: nextConn.pixelName,
+          pageId: nextConn.pageId,
+          pageName: nextConn.pageName,
+          availableAccounts: accs,
+          permissions: nextConn.permissions || {
+            adsManagement: true,
+            pagesReadEngagement: true,
+            businessManagement: true
+          },
+          diagnostics: [
+            `ℹ️ Conexión eliminada. Se activó el portafolio comercial restante: ${nextConn.portfolioName}.`
+          ],
+          savedConnections: updatedList
+        });
+      } else {
+        handleDisconnect();
+      }
+    } else {
+      onUpdateMetaState({
+        ...metaState,
+        savedConnections: updatedList
+      });
+    }
   };
 
   return (
@@ -641,6 +941,29 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
 
         {/* Formulario de Conexión Meta Ads (Misma estructura de Google Ads) */}
         <form onSubmit={handleConnectWithToken} className="space-y-4 max-w-xl">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-slate-100">
+            <div className="flex items-center gap-2">
+              <Key className="w-4 h-4 text-blue-600" />
+              <span className="text-xs font-bold text-[#0a194f]">
+                {metaState.isConnected ? 'Agregar otro Token o Actualizar Portafolio' : 'Ingresa tu Token de Acceso de Meta'}
+              </span>
+            </div>
+            {metaState.isConnected && (
+              <button
+                type="button"
+                onClick={() => {
+                  setInputToken('');
+                  setInputAdAccountId('');
+                  setAuthError(null);
+                }}
+                className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-800 cursor-pointer self-start sm:self-auto"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Limpiar para ingresar otro token</span>
+              </button>
+            )}
+          </div>
+
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label className="block text-xs font-bold text-slate-700">
@@ -703,7 +1026,11 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
               ) : (
                 <>
                   <Key className="w-3.5 h-3.5" />
-                  <span>{metaState.isConnected ? 'Actualizar Vinculación' : 'Vincular Meta Ads'}</span>
+                  <span>
+                    {metaState.isConnected && inputToken.trim() === (metaState.userAccessToken || '').trim()
+                      ? 'Actualizar Vinculación'
+                      : '+ Vincular y Guardar Portafolio'}
+                  </span>
                 </>
               )}
             </button>
@@ -1375,7 +1702,197 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
       </div>
 
       {/* ========================================================================= */}
-      {/* 2. GUÍA PASO A PASO EN FORMATO DESPLEGABLE (ABAJO)                         */}
+      {/* 2. ESPACIO DEDICADO: PORTAFOLIOS COMERCIALES Y CONEXIONES GUARDADAS       */}
+      {/* ========================================================================= */}
+      <div className="bg-white rounded-3xl border border-slate-200/90 p-6 sm:p-8 shadow-xs space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
+          <div className="flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-2xl bg-blue-50 border border-blue-200/70 text-blue-600 flex items-center justify-center shrink-0">
+              <Briefcase className="w-5 h-5 text-blue-600" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2.5">
+                <h3 className="text-base sm:text-lg font-extrabold text-[#0a194f] font-['Outfit']">
+                  Portafolios Comerciales y Conexiones Guardadas
+                </h3>
+                <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200 font-mono">
+                  {savedConnections.length} {savedConnections.length === 1 ? 'portafolio' : 'portafolios'}
+                </span>
+              </div>
+              <p className="text-xs text-[#0a194f]/80 mt-0.5">
+                Conexiones guardadas por Portafolio Comercial de Meta. Puedes seguir agregando más tokens arriba, alternar entre portafolios o eliminarlos en cualquier momento.
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              setInputToken('');
+              setInputAdAccountId('');
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold border border-blue-200/80 transition-colors cursor-pointer self-start sm:self-auto shrink-0"
+          >
+            <Plus className="w-4 h-4" />
+            <span>+ Agregar otro token / portafolio</span>
+          </button>
+        </div>
+
+        {/* Lista de Conexiones Guardadas o Estado Vacío */}
+        {savedConnections.length === 0 ? (
+          <div className="p-8 rounded-2xl bg-slate-50 border border-dashed border-slate-300 text-center space-y-2">
+            <div className="w-12 h-12 mx-auto rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 shadow-2xs">
+              <Briefcase className="w-6 h-6" />
+            </div>
+            <div className="text-xs font-bold text-slate-700 font-['Outfit']">
+              Aún no hay portafolios comerciales guardados
+            </div>
+            <p className="text-[11px] text-slate-500 max-w-md mx-auto leading-relaxed">
+              Ingresa tu Token de Acceso permanente en el formulario de arriba o usa el modo demo. Tu portafolio comercial y su cuenta publicitaria se guardarán aquí automáticamente.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {savedConnections.map((conn) => {
+              const isActive = metaState.isConnected && (
+                (metaState.userAccessToken && conn.token && metaState.userAccessToken === conn.token) ||
+                (metaState.businessManagerId && conn.businessManagerId && metaState.businessManagerId === conn.businessManagerId) ||
+                (metaState.adAccountId && conn.adAccountId && metaState.adAccountId === conn.adAccountId) ||
+                (conn.id === metaState.businessManagerId)
+              );
+
+              return (
+                <div
+                  key={conn.id}
+                  className={`p-5 rounded-2xl border transition-all flex flex-col justify-between space-y-4 ${
+                    isActive
+                      ? 'border-blue-600 bg-blue-50/40 shadow-xs ring-2 ring-blue-600/20'
+                      : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-xs'
+                  }`}
+                >
+                  {/* Encabezado de la Tarjeta del Portafolio */}
+                  <div className="space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {isActive ? (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                              Conexión Activa
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-slate-100 text-slate-600 border border-slate-200">
+                              Guardado
+                            </span>
+                          )}
+
+                          {conn.isRealToken ? (
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200 font-bold">
+                              Token Oficial
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-200 font-bold">
+                              Demo Sandbox
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Nombre del Portafolio Comercial Prominente */}
+                        <div className="pt-0.5">
+                          <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400 block">
+                            Portafolio Comercial
+                          </span>
+                          <h4 
+                            className="text-sm sm:text-base font-extrabold text-[#0a194f] font-['Outfit'] leading-snug truncate" 
+                            title={conn.portfolioName}
+                          >
+                            {conn.portfolioName || 'Portafolio Comercial Meta'}
+                          </h4>
+                          {conn.businessManagerId && (
+                            <span className="text-[10px] font-mono text-slate-400 block truncate">
+                              ID BM: {conn.businessManagerId}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Botón de Eliminación Rápida */}
+                      <button
+                        type="button"
+                        onClick={(e) => handleDeleteSavedConnection(conn.id, e)}
+                        title="Eliminar este portafolio de guardados"
+                        className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-all cursor-pointer shrink-0"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    {/* Metadata de la Conexión */}
+                    <div className="pt-2 border-t border-slate-100 space-y-1.5 text-xs">
+                      <div className="flex items-center justify-between text-slate-700">
+                        <span className="text-slate-400 text-[11px]">Cuenta Publicitaria:</span>
+                        <span className="font-bold font-mono text-[11px] truncate max-w-[200px]" title={conn.adAccountName || conn.adAccountId}>
+                          {conn.adAccountName ? `${conn.adAccountName} (${conn.adAccountId})` : (conn.adAccountId || 'No asignada')}
+                        </span>
+                      </div>
+
+                      {conn.appName && (
+                        <div className="flex items-center justify-between text-slate-700">
+                          <span className="text-slate-400 text-[11px]">App Meta:</span>
+                          <span className="font-medium text-[11px] truncate max-w-[200px]">{conn.appName}</span>
+                        </div>
+                      )}
+
+                      {conn.userName && (
+                        <div className="flex items-center justify-between text-slate-700">
+                          <span className="text-slate-400 text-[11px]">Usuario del Sistema:</span>
+                          <span className="font-medium text-[11px] truncate max-w-[200px]">{conn.userName}</span>
+                        </div>
+                      )}
+
+                      <div className="flex items-center justify-between text-slate-500 pt-0.5">
+                        <span className="text-[10px] text-slate-400">Vinculado el:</span>
+                        <span className="text-[10px] font-mono text-slate-400">{conn.connectedAt}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Acciones: Seleccionar o Eliminar */}
+                  <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2.5">
+                    {isActive ? (
+                      <div className="text-[11px] font-bold text-emerald-700 flex items-center gap-1.5 py-1">
+                        <Check className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>Portafolio activo para orquestar pauta</span>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleSelectSavedConnection(conn)}
+                        className="flex-1 py-2 px-3 rounded-xl bg-slate-900 hover:bg-blue-600 text-white text-xs font-bold transition-all shadow-2xs flex items-center justify-center gap-1.5 cursor-pointer"
+                      >
+                        <Briefcase className="w-3.5 h-3.5" />
+                        <span>Usar este Portafolio</span>
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={(e) => handleDeleteSavedConnection(conn.id, e)}
+                      className="py-2 px-3 rounded-xl text-rose-600 hover:bg-rose-50 text-[11px] font-bold border border-rose-200/80 transition-colors cursor-pointer shrink-0"
+                    >
+                      Eliminar
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* ========================================================================= */}
+      {/* 3. GUÍA PASO A PASO EN FORMATO DESPLEGABLE (ABAJO)                         */}
       {/* ========================================================================= */}
       <details 
         onToggle={(e) => setIsGuideOpen(e.currentTarget.open)}

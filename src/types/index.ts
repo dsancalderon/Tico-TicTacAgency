@@ -41,6 +41,34 @@ export interface MetaAvailableAccount {
   pageId?: string;
 }
 
+export interface SavedMetaConnection {
+  id: string;
+  portfolioName: string; // Nombre del portafolio comercial (Meta Business Suite / BM)
+  businessManagerId?: string;
+  businessManagerName?: string;
+  adAccountId?: string;
+  adAccountName?: string;
+  token?: string; // Token de acceso permanente para reactivar
+  appName?: string;
+  appId?: string;
+  userName?: string;
+  userId?: string;
+  userType?: string;
+  status: 'disconnected' | 'connected_needs_perms' | 'ready_to_deploy';
+  isRealToken?: boolean;
+  pixelId?: string;
+  pixelName?: string;
+  pageId?: string;
+  pageName?: string;
+  availableAccounts?: MetaAvailableAccount[];
+  permissions?: {
+    adsManagement: boolean;
+    pagesReadEngagement: boolean;
+    businessManagement: boolean;
+  };
+  connectedAt: string;
+}
+
 export interface MetaConnectionState {
   isConnected: boolean;
   status: 'disconnected' | 'connected_needs_perms' | 'ready_to_deploy';
@@ -66,6 +94,7 @@ export interface MetaConnectionState {
   userType?: string;
   isRealToken?: boolean;
   availableAccounts?: MetaAvailableAccount[];
+  savedConnections?: SavedMetaConnection[];
 }
 
 export interface GoogleConnectionState {

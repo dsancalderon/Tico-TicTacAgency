@@ -124,7 +124,8 @@ export function App() {
     },
     diagnostics: [
       'La cuenta se encuentra desconectada. Vincula tu Token de Acceso de Meta o activa el modo demostrativo para comenzar.'
-    ]
+    ],
+    savedConnections: []
   });
 
   // Historial de Transacciones de Créditos
@@ -178,13 +179,14 @@ export function App() {
   }, [workspaceOwner, userSession?.id, savedBrief, strategy, currentStep, isLoadingStrategy, isDeploying]);
 
   const persistConnection = async (platform: 'meta' | 'google', state: MetaConnectionState | GoogleConnectionState) => {
+    if (platform === 'meta') setMetaState(state as MetaConnectionState);
+    else setGoogleState(state as GoogleConnectionState);
+
     const owner = userSession?.id;
     if (!owner || workspaceOwner !== owner) return;
     try {
       await saveConnection(owner, platform, state);
       if (activeOwner.current !== owner) return;
-      if (platform === 'meta') setMetaState(state as MetaConnectionState);
-      else setGoogleState(state as GoogleConnectionState);
       setSaveStatus('Conexión guardada');
     } catch (error) {
       if (activeOwner.current === owner) setSaveStatus(error instanceof Error ? error.message : 'No se pudo guardar la conexión.');
