@@ -19,6 +19,7 @@ const PORT = process.env.PORT || 4000;
 // Configuración de lista blanca estricta para CORS
 const allowedOrigins = new Set([
   process.env.CLIENT_ORIGIN,
+  'https://tico-tic-tac-agency.vercel.app',
   'http://localhost:5173',
   'http://127.0.0.1:5173',
   'http://localhost:3000',
