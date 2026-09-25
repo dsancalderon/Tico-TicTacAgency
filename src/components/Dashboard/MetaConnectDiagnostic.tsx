@@ -10,7 +10,6 @@ import {
   Layers, 
   Briefcase, 
   Info, 
-  RefreshCw, 
   AlertCircle, 
   ChevronDown, 
   Trash2,
@@ -107,7 +106,6 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
     }
     return [];
   });
-  const [isRefreshingAccounts, setIsRefreshingAccounts] = useState(false);
   const [expandedConnIds, setExpandedConnIds] = useState<Record<string, boolean>>({});
   const [connToDelete, setConnToDelete] = useState<SavedMetaConnection | null>(null);
   const [toastNotification, setToastNotification] = useState<{ text: string; type: 'success' | 'info' } | null>(null);
@@ -305,9 +303,6 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
       status: 'ACTIVA'
     }
   ];
-
-  // Si el token es real, NUNCA mostrar cuentas demo falsas; mostrar solo las cuentas reales
-  const currentAccounts = metaState.isRealToken ? realAccounts : (realAccounts.length > 0 ? realAccounts : defaultAccounts);
 
   const handleCopyPermission = (perm: string) => {
     navigator.clipboard.writeText(perm);
@@ -540,64 +535,6 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
     }
   };
 
-  // Recargar cuentas publicitarias desde Meta usando el token actual
-  const handleRefreshAccounts = async () => {
-    const token = metaState.userAccessToken || inputToken;
-    if (!token) return;
-    setIsRefreshingAccounts(true);
-    setAuthError(null);
-
-    try {
-      const res = await verifyMetaTokenApi(token);
-      if (res.success && res.diagnostic?.valid) {
-        const diag = res.diagnostic;
-        const userAccounts: AvailableAccount[] = (diag.adAccounts || []).map((acc: any) => ({
-          id: acc.id,
-          name: acc.name,
-          businessName: acc.business?.name || diag.businesses?.[0]?.name || 'Meta Business Suite',
-          businessId: acc.business?.id || diag.businesses?.[0]?.id,
-          currency: acc.currency || 'USD',
-          status: acc.status === 1 ? 'ACTIVA' : (acc.statusLabel || 'EN_REVISION'),
-          pixelName: acc.pixel?.name,
-          pixelId: acc.pixel?.id,
-          pageName: acc.page?.name || diag.pages?.[0]?.name,
-          pageId: acc.page?.id || diag.pages?.[0]?.id
-        }));
-
-        setRealAccounts(userAccounts);
-
-        if (userAccounts.length > 0) {
-          const chosen = userAccounts[0];
-          onUpdateMetaState({
-            ...metaState,
-            status: 'ready_to_deploy',
-            adAccountId: chosen.id,
-            adAccountName: chosen.name,
-            businessManagerId: chosen.businessId || metaState.businessManagerId,
-            businessManagerName: chosen.businessName || metaState.businessManagerName,
-            pixelId: chosen.pixelId || metaState.pixelId,
-            pixelName: chosen.pixelName || metaState.pixelName,
-            pageId: chosen.pageId || metaState.pageId,
-            pageName: chosen.pageName || metaState.pageName,
-            availableAccounts: userAccounts,
-            diagnostics: [
-              ...metaState.diagnostics.filter(d => !d.startsWith('✅ Cuenta publicitaria vinculada:') && !d.startsWith('⚠️ Sin cuentas')),
-              `✅ Cuenta publicitaria oficial vinculada: ${chosen.name} (${chosen.id}).`
-            ]
-          });
-        } else {
-          setAuthError('Meta aún no reporta cuentas publicitarias asignadas a este Usuario del Sistema. Asegúrate de haber hecho clic en "Asignar activos" > "Cuentas publicitarias" > "Control total" y haber guardado los cambios en Meta Business Suite.');
-        }
-      } else {
-        setAuthError(res.diagnostic?.error || res.error || 'No se pudo consultar las cuentas en Meta.');
-      }
-    } catch (err: any) {
-      setAuthError(`Error al consultar Meta: ${err.message}`);
-    } finally {
-      setIsRefreshingAccounts(false);
-    }
-  };
-
   // 2. Demo Sandbox Connect (1-Click)
   const handleConnectDemo = () => {
     setIsConnecting(true);
@@ -720,7 +657,7 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
         pagesReadEngagement: false,
         businessManagement: false
       },
-      diagnostics: ['La cuenta se encuentra desconectada. Selecciona una conexión guardada abajo o ingresa un nuevo token para continuar.'],
+      diagnostics: ['La cuenta se encuentra desconectada. Vincula tu Token de Acceso de Meta permanente arriba o activa el modo demo para comenzar.'],
       savedConnections: sanitized
     });
     setRealAccounts([]);
@@ -729,66 +666,7 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
     setInputAdAccountId('');
   };
 
-  // 6. Select a Saved Connection (Portafolio Comercial)
-  const handleSelectSavedConnection = (conn: SavedMetaConnection) => {
-    const activeToken = sessionTokenCache.current[conn.id] || conn.token || metaState.userAccessToken || '';
-    setInputToken('');
-    setInputAdAccountId('');
-
-    const accountsToUse = conn.availableAccounts && conn.availableAccounts.length > 0
-      ? conn.availableAccounts
-      : (conn.adAccountId ? [{
-          id: conn.adAccountId,
-          name: conn.adAccountName || 'Cuenta Publicitaria Principal',
-          businessName: conn.businessManagerName || conn.portfolioName,
-          businessId: conn.businessManagerId,
-          currency: 'USD',
-          status: 'ACTIVA',
-          pixelName: conn.pixelName,
-          pixelId: conn.pixelId,
-          pageName: conn.pageName,
-          pageId: conn.pageId
-        }] : []);
-
-    setRealAccounts(accountsToUse);
-    setAuthError(null);
-
-    onUpdateMetaState({
-      ...metaState,
-      isConnected: true,
-      isRealToken: conn.isRealToken ?? true,
-      status: conn.status || (conn.adAccountId ? 'ready_to_deploy' : 'connected_needs_perms'),
-      userAccessToken: activeToken,
-      appName: conn.appName || 'Tico Performance Ads',
-      appId: conn.appId,
-      userName: conn.userName || 'Usuario Meta',
-      userId: conn.userId,
-      userType: conn.userType || 'SYSTEM_USER',
-      businessManagerId: conn.businessManagerId,
-      businessManagerName: conn.businessManagerName || conn.portfolioName,
-      adAccountId: conn.adAccountId,
-      adAccountName: conn.adAccountName,
-      pixelId: conn.pixelId,
-      pixelName: conn.pixelName,
-      pageId: conn.pageId,
-      pageName: conn.pageName,
-      availableAccounts: accountsToUse,
-      permissions: conn.permissions || {
-        adsManagement: true,
-        pagesReadEngagement: true,
-        businessManagement: true
-      },
-      diagnostics: [
-        `✅ Portafolio comercial activado: ${conn.portfolioName}`,
-        conn.adAccountName ? `✅ Cuenta publicitaria vinculada: ${conn.adAccountName} (${conn.adAccountId})` : '⚠️ Sin cuenta publicitaria seleccionada',
-        `✅ App oficial en Meta: ${conn.appName || 'Tico Performance Ads'}`,
-        `✅ Conexión lista para orquestar campañas.`
-      ],
-      savedConnections: sanitizeSavedConnections(savedConnections)
-    });
-  };
-
-  // 7. Delete a Saved Connection at any time
+  // 6. Delete a Saved Connection at any time
   const handleDeleteSavedConnection = (connId: string, e?: React.MouseEvent) => {
     if (e) {
       e.preventDefault();
@@ -854,7 +732,7 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
             businessManagement: true
           },
           diagnostics: [
-            `ℹ️ Portafolio comercial eliminado. Se activó el portafolio restante: ${nextConn.portfolioName || nextConn.businessManagerName}.`
+            `ℹ️ Portafolio comercial eliminado de la lista guardada.`
           ],
           savedConnections: sanitizedList
         });
@@ -1014,7 +892,7 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
               Portafolios Comerciales y Conexiones Guardadas
             </h3>
             <p className="text-xs text-[#0a194f]/80 mt-0.5">
-              Conexiones guardadas por Portafolio Comercial de Meta. Puedes seguir agregando más tokens arriba, alternar entre portafolios o eliminarlos en cualquier momento.
+              Historial de conexiones guardadas por Portafolio Comercial de Meta. Consulta los detalles de tus portafolios, cuentas y activos vinculados.
             </p>
           </div>
         </div>
@@ -1035,49 +913,32 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
         ) : (
           <div className="flex flex-col gap-4 w-full">
             {savedConnections.map((conn) => {
-              const isActive = metaState.isConnected && (
-                (metaState.userAccessToken && conn.token && metaState.userAccessToken === conn.token) ||
-                (metaState.businessManagerId && conn.businessManagerId && metaState.businessManagerId === conn.businessManagerId) ||
-                (metaState.adAccountId && conn.adAccountId && metaState.adAccountId === conn.adAccountId) ||
-                (conn.id === metaState.businessManagerId)
-              );
-
               const isExpanded = Boolean(expandedConnIds[conn.id]);
 
-              const accountsForConn: AvailableAccount[] = isActive
-                ? currentAccounts
-                : (conn.availableAccounts && conn.availableAccounts.length > 0
-                    ? conn.availableAccounts
-                    : (conn.adAccountId ? [{
-                        id: conn.adAccountId,
-                        name: conn.adAccountName || 'Cuenta Publicitaria Principal',
-                        businessName: conn.businessManagerName || conn.portfolioName,
-                        businessId: conn.businessManagerId,
-                        currency: 'USD',
-                        status: 'ACTIVA',
-                        pixelName: conn.pixelName,
-                        pixelId: conn.pixelId,
-                        pageName: conn.pageName,
-                        pageId: conn.pageId
-                      }] : []));
+              const accountsForConn: AvailableAccount[] = conn.availableAccounts && conn.availableAccounts.length > 0
+                ? conn.availableAccounts
+                : (conn.adAccountId ? [{
+                    id: conn.adAccountId,
+                    name: conn.adAccountName || 'Cuenta Publicitaria Principal',
+                    businessName: conn.businessManagerName || conn.portfolioName,
+                    businessId: conn.businessManagerId,
+                    currency: 'USD',
+                    status: 'ACTIVA',
+                    pixelName: conn.pixelName,
+                    pixelId: conn.pixelId,
+                    pageName: conn.pageName,
+                    pageId: conn.pageId
+                  }] : []);
 
               return (
                 <div
                   key={conn.id}
-                  className={`w-full rounded-2xl border transition-all ${
-                    isActive
-                      ? 'border-blue-500 bg-white shadow-xs ring-1 ring-blue-500/20'
-                      : 'border-slate-200 bg-white hover:border-slate-300 shadow-2xs'
-                  }`}
+                  className="w-full rounded-2xl border border-slate-200/90 bg-white hover:border-slate-300 shadow-2xs transition-all"
                 >
                   {/* Fila Principal de la Ficha (Siempre Visible) */}
                   <div className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${
-                        isActive
-                          ? 'bg-blue-600 text-white border-blue-500 shadow-2xs'
-                          : 'bg-slate-100 text-slate-600 border-slate-200'
-                      }`}>
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border bg-blue-50 text-blue-600 border-blue-200/70 shadow-2xs">
                         <Briefcase className="w-4.5 h-4.5" />
                       </div>
 
@@ -1096,22 +957,6 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
 
                     {/* Acciones del Encabezado */}
                     <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
-                      {isActive ? (
-                        <span className="px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1 shadow-2xs">
-                          <Check className="w-3 h-3 text-emerald-600 stroke-[2.5]" />
-                          <span>Activo</span>
-                        </span>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => handleSelectSavedConnection(conn)}
-                          className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-blue-600 text-white text-xs font-bold transition-all shadow-2xs flex items-center gap-1.5 cursor-pointer"
-                        >
-                          <Briefcase className="w-3.5 h-3.5" />
-                          <span>Usar este Portafolio</span>
-                        </button>
-                      )}
-
                       {/* Botón Desplegable */}
                       <button
                         type="button"
@@ -1155,17 +1000,6 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
                       <div className="space-y-2.5">
                         <div className="flex items-center justify-between text-[11px] font-bold text-slate-600 uppercase tracking-wider">
                           <span>Cuentas Publicitarias Disponibles en Meta ({accountsForConn.length}):</span>
-                          {isActive && (
-                            <button
-                              type="button"
-                              onClick={handleRefreshAccounts}
-                              disabled={isRefreshingAccounts}
-                              className="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 font-semibold cursor-pointer lowercase"
-                            >
-                              <RefreshCw className={`w-3 h-3 ${isRefreshingAccounts ? 'animate-spin' : ''}`} />
-                              <span>{isRefreshingAccounts ? 'actualizando...' : 'recargar cuentas'}</span>
-                            </button>
-                          )}
                         </div>
 
                         {accountsForConn.length > 0 ? (
