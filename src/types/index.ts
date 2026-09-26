@@ -246,6 +246,7 @@ export interface MetaAdFormItem {
 }
 
 export interface MetaBuilderPayload {
+  ticoBrief?: import('../../server/src/domain/ticoBrief').TicoBrief;
   // Contexto y ADN de Marca (Unificado)
   brandName: string;
   websiteUrl?: string;
@@ -275,4 +276,3 @@ export interface MetaBuilderPayload {
   adSets: MetaAdSetFormItem[];
   ads: MetaAdFormItem[];
 }
-
