@@ -32,6 +32,9 @@ function graphMock(options:{expired?:boolean;inactive?:boolean;failAdset?:boolea
   if(path==='456')return response({id:'456',name:'Panadería',description:'Pan fresco en Bogotá',category:'Bakery'});
   if(path==='456/posts')return response({data:[{message:'Pan fresco todos los días',full_picture:'https://example.com/pan.jpg'}]});
   if(path==='search')return response({data:url.searchParams.get('q')==='Pan'? [{id:'6001',name:'Pan'}]:[{id:'999',name:'Otro interés'}]});
+  if(path==='camp_1')return response({id:'camp_1',account_id:'123',objective:'OUTCOME_LEADS'});
+  if(path==='set_1')return response({id:'set_1',account_id:'123',campaign_id:'camp_1',optimization_goal:'LEAD_GENERATION',destination_type:'ON_AD',promoted_object:{page_id:'456'}});
+  if(path==='456/leadgen_forms')return response({data:[{id:'form_1',name:'Formulario contacto',status:'ACTIVE'}]});
   throw new Error(`Unexpected request ${path}`);
  };return {fetcher,writes};
 }
@@ -65,3 +68,31 @@ test('social source without website produces a confidence-bearing profile and Me
  const result=await generateBriefStrategy({ticoBrief:b,ads:[{id:'a1',headline:'Pan recién hecho'}],adSets:[]});assert.equal(result.enrichedPayload.ticoBrief.meta.ads[0].headline,'Pan recién hecho');assert.equal(result.enrichedPayload.ads[0].headline,'Pan recién hecho');
 });
 test('v2 cannot bypass validation through legacy deployment',async()=>{const result=await deployMetaBuilder({ticoBrief:fixture()},'token','act_123');assert.equal(result.success,false);});
+test('single_ad inherits existing campaign and adSet config and deploys ad directly in PAUSED',async t=>{
+ const mock=graphMock();t.mock.method(globalThis,'fetch',mock.fetcher);
+ const b=fixture();
+ b.creationMode='single_ad';
+ b.existingCampaignId='camp_1';
+ b.existingAdSetId='set_1';
+ b.meta.leadFormId='form_1';
+ b.meta.adSets=[];
+ b.meta.ads=[b.meta.ads[0]];
+ const checked=await validateDeployment(b,'token');
+ assert.equal(checked.valid,true,checked.errors.join(' '));
+ assert.equal(checked.brief.meta.objective,'OUTCOME_LEADS');
+ assert.equal(checked.brief.meta.optimizationGoal,'LEAD_GENERATION');
+ assert.equal(checked.brief.meta.destinationType,'ON_AD');
+ assert.equal(checked.brief.brief.goal,'leads');
+ const ledger:DeploymentLedger={items:[]};
+ const save=async()=>{};
+ const media=async()=>({data:Buffer.from('img'),mime:'image/jpeg',url:''});
+ const result=await executeDeployment(checked.brief,'token',ledger,save,media,checked.interests);
+ assert.equal(result.success,true);
+ assert.equal(result.campaignId,'camp_1');
+ assert.equal(mock.writes.some(w=>w.path.endsWith('/campaigns')),false);
+ assert.equal(mock.writes.some(w=>w.path.endsWith('/adsets')),false);
+ const adWrite=mock.writes.find(w=>w.path.endsWith('/ads'));
+ assert.ok(adWrite);
+ assert.equal(adWrite.body.adset_id,'set_1');
+ assert.equal(adWrite.body.status,'PAUSED');
+});

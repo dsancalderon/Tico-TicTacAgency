@@ -11,6 +11,7 @@ const services={loadPreferences:async()=>({data:null}),savePreferences:async()=>
  if(path==='connections')return {connections:[{id:'fixture',name:'Casa del Pan · datos de prueba',connected_at:'2026-09-26'}]};
  if(path==='assets')return {valid:true,warnings:[],accounts:[{id:'act_123',name:'Casa del Pan',account_status:1,currency:'USD',timezone_name:'America/Bogota',min_daily_budget:100}],pages:[{id:'456',name:'Casa del Pan'}],pixels:[],campaigns:[{id:'789',name:'Campaña de ejemplo'}],adSets:[{id:'101',name:'Audiencia de ejemplo'}]};
  if(path==='analyze')return {businessProfile:profile,images:[],pixelIds:[]};
+ if(path==='options')return {options:[{id:'city_bogota',name:'Bogotá, Cundinamarca, Colombia'},{id:'city_medellin',name:'Medellín, Antioquia, Colombia'},{id:'lang_es',name:'Español'},{id:'aud_1',name:'Clientes compradores últimos 30 días'}]};
  return {};
 }};
 function Preview(){const [submitted,setSubmitted]=useState(false);return <main style={{maxWidth:1040,margin:'30px auto',padding:16}}><p style={{padding:12,fontSize:12}}>PRUEBA LOCAL · Datos ficticios · Sin llamadas a Meta ni Gemini</p>{submitted?<div role="status">Brief válido enviado al adaptador. No se creó ninguna campaña real.</div>:<TicoBriefForm services={services} initialData={toLegacyPayload(b)} isLoading={false} onSubmit={()=>setSubmitted(true)}/>}</main>;}

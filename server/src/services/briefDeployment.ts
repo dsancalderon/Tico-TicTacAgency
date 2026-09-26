@@ -28,12 +28,13 @@ export async function validateDeployment(input:TicoBrief,token:string) {
     if(b.creationMode==='single_ad'){
       const campaign=await graph(token,b.existingCampaignId!,{fields:'id,account_id,objective'});
       const set=await graph(token,b.existingAdSetId!,{fields:'id,account_id,campaign_id,optimization_goal,destination_type,promoted_object'});
-      if(`act_${campaign.account_id}`!==b.meta.adAccountId||`act_${set.account_id}`!==b.meta.adAccountId||set.campaign_id!==b.existingCampaignId)errors.push('El conjunto debe pertenecer a la campaña y cuenta elegidas.');
+      const normAcc=(id?:string)=>id?.startsWith('act_')?id:`act_${id}`;
+      if(normAcc(campaign.account_id)!==normAcc(b.meta.adAccountId)||normAcc(set.account_id)!==normAcc(b.meta.adAccountId)||set.campaign_id!==b.existingCampaignId)errors.push('El conjunto debe pertenecer a la campaña y cuenta elegidas.');
       b.meta.objective=campaign.objective;b.meta.optimizationGoal=set.optimization_goal;b.meta.destinationType=set.destination_type;
       b.brief.goal=inheritedGoal(campaign.objective,set.destination_type||'');
       b.meta.pixelId=set.promoted_object?.pixel_id;
       b.meta.conversionEvent=set.promoted_object?.custom_event_type;
-      if(b.brief.goal==='messages')b.brief.messageChannels=(['instagram_direct','messenger','whatsapp'] as const).filter(c=>(set.destination_type||'').includes(c.toUpperCase()));
+      if(b.brief.goal==='messages'){const ch=(['instagram_direct','messenger','whatsapp'] as const).filter(c=>(set.destination_type||'').includes(c.toUpperCase()));b.brief.messageChannels=ch.length?ch:['messenger'];}
       if(set.promoted_object?.page_id&&set.promoted_object.page_id!==b.meta.pageId)errors.push('Usa la página del conjunto existente.');
     }
     const minimum=Number(account.min_daily_budget);
