@@ -1,4 +1,5 @@
 export { analyzeBusinessSource } from './businessSource.js';
+import { generateBriefStrategy } from './briefStrategy.js';
 export interface StrategyRequest {
   brandName: string;
   websiteUrl: string;
@@ -230,6 +231,10 @@ Debes responder ÚNICAMENTE un objeto JSON válido con las siguientes propiedade
  * Formula sugerencias estratégicas con IA (Gemini 3.6 Flash) para los bloques delegados en MetaAdBuilder
  */
 export async function generateMetaBuilderStrategy(payload: any) {
+  if (payload.ticoBrief) {
+    if (process.env.TICO_FORM_V2 !== 'true') throw new Error('El formulario V2 no está habilitado.');
+    return generateBriefStrategy(payload);
+  }
   const apiKey = (process.env.GEMINI_API_KEY || '').trim();
   const brandName = payload.brandName || 'Marca';
   const mode = payload.mode || 'full_campaign';

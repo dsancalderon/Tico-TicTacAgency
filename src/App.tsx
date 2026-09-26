@@ -809,6 +809,7 @@ export function App() {
                 )}
 
                 <MetaAdBuilderForm
+                  onReconnect={() => setDashboardTab('connections')}
                   key={editingDraftId || (editingDraftPayload ? 'draft' : 'new')}
                   initialData={editingDraftPayload}
                   metaState={metaState}

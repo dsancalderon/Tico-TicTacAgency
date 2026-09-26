@@ -32,8 +32,10 @@ import type {
   MetaConnectionState 
 } from '../../types';
 import { fetchMetaCampaignsApi, fetchMetaAdSetsApi } from '../../services/api';
+import { TicoBriefForm } from './TicoBriefForm';
 
 interface MetaAdBuilderFormProps {
+  onReconnect?: () => void;
   metaState?: MetaConnectionState;
   onUpdateMetaState?: (newState: MetaConnectionState) => void;
   onSubmit: (payload: MetaBuilderPayload, options?: { useMock?: boolean }) => void;
@@ -44,7 +46,10 @@ interface MetaAdBuilderFormProps {
   showCloseButton?: boolean;
 }
 
-export const MetaAdBuilderForm: React.FC<MetaAdBuilderFormProps> = ({
+export const MetaAdBuilderForm: React.FC<MetaAdBuilderFormProps> = props => import.meta.env.VITE_TICO_FORM_V2 === 'true'
+  ? <TicoBriefForm {...props} /> : <LegacyMetaAdBuilderForm {...props} />;
+
+const LegacyMetaAdBuilderForm: React.FC<MetaAdBuilderFormProps> = ({
   metaState,
   onUpdateMetaState,
   onSubmit,

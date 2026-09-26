@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { graph, graphList, inspectConnection } from '../services/briefMeta.js';
 import { analyzeBusinessSource } from '../services/aiStrategist.js';
+import { readPublicUrl } from '../services/businessSource.js';
 
 export const briefRouter = Router();
 briefRouter.use((_req, res, next) => {
@@ -18,6 +19,16 @@ briefRouter.post('/analyze', async (req, res) => {
     const token = await connectionToken(res.locals.supabase, req.body.connectionId);
     res.json(await analyzeBusinessSource(req.body.source, { token, pageId: req.body.pageId, db: res.locals.supabase, userId: res.locals.authUser.id }));
   } catch (error) { res.status(400).json({ error: (error as Error).message }); }
+});
+briefRouter.post('/import-image', async (req,res) => {
+  try {
+    const image=await readPublicUrl(req.body.url,12*1024*1024);
+    const mime=image.contentType.split(';')[0]; if(!['image/jpeg','image/png'].includes(mime))throw new Error('Elige una imagen JPG o PNG.');
+    const path=`${res.locals.authUser.id}/${crypto.randomUUID()}/fuente.${mime==='image/png'?'png':'jpg'}`;
+    const result=await res.locals.supabase.storage.from('user-creatives').upload(path,image.body,{contentType:mime});
+    if(result.error)throw new Error('No pude guardar la imagen.');
+    res.json({asset:{uploadId:path,type:'image',angle:'Beneficio',name:'Imagen de tu fuente'}});
+  } catch(error){res.status(400).json({error:(error as Error).message});}
 });
 briefRouter.post('/catalogs', async (req, res) => {
   try {
