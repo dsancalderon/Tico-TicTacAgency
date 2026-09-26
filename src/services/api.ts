@@ -1,6 +1,7 @@
 import type { ClientBriefing, GeneratedCampaignStrategy, MetaBuilderPayload } from '../types';
 
-import { API_BASE_URL, authHeaders } from './auth';
+import { API_BASE_URL, authHeaders, requireSupabase } from './auth';
+import { trackBrief } from './briefAnalytics';
 import { briefApi } from './briefApi';
 
 export async function checkBackendHealth(): Promise<boolean> {
@@ -813,7 +814,7 @@ function createStrategyFromPayload(
       callToAction: (enriched.ads?.[0]?.callToAction as any) || 'LEARN_MORE',
       budgetSharePercentage: 100,
       budgetAmount: payload.totalBudget,
-      dailyBudget: Math.round(payload.totalBudget / 30)
+      dailyBudget: payload.ticoBrief ? payload.totalBudget : Math.round(payload.totalBudget / 30)
     },
     metaBuilderPayload: enriched
   };
@@ -868,6 +869,16 @@ export async function generateMetaBuilderStrategyApi(
         const enriched = data.enrichedPayload;
         const strategySummary = data.strategySummary || `Estrategia de Meta Ads formulada por TICO IA para ${payload.brandName}.`;
         const strategy = createStrategyFromPayload(payload, enriched, strategySummary);
+        if (enriched.ticoBrief) {
+          const db = requireSupabase();
+          strategy.creatives = await Promise.all(enriched.ticoBrief.brief.assets.map(async (asset:any) => {
+            const {data,error} = await db.storage.from('user-creatives').createSignedUrl(asset.uploadId,3600);
+            if(error) throw new Error('No pude preparar la vista previa de tus creativos.');
+            return {id:asset.uploadId,storagePath:asset.uploadId,name:asset.name||'Creativo',type:asset.type,url:data.signedUrl,aspectRatio:asset.aspectRatio==='9:16'?'9:16':'1:1'};
+          }));
+          if(strategy.metaAds)strategy.metaAds.creatives=strategy.creatives;
+          trackBrief('preview_reached');
+        }
         return { strategy, enrichedPayload: enriched };
       }
     }
@@ -894,7 +905,11 @@ export async function deployMetaBuilderApi(
   jobId?: string
 ) {
   try {
-    if (payload.ticoBrief) return await briefApi('deploy', { brief: payload.ticoBrief, jobId });
+    if (payload.ticoBrief) {
+      const result=await briefApi('deploy', { brief: payload.ticoBrief, jobId });
+      if(result.success&&result.firstAttempt)trackBrief('deployment_first_success');
+      return result;
+    }
     const res = await fetch(`${API_BASE_URL}/meta/deploy-builder`, {
       method: 'POST',
       headers: await authHeaders(),
@@ -912,4 +927,3 @@ export async function deployMetaBuilderApi(
     };
   }
 }
-

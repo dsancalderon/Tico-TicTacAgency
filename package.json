@@ -12,7 +12,7 @@
     "build:all": "npm run build && npm run build:server",
     "lint": "oxlint",
     "preview": "vite preview",
-    "test": "npm run build:server && node --test server/dist/auth.test.js server/dist/metaBuilder.test.js"
+    "test": "npm run build:server && node --test server/dist/auth.test.js server/dist/metaBuilder.test.js server/dist/briefV2.test.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.116.0",

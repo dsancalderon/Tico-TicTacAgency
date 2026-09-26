@@ -11,7 +11,7 @@ export function recommendedSet(b: TicoBrief, index: number): AdSetConfig {
 }
 export function resolveBrief(input: TicoBrief, minimum: number): TicoBrief {
   const b = structuredClone(input);
-  if (b.delegation.objective === 'tico') {
+  if (b.delegation.objective === 'tico' && b.creationMode === 'full_campaign') {
     b.brief.goal = recommendGoal(b);
     const detected = b.brief.businessProfile.conversionChannels.filter(c => ['whatsapp','messenger','instagram_direct'].includes(c)) as typeof b.brief.messageChannels;
     b.brief.messageChannels = detected.length ? detected : ['messenger'];
@@ -30,7 +30,7 @@ export function resolveBrief(input: TicoBrief, minimum: number): TicoBrief {
   b.meta.ads = Array.from({ length: Math.max(count,1) * adCount }, (_, i) => {
     const old = b.meta.ads[i]; const asset = b.brief.assets[i % Math.max(1,b.brief.assets.length)];
     return { id: old?.id || `ad_${i}`, adSetId: sets[Math.floor(i/adCount)]?.id || b.existingAdSetId || '', name: old?.name || `Anuncio ${i+1}`,
-      angle: old?.angle || asset?.angle || ['Beneficio','Oferta','Prueba social'][i%3], headline: old?.headline || '', primaryText: old?.primaryText || '', description: old?.description || '',
+      angle: old?.angle || asset?.angle || ['Beneficio','Oferta','Prueba social'][i%3], headline: old ? old.headline : b.brief.businessProfile.brandName, primaryText: old ? old.primaryText : b.brief.businessProfile.offerSummary, description: old ? old.description : b.brief.businessProfile.industry,
       callToAction: old?.callToAction ?? mapGoal(b.brief.goal,!!b.meta.pixelId,b.brief.messageChannels).cta,
       uploadId: old?.uploadId && b.brief.assets.some(a => a.uploadId === old.uploadId) ? old.uploadId : asset?.uploadId };
   });

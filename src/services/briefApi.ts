@@ -7,7 +7,11 @@ export async function briefApi(path: string, body?: unknown) {
   return result;
 }
 export async function saveBriefPreferences(b: TicoBrief) {
-  const { error } = await requireSupabase().from('tico_brief_preferences').upsert({
-    delegation: b.delegation, last_assets: { brand: b.brief.businessProfile.brandName, connectionId: b.metaConnectionId, accountId: b.meta.adAccountId, pageId: b.meta.pageId, pixelId: b.meta.pixelId } });
+  const db=requireSupabase();
+  const prior=await db.from('tico_brief_preferences').select('last_assets').maybeSingle();
+  const latest={brand:b.brief.businessProfile.brandName,connectionId:b.metaConnectionId,accountId:b.meta.adAccountId,pageId:b.meta.pageId,pixelId:b.meta.pixelId};
+  const byBrand={...(prior.data?.last_assets?.byBrand||{})};if(latest.brand)byBrand[latest.brand]=latest;
+  const { error } = await db.from('tico_brief_preferences').upsert({
+    delegation: b.delegation, last_assets: {latest,byBrand} });
   if (error) throw new Error('No se pudieron guardar tus preferencias. Aplica la migración V2.');
 }

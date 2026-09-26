@@ -15,6 +15,17 @@ export async function connectionToken(db: any, id: string): Promise<string> {
   if (result.error || !result.data) throw new Error('Reconecta tu cuenta de Meta para continuar.');
   return result.data;
 }
+briefRouter.post('/events',async(req,res)=>{
+  const {event,section,mode,field,elapsedMs}=req.body;
+  if(!['source_started','preview_reached','preview_field_edited','delegation_changed','deployment_first_success'].includes(event)){res.status(400).json({error:'Evento inválido.'});return;}
+  const properties:Record<string,unknown>={};
+  if(['assets','business','objective','budget','bid','specialCategory','audience','placements','structure','creatives','copys','tracking'].includes(section))properties.section=section;
+  if(['tico','user'].includes(mode))properties.mode=mode;
+  if(['headline','primaryText','creative'].includes(field))properties.field=field;
+  if(Number.isFinite(elapsedMs)&&elapsedMs>=0)properties.elapsedMs=Math.min(elapsedMs,86400000);
+  const result=await res.locals.supabase.from('tico_brief_events').insert({event,properties});
+  res.status(result.error?503:200).json({success:!result.error});
+});
 briefRouter.post('/analyze', async (req, res) => {
   try {
     const token = await connectionToken(res.locals.supabase, req.body.connectionId);
@@ -72,6 +83,18 @@ briefRouter.post('/validate', async(req,res)=>{
   try {const token=await connectionToken(res.locals.supabase,req.body.brief.metaConnectionId);res.json(await validateDeployment(req.body.brief,token));}
   catch(error){res.status(400).json({error:(error as Error).message});}
 });
+briefRouter.post('/options',async(req,res)=>{
+  try{
+    const {connectionId,accountId,pageId,kind}=req.body;const query=String(req.body.query||'').slice(0,100);
+    const token=await connectionToken(res.locals.supabase,connectionId);let options:any[]=[];
+    if(kind==='city'||kind==='region'){const result=await graph(token,'search',{type:'adgeolocation',q:query,location_types:JSON.stringify([kind]),limit:25});options=(result.data||[]).map((o:any)=>({id:o.key,name:[o.name,o.region,o.country_name].filter(Boolean).join(', ')}));}
+    else if(kind==='locale'){const result=await graph(token,'search',{type:'adlocale',q:query,limit:25});options=(result.data||[]).map((o:any)=>({id:String(o.key),name:o.name}));}
+    else if(kind==='audience'){const accounts=await graphList(token,'me/adaccounts',{fields:'id'});if(!accounts.some(a=>a.id===accountId))throw new Error('Cuenta inválida.');options=(await graphList(token,`${accountId}/customaudiences`,{fields:'id,name'})).filter(a=>a.name.toLocaleLowerCase().includes(query.toLocaleLowerCase()));}
+    else if(kind==='leadForm'){const pages=await graphList(token,'me/accounts',{fields:'id,tasks'});if(!pages.some(p=>p.id===pageId&&p.tasks?.includes('ADVERTISE')))throw new Error('Página inválida.');options=(await graphList(token,`${pageId}/leadgen_forms`,{fields:'id,name,status'})).filter(f=>f.status==='ACTIVE');}
+    else throw new Error('Tipo de búsqueda no compatible.');
+    res.json({options});
+  }catch(error){res.status(400).json({error:(error as Error).message});}
+});
 briefRouter.post('/deploy', async(req,res)=>{
   const db=res.locals.supabase;const owner=res.locals.authUser.id;const id=req.body.jobId;let claimed=false;
   try{
@@ -89,6 +112,7 @@ briefRouter.post('/deploy', async(req,res)=>{
     const claim=await db.rpc('claim_tico_deployment',{p_id:id});if(claim.error||!claim.data)throw new Error('Este despliegue está en curso o necesita revisar una interrupción.');claimed=true;
     const ledger=job.ledger as DeploymentLedger;
     const save=async()=>{const result=await db.from('tico_brief_deployments').update({ledger,signature:signLedger(ledger,owner,id,hash),updated_at:new Date().toISOString()}).eq('id',id);if(result.error)throw new Error('No pude guardar el avance. Revisa Meta antes de reintentar.');};
+    ledger.attempts=(ledger.attempts||0)+1;await save();
     const loadMedia=async(path:string)=>{
       if(!path.startsWith(`${owner}/`)||path.includes('..'))throw new Error('El archivo no pertenece a tu espacio.');
       const download=await db.storage.from('user-creatives').download(path);if(download.error||!download.data||download.data.size>20*1024*1024)throw new Error('No pude leer el creativo privado.');
@@ -100,7 +124,7 @@ briefRouter.post('/deploy', async(req,res)=>{
     const loaded=new Map<string,Awaited<ReturnType<typeof loadMedia>>>();
     for(const asset of validation.brief.brief.assets)loaded.set(asset.uploadId,await loadMedia(asset.uploadId));
     const result=await executeDeployment(validation.brief,token,ledger,save,async p=>loaded.get(p)!,validation.interests);
-    res.json({...result,warnings:validation.warnings,jobId:id});
+    res.json({...result,warnings:validation.warnings,jobId:id,firstAttempt:ledger.attempts===1});
   }catch(error){res.json({success:false,error:(error as Error).message,jobId:id});}
   finally{if(claimed)await db.from('tico_brief_deployments').update({running:false}).eq('id',id);}
 });

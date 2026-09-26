@@ -1,5 +1,5 @@
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
-import { mapGoal, specialAudience, toMinorUnits, validateBrief, type TicoBrief } from '../domain/ticoBrief.js';
+import { mapGoal, inheritedGoal, specialAudience, toMinorUnits, validateBrief, type TicoBrief } from '../domain/ticoBrief.js';
 import { graph, graphList, inspectConnection, MetaError } from './briefMeta.js';
 import { readPublicUrl } from './businessSource.js';
 
@@ -25,6 +25,17 @@ export async function validateDeployment(input:TicoBrief,token:string) {
     if(!connection.pages.some((p:any)=>p.id===b.meta.pageId))errors.push('Selecciona una página donde puedas anunciar.');
     if(errors.length)return {valid:false,errors,warnings,brief:b,interests};
     b.meta.currency=account.currency;b.meta.timezone=account.timezone_name;
+    if(b.creationMode==='single_ad'){
+      const campaign=await graph(token,b.existingCampaignId!,{fields:'id,account_id,objective'});
+      const set=await graph(token,b.existingAdSetId!,{fields:'id,account_id,campaign_id,optimization_goal,destination_type,promoted_object'});
+      if(`act_${campaign.account_id}`!==b.meta.adAccountId||`act_${set.account_id}`!==b.meta.adAccountId||set.campaign_id!==b.existingCampaignId)errors.push('El conjunto debe pertenecer a la campaña y cuenta elegidas.');
+      b.meta.objective=campaign.objective;b.meta.optimizationGoal=set.optimization_goal;b.meta.destinationType=set.destination_type;
+      b.brief.goal=inheritedGoal(campaign.objective,set.destination_type||'');
+      b.meta.pixelId=set.promoted_object?.pixel_id;
+      b.meta.conversionEvent=set.promoted_object?.custom_event_type;
+      if(b.brief.goal==='messages')b.brief.messageChannels=(['instagram_direct','messenger','whatsapp'] as const).filter(c=>(set.destination_type||'').includes(c.toUpperCase()));
+      if(set.promoted_object?.page_id&&set.promoted_object.page_id!==b.meta.pageId)errors.push('Usa la página del conjunto existente.');
+    }
     const minimum=Number(account.min_daily_budget);
     if(!Number.isFinite(minimum)||minimum<=0)errors.push('Meta no informó el presupuesto mínimo. Revisa tu cuenta antes de desplegar.');
     const budget=toMinorUnits(b.brief.dailyBudget,account.currency);
@@ -68,13 +79,9 @@ export async function validateDeployment(input:TicoBrief,token:string) {
       if(interests[set.id].length<set.interests.filter(Boolean).length)warnings.push(`Descarté intereses no encontrados en Meta para ${set.name}.`);
       if(b.delegation.placements==='user'&&!set.publisherPlatforms.length)errors.push(`Selecciona ubicaciones para ${set.name}.`);
       if(set.publisherPlatforms.some(p=>!['facebook','instagram','messenger','audience_network'].includes(p)))errors.push('Ubicación inválida.');
-    }
-    if(b.creationMode==='single_ad'){
-      const campaign=await graph(token,b.existingCampaignId!,{fields:'id,account_id,objective'});
-      const set=await graph(token,b.existingAdSetId!,{fields:'id,account_id,campaign_id,optimization_goal,destination_type,promoted_object'});
-      if(`act_${campaign.account_id}`!==b.meta.adAccountId||`act_${set.account_id}`!==b.meta.adAccountId||set.campaign_id!==b.existingCampaignId)errors.push('El conjunto debe pertenecer a la campaña y cuenta elegidas.');
-      b.meta.objective=campaign.objective;b.meta.optimizationGoal=set.optimization_goal;b.meta.destinationType=set.destination_type;
-      if(set.promoted_object?.page_id&&set.promoted_object.page_id!==b.meta.pageId)errors.push('Usa la página del conjunto existente.');
+      if(set.customAudiences.length||set.excludedAudiences.length){const allowed=await graphList(token,`${b.meta.adAccountId}/customaudiences`,{fields:'id'});if([...set.customAudiences,...set.excludedAudiences].some(id=>!allowed.some(a=>a.id===id)))errors.push('Una audiencia personalizada no pertenece a tu cuenta.');}
+      const allowedPositions:Record<string,string[]>={facebook:['feed','story','facebook_reels'],instagram:['stream','story','reels'],messenger:['messenger_home'],audience_network:['classic']};
+      for(const [platform,positions]of Object.entries(set.positions))if(!Array.isArray(positions)||positions.some(p=>!allowedPositions[platform]?.includes(p)))errors.push('Una posición manual no es compatible.');
     }
     for(const ad of b.meta.ads){if(!ad.headline?.trim()||!ad.primaryText?.trim())errors.push(`Completa el titular y texto de ${ad.name}.`);if(!b.brief.assets.some(a=>a.uploadId===ad.uploadId))errors.push(`Asigna un creativo a ${ad.name}.`);if(b.creationMode==='full_campaign'&&!b.meta.adSets.some(s=>s.id===ad.adSetId))errors.push('Hay un anuncio sin conjunto válido.');}
     if(b.meta.destinationType==='WEBSITE'&&!b.meta.destinationUrl)errors.push('Indica el enlace de destino.');
@@ -83,17 +90,23 @@ export async function validateDeployment(input:TicoBrief,token:string) {
   return {valid:errors.length===0,errors,warnings,brief:b,interests};
 }
 export type LedgerItem={key:string;id:string;kind:'image'|'video'|'campaign'|'adset'|'creative'|'ad';deleted?:boolean};
-export type DeploymentLedger={items:LedgerItem[];pending?:string;completed?:boolean;rolledBack?:boolean;accountId?:string;connectionId?:string};
+export type DeploymentLedger={items:LedgerItem[];pending?:string;completed?:boolean;rolledBack?:boolean;accountId?:string;connectionId?:string;attempts?:number};
+// JSONB normalizes key order. Sign canonical values so a DB round trip stays valid.
+export function canonicalJson(value:unknown):string {
+  if(Array.isArray(value))return `[${value.map(canonicalJson).join(',')}]`;
+  if(value&&typeof value==='object')return `{${Object.keys(value).sort().filter(k=>(value as any)[k]!==undefined).map(k=>`${JSON.stringify(k)}:${canonicalJson((value as any)[k])}`).join(',')}}`;
+  return JSON.stringify(value);
+}
 export function signLedger(ledger:DeploymentLedger,owner:string,job:string,hash:string) {
   const secret=process.env.TICO_DEPLOYMENT_SECRET;
   if(!secret||secret.length<32)throw new Error('Configura TICO_DEPLOYMENT_SECRET (al menos 32 caracteres) para guardar despliegues recuperables.');
-  return createHmac('sha256',secret).update(JSON.stringify({owner,job,hash,ledger})).digest('hex');
+  return createHmac('sha256',secret).update(canonicalJson({owner,job,hash,ledger})).digest('hex');
 }
 export function verifyLedger(ledger:DeploymentLedger,signature:string,owner:string,job:string,hash:string){const expected=signLedger(ledger,owner,job,hash);return typeof signature==='string'&&signature.length===expected.length&&timingSafeEqual(Buffer.from(signature),Buffer.from(expected));}
-export function briefHash(b:TicoBrief){return createHash('sha256').update(JSON.stringify(b)).digest('hex');}
+export function briefHash(b:TicoBrief){return createHash('sha256').update(canonicalJson(b)).digest('hex');}
 export function buildCampaign(b:TicoBrief){return {name:b.meta.namingTemplate.replace('{marca}',b.brief.businessProfile.brandName).replace('{objetivo}',b.brief.goal).replace('{país}',b.brief.countries.join('-')).replace('{AAAAMMDD}',new Date().toISOString().slice(0,10).replaceAll('-','')),objective:b.meta.objective,status:'PAUSED',special_ad_categories:b.meta.specialAdCategories,...(b.meta.specialAdCategories.length?{special_ad_category_country:b.meta.specialAdCategoryCountry}:{}),...(b.meta.budgetType==='CBO'?{[b.meta.budgetPeriod==='daily'?'daily_budget':'lifetime_budget']:toMinorUnits(b.brief.dailyBudget,b.meta.currency),bid_strategy:b.meta.bidStrategy}: {})};}
 export function buildAdSet(b:TicoBrief,index:number,campaignId:string,interests:{id:string;name:string}[]){const s=b.meta.adSets[index];const promoted:any={};if(b.meta.optimizationGoal==='OFFSITE_CONVERSIONS'){promoted.pixel_id=b.meta.pixelId;promoted.custom_event_type=b.meta.conversionEvent||mapGoal(b.brief.goal,true).conversionEvent;}else if(['CONVERSATIONS','LEAD_GENERATION'].includes(b.meta.optimizationGoal))promoted.page_id=b.meta.pageId;
-  const targeting:any={geo_locations:{countries:b.brief.countries,...(s.cities.length?{cities:s.cities}:{}),...(s.regions.length?{regions:s.regions}:{})},age_min:s.ageMin,age_max:s.ageMax};
+  const targeting:any={geo_locations:{...(!s.cities.length&&!s.regions.length?{countries:b.brief.countries}:{}),...(s.cities.length?{cities:s.cities.map(c=>({key:c.key,radius:c.radius,distance_unit:'mile'}))}:{}),...(s.regions.length?{regions:s.regions.map(r=>({key:r.key}))}:{})},age_min:s.ageMin,age_max:s.ageMax};
   if(b.delegation.audience==='tico')targeting.targeting_automation={advantage_audience:1};
   if(s.gender!=='all')targeting.genders=s.gender==='men'?[1]:[2];
   if(interests.length)targeting.flexible_spec=[{interests}];if(s.locales.length)targeting.locales=s.locales;
@@ -104,7 +117,7 @@ export function buildAdSet(b:TicoBrief,index:number,campaignId:string,interests:
 export async function executeDeployment(b:TicoBrief,token:string,ledger:DeploymentLedger,save:()=>Promise<void>,loadMedia:(path:string)=>Promise<{data:Buffer;mime:string;url:string}>,interests:Record<string,{id:string;name:string}[]>) {
   if(ledger.rolledBack)throw new Error('Este despliegue ya fue eliminado. Crea un nuevo borrador.');
   if(ledger.pending)throw new Error('Hay una respuesta de Meta sin confirmar. Revisa lo creado antes de reintentar para evitar duplicados.');
-  async function create(key:string,kind:LedgerItem['kind'],path:string,body:object){const existing=ledger.items.find(i=>i.key===key&&!i.deleted);if(existing)return existing.id;
+  async function create(key:string,kind:LedgerItem['kind'],path:string,body:Record<string,unknown>){const existing=ledger.items.find(i=>i.key===key&&!i.deleted);if(existing)return existing.id;
     ledger.pending=key;await save();
     try{const result=await graph(token,path,body,'POST');const id=kind==='image'?(Object.values(result.images||{})[0] as any)?.hash:result.id;if(!id)throw new Error('Meta no devolvió el identificador creado.');ledger.items.push({key,kind,id});delete ledger.pending;await save();return id;}
     catch(error){if(error instanceof MetaError){delete ledger.pending;await save();}throw error;}

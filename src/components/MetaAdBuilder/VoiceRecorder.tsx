@@ -9,7 +9,7 @@ export function VoiceRecorder({ onRecorded }: { onRecorded: (file: File) => Prom
   const [error, setError] = useState('');
   const [preview, setPreview] = useState('');
   const mounted = useRef(true);
-  useEffect(() => () => { mounted.current = false; clearTimeout(timer.current); if (recorder.current) recorder.current.onstop = null; stream.current?.getTracks().forEach(t => t.stop()); }, []);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; clearTimeout(timer.current); if (recorder.current) recorder.current.onstop = null; stream.current?.getTracks().forEach(t => t.stop()); }; }, []);
   useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
   async function start() {
     setError('');

@@ -16,6 +16,7 @@ import { exportStrategyToExcel } from '../utils/excelExporter';
 import { CreativeAssignment } from './Dashboard/CreativeAssignment';
 import { TicoCoinIcon } from './BrandLogos';
 import { briefApi } from '../services/briefApi';
+import { trackBrief } from '../services/briefAnalytics';
 
 interface StrategyPreviewProps {
   strategy: GeneratedCampaignStrategy;
@@ -67,6 +68,7 @@ export const StrategyPreview: React.FC<StrategyPreviewProps> = ({
   }
 
   const handleCopyTextChange = (index: number, newText: string) => {
+    if(strategy.metaBuilderPayload?.ticoBrief)trackBrief('preview_field_edited',{field:'primaryText'});
     if (!strategy.metaAds) return;
     const updated = [...strategy.metaAds.primaryTexts];
     updated[index] = newText;
@@ -88,6 +90,7 @@ export const StrategyPreview: React.FC<StrategyPreviewProps> = ({
   };
 
   const handleHeadlineChange = (index: number, newHeadline: string) => {
+    if(strategy.metaBuilderPayload?.ticoBrief)trackBrief('preview_field_edited',{field:'headline'});
     if (!strategy.metaAds) return;
     const updated = [...strategy.metaAds.headlines];
     updated[index] = newHeadline;
@@ -109,6 +112,7 @@ export const StrategyPreview: React.FC<StrategyPreviewProps> = ({
   };
 
   const handleUpdateCreatives = (creatives: CreativeAsset[]) => {
+    if(strategy.metaBuilderPayload?.ticoBrief)trackBrief('preview_field_edited',{field:'creative'});
     const updatedBuilderPayload = strategy.metaBuilderPayload ? {
       ...strategy.metaBuilderPayload,
       ads: strategy.metaBuilderPayload.ads.map(ad => {
@@ -117,6 +121,7 @@ export const StrategyPreview: React.FC<StrategyPreviewProps> = ({
       })
     } : undefined;
 
+    if(updatedBuilderPayload?.ticoBrief){const brief=structuredClone(updatedBuilderPayload.ticoBrief);brief.brief.assets=creatives.filter(c=>c.storagePath).map(c=>({uploadId:c.storagePath!,type:c.type,name:c.name,aspectRatio:c.aspectRatio}));brief.meta.ads=brief.meta.ads.map((ad,i)=>({...ad,uploadId:(creatives.find(c=>c.assignedAdTitle===ad.headline)||creatives[i%Math.max(1,creatives.length)])?.storagePath}));updatedBuilderPayload.ticoBrief=brief;}
     setStrategy({
       ...strategy,
       creatives,
@@ -614,7 +619,7 @@ export const StrategyPreview: React.FC<StrategyPreviewProps> = ({
 
           <button
             type="button"
-            disabled={!confirmedTerms || isDeploying || !hasEnoughCredits}
+            disabled={!confirmedTerms || isDeploying || !hasEnoughCredits || rolledBack || checking}
             onClick={() => onApprove(strategy)}
             className="w-full sm:w-auto px-8 py-3.5 rounded-full bg-slate-950 hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-sm tracking-wide shadow-md hover:shadow-lg flex items-center justify-center gap-2 transition-all cursor-pointer"
           >

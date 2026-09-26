@@ -17,7 +17,7 @@ export async function readPublicUrl(raw: string, maxBytes = 2_000_000): Promise<
   if (!addresses.length || addresses.some(a => !publicAddress(a.address))) throw new Error('La dirección no es una web pública compatible.');
   const ip = addresses[0].address;
   return new Promise((resolve, reject) => {
-    const request = https.get(url, { lookup: (_hostname, _options, cb: any) => cb(null, [{ address: ip, family: 4 }]), headers: { 'User-Agent': 'TicoBrief/2.0', Accept: 'text/html,image/*' } }, response => {
+    const request = https.get(url, { lookup: (_hostname, options, cb: any) => options.all ? cb(null, [{ address: ip, family: 4 }]) : cb(null, ip, 4), headers: { 'User-Agent': 'TicoBrief/2.0', Accept: 'text/html,image/*' } }, response => {
       if (response.statusCode !== 200) { response.resume(); reject(new Error('La fuente no respondió con estado 200.')); return; }
       const chunks: Buffer[] = []; let size = 0;
       response.on('data', chunk => { size += chunk.length; if (size > maxBytes) request.destroy(new Error('La fuente supera el tamaño permitido.')); else chunks.push(chunk); });
