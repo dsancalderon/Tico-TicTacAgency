@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { graph, graphList, inspectConnection } from '../services/briefMeta.js';
+import { analyzeBusinessSource } from '../services/aiStrategist.js';
 
 export const briefRouter = Router();
 briefRouter.use((_req, res, next) => {
@@ -12,6 +13,19 @@ export async function connectionToken(db: any, id: string): Promise<string> {
   if (result.error || !result.data) throw new Error('Reconecta tu cuenta de Meta para continuar.');
   return result.data;
 }
+briefRouter.post('/analyze', async (req, res) => {
+  try {
+    const token = await connectionToken(res.locals.supabase, req.body.connectionId);
+    res.json(await analyzeBusinessSource(req.body.source, { token, pageId: req.body.pageId, db: res.locals.supabase, userId: res.locals.authUser.id }));
+  } catch (error) { res.status(400).json({ error: (error as Error).message }); }
+});
+briefRouter.post('/catalogs', async (req, res) => {
+  try {
+    const token = await connectionToken(res.locals.supabase,req.body.connectionId);
+    const businesses = await graphList(token,'me/businesses',{fields:'id'});
+    res.json({ catalogs: (await Promise.all(businesses.map(b => graphList(token,`${b.id}/owned_product_catalogs`,{fields:'id,name'})))).flat() });
+  } catch (error) { res.status(400).json({ error: (error as Error).message }); }
+});
 briefRouter.get('/connections', async (_req, res) => {
   const db = res.locals.supabase;
   const named = await db.from('meta_brief_connections').select('id,name,connected_at');

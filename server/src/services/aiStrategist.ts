@@ -1,3 +1,4 @@
+export { analyzeBusinessSource } from './businessSource.js';
 export interface StrategyRequest {
   brandName: string;
   websiteUrl: string;
@@ -424,4 +425,3 @@ Responde ÚNICAMENTE un objeto JSON válido con este formato:
     throw err;
   }
 }
-
