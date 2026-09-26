@@ -79,7 +79,7 @@ export async function saveConnection(userId: string, platform: 'meta' | 'google'
     ...settings,
     savedConnections: settings.savedConnections?.map(({ token, ...rest }) => rest)
   };
-  if (platform === 'meta' && import.meta.env.VITE_TICO_FORM_V2 === 'true') {
+  if (platform === 'meta' && import.meta.env.VITE_TICO_FORM_V2 !== 'false') {
     for (const connection of settings.savedConnections || []) {
       if (!connection.token) continue;
       const { error } = await requireSupabase().rpc('save_meta_brief_connection', {

@@ -7,7 +7,7 @@ import { briefHash, signLedger, verifyLedger, validateDeployment, executeDeploym
 export const briefRouter = Router();
 briefRouter.use((_req, res, next) => {
   res.setHeader('Cache-Control', 'no-store');
-  if (process.env.TICO_FORM_V2 !== 'true') { res.status(404).json({ error: 'El formulario V2 no está habilitado.' }); return; }
+  if (process.env.TICO_FORM_V2 === 'false') { res.status(404).json({ error: 'El formulario V2 no está habilitado.' }); return; }
   next();
 });
 export async function connectionToken(db: any, id: string): Promise<string> {

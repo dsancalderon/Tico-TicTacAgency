@@ -232,7 +232,7 @@ Debes responder ÚNICAMENTE un objeto JSON válido con las siguientes propiedade
  */
 export async function generateMetaBuilderStrategy(payload: any) {
   if (payload.ticoBrief) {
-    if (process.env.TICO_FORM_V2 !== 'true') throw new Error('El formulario V2 no está habilitado.');
+    if (process.env.TICO_FORM_V2 === 'false') throw new Error('El formulario V2 no está habilitado.');
     return generateBriefStrategy(payload);
   }
   const apiKey = (process.env.GEMINI_API_KEY || '').trim();

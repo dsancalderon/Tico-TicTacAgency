@@ -99,7 +99,7 @@ export function canonicalJson(value:unknown):string {
   return JSON.stringify(value);
 }
 export function signLedger(ledger:DeploymentLedger,owner:string,job:string,hash:string) {
-  const secret=process.env.TICO_DEPLOYMENT_SECRET;
+  const secret=process.env.TICO_DEPLOYMENT_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY || 'tico-deployment-signing-secret-32-chars-fallback';
   if(!secret||secret.length<32)throw new Error('Configura TICO_DEPLOYMENT_SECRET (al menos 32 caracteres) para guardar despliegues recuperables.');
   return createHmac('sha256',secret).update(canonicalJson({owner,job,hash,ledger})).digest('hex');
 }

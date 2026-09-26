@@ -46,7 +46,7 @@ interface MetaAdBuilderFormProps {
   showCloseButton?: boolean;
 }
 
-export const MetaAdBuilderForm: React.FC<MetaAdBuilderFormProps> = props => import.meta.env.VITE_TICO_FORM_V2 === 'true'
+export const MetaAdBuilderForm: React.FC<MetaAdBuilderFormProps> = props => import.meta.env.VITE_TICO_FORM_V2 !== 'false'
   ? <TicoBriefForm {...props} /> : <LegacyMetaAdBuilderForm {...props} />;
 
 const LegacyMetaAdBuilderForm: React.FC<MetaAdBuilderFormProps> = ({
