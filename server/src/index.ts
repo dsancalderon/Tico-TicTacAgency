@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 import { requireAuth, getProfile } from './auth.js';
 import { campaignsRouter } from './routes/campaigns.js';
 import { metaRouter } from './routes/meta.js';
+import { briefRouter } from './routes/brief.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.resolve(__dirname, '../../.env'), override: true });
@@ -67,6 +68,7 @@ app.get('/api/health', (req, res) => {
 
 app.use('/api', requireAuth);
 app.get('/api/auth/me', getProfile);
+app.use('/api/brief', briefRouter);
 // Las rutas de formulación de estrategia con IA (Gemini), diagnóstico de cuentas y listado de campañas/adsets
 // deben estar siempre habilitadas para los usuarios autenticados.
 const allowedPaths = [

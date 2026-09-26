@@ -79,6 +79,16 @@ export async function saveConnection(userId: string, platform: 'meta' | 'google'
     ...settings,
     savedConnections: settings.savedConnections?.map(({ token, ...rest }) => rest)
   };
+  if (platform === 'meta' && import.meta.env.VITE_TICO_FORM_V2 === 'true') {
+    for (const connection of settings.savedConnections || []) {
+      if (!connection.token) continue;
+      const { error } = await requireSupabase().rpc('save_meta_brief_connection', {
+        p_id: connection.id, p_name: connection.userName || connection.portfolioName,
+        p_token: connection.token,
+      });
+      if (error) throw new Error('No se pudo guardar la conexión en Vault. Verifica la migración V2.');
+    }
+  }
   const { error } = await requireSupabase().rpc('save_ad_connection', {
     p_platform: platform, p_settings: safeSettings,
     p_token: platform === 'meta' ? (userAccessToken ?? null) : null,
