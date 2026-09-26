@@ -21,11 +21,11 @@ export function TicoConnectionNetwork({ metaState, googleState, onOpenConnection
     { id: 'meta', name: 'Meta Ads', connected: metaState.isConnected && metaState.status !== 'disconnected',
       label: metaState.isConnected && metaState.status !== 'disconnected'
         ? metaState.status === 'connected_needs_perms' ? 'Requiere permisos' : 'Conectado' : 'Desconectado',
-      Logo: MetaBrandLogo, path: 'M 250 120 C 315 120 305 64 375 64', y: 64 },
+      Logo: MetaBrandLogo, path: 'M 250 120 C 315 120 305 70 375 70', y: 70 },
     { id: 'google', name: 'Google Ads', connected: Boolean(googleState?.isConnected && googleState.status === 'connected'),
       label: googleState?.isConnected && googleState.status === 'connected' ? 'Conectado'
         : googleState?.status === 'needs_auth' ? 'Por autorizar' : 'Desconectado',
-      Logo: GoogleAdsBrandLogo, path: 'M 250 120 C 315 120 305 176 375 176', y: 176 },
+      Logo: GoogleAdsBrandLogo, path: 'M 250 120 C 315 120 305 170 375 170', y: 170 },
   ];
 
   return (
