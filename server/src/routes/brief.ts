@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { graph, graphList, inspectConnection } from '../services/briefMeta.js';
 import { analyzeBusinessSource } from '../services/aiStrategist.js';
 import { readPublicUrl } from '../services/businessSource.js';
+import { briefHash, signLedger, verifyLedger, validateDeployment, executeDeployment, rollbackDeployment, type DeploymentLedger } from '../services/briefDeployment.js';
 
 export const briefRouter = Router();
 briefRouter.use((_req, res, next) => {
@@ -65,4 +66,51 @@ briefRouter.post('/assets', async (req, res) => {
     }
     res.json({ ...result, pixels, instagram, campaigns, adSets });
   } catch (error) { res.status(400).json({ error: (error as Error).message }); }
+});
+
+briefRouter.post('/validate', async(req,res)=>{
+  try {const token=await connectionToken(res.locals.supabase,req.body.brief.metaConnectionId);res.json(await validateDeployment(req.body.brief,token));}
+  catch(error){res.status(400).json({error:(error as Error).message});}
+});
+briefRouter.post('/deploy', async(req,res)=>{
+  const db=res.locals.supabase;const owner=res.locals.authUser.id;const id=req.body.jobId;let claimed=false;
+  try{
+    if(!/^[0-9a-f-]{36}$/i.test(id||''))throw new Error('Identificador de despliegue inválido.');
+    const token=await connectionToken(db,req.body.brief.metaConnectionId);
+    const validation=await validateDeployment(req.body.brief,token);
+    if(!validation.valid){res.json({success:false,error:validation.errors.join(' '),...validation});return;}
+    const hash=briefHash(req.body.brief);
+    let job=(await db.from('tico_brief_deployments').select('*').eq('id',id).maybeSingle()).data;
+    if(!job){const ledger:DeploymentLedger={items:[],accountId:validation.brief.meta.adAccountId,connectionId:validation.brief.metaConnectionId};const initial={id,brief_hash:hash,ledger,signature:signLedger(ledger,owner,id,hash)};
+      const insert=await db.from('tico_brief_deployments').insert(initial);if(insert.error)throw new Error('No pude iniciar el registro de despliegue. Verifica la migración o reintenta.');job=initial;
+    }
+    if(job.brief_hash!==hash)throw new Error('Este despliegue tiene otra versión del briefing. Elimina lo creado antes de cambiarlo.');
+    if(!verifyLedger(job.ledger,job.signature,owner,id,hash))throw new Error('El registro de despliegue no pasó la verificación.');
+    const claim=await db.rpc('claim_tico_deployment',{p_id:id});if(claim.error||!claim.data)throw new Error('Este despliegue está en curso o necesita revisar una interrupción.');claimed=true;
+    const ledger=job.ledger as DeploymentLedger;
+    const save=async()=>{const result=await db.from('tico_brief_deployments').update({ledger,signature:signLedger(ledger,owner,id,hash),updated_at:new Date().toISOString()}).eq('id',id);if(result.error)throw new Error('No pude guardar el avance. Revisa Meta antes de reintentar.');};
+    const loadMedia=async(path:string)=>{
+      if(!path.startsWith(`${owner}/`)||path.includes('..'))throw new Error('El archivo no pertenece a tu espacio.');
+      const download=await db.storage.from('user-creatives').download(path);if(download.error||!download.data||download.data.size>20*1024*1024)throw new Error('No pude leer el creativo privado.');
+      if(!['image/jpeg','image/png','video/mp4','video/quicktime'].includes(download.data.type))throw new Error('Formato de creativo no compatible.');
+      const signed=await db.storage.from('user-creatives').createSignedUrl(path,3600);if(signed.error)throw new Error('No pude preparar el video.');
+      return {data:Buffer.from(await download.data.arrayBuffer()),mime:download.data.type,url:signed.data.signedUrl};
+    };
+    // Read every upload before the first provider write; reject missing/foreign media early.
+    const loaded=new Map<string,Awaited<ReturnType<typeof loadMedia>>>();
+    for(const asset of validation.brief.brief.assets)loaded.set(asset.uploadId,await loadMedia(asset.uploadId));
+    const result=await executeDeployment(validation.brief,token,ledger,save,async p=>loaded.get(p)!,validation.interests);
+    res.json({...result,warnings:validation.warnings,jobId:id});
+  }catch(error){res.json({success:false,error:(error as Error).message,jobId:id});}
+  finally{if(claimed)await db.from('tico_brief_deployments').update({running:false}).eq('id',id);}
+});
+briefRouter.post('/rollback',async(req,res)=>{
+  const db=res.locals.supabase;const owner=res.locals.authUser.id;const id=req.body.jobId;let claimed=false;
+  try{const {data:job,error}=await db.from('tico_brief_deployments').select('*').eq('id',id).single();if(error||!job)throw new Error('No hay un despliegue guardado para eliminar.');
+    if(!verifyLedger(job.ledger,job.signature,owner,id,job.brief_hash))throw new Error('Registro de despliegue inválido.');
+    const claim=await db.rpc('claim_tico_deployment',{p_id:id});if(claim.error||!claim.data)throw new Error('Espera a que termine el despliegue.');claimed=true;
+    const ledger=job.ledger as DeploymentLedger;const token=await connectionToken(db,ledger.connectionId!);
+    const save=async()=>{const result=await db.from('tico_brief_deployments').update({ledger,signature:signLedger(ledger,owner,id,job.brief_hash)}).eq('id',id);if(result.error)throw new Error('No pude guardar el avance de la eliminación.');};
+    await rollbackDeployment(ledger.accountId!,token,ledger,save);res.json({success:true,message:'Eliminé lo creado por este despliegue.'});
+  }catch(error){res.status(400).json({error:(error as Error).message});}finally{if(claimed)await db.from('tico_brief_deployments').update({running:false}).eq('id',id);}
 });

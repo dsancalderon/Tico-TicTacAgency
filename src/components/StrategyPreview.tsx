@@ -15,6 +15,7 @@ import {
 import { exportStrategyToExcel } from '../utils/excelExporter';
 import { CreativeAssignment } from './Dashboard/CreativeAssignment';
 import { TicoCoinIcon } from './BrandLogos';
+import { briefApi } from '../services/briefApi';
 
 interface StrategyPreviewProps {
   strategy: GeneratedCampaignStrategy;
@@ -43,6 +44,27 @@ export const StrategyPreview: React.FC<StrategyPreviewProps> = ({
   const [activeTab, setActiveTab] = useState<'all' | 'meta' | 'google'>('all');
   const [isEditingCopies, setIsEditingCopies] = useState(false);
   const [activeAdIndex, setActiveAdIndex] = useState(0);
+  const [deploymentError, setDeploymentError] = useState('');
+  const [validation, setValidation] = useState<{errors:string[];warnings:string[]}|null>(null);
+  const [checking, setChecking] = useState(false);
+  const [rolledBack, setRolledBack] = useState(false);
+  useEffect(() => {
+    const listener = (event:Event) => setDeploymentError((event as CustomEvent).detail.error || 'No pude completar el despliegue.');
+    window.addEventListener('tico:deployment-error', listener);
+    return () => window.removeEventListener('tico:deployment-error',listener);
+  },[]);
+  async function checkBrief() {
+    if(!strategy.metaBuilderPayload?.ticoBrief) return;
+    setChecking(true);
+    try {const result=await briefApi('validate',{brief:strategy.metaBuilderPayload.ticoBrief});setValidation(result);}
+    catch(error){setValidation({errors:[(error as Error).message],warnings:[]});}
+    finally{setChecking(false);}
+  }
+  async function rollback() {
+    setChecking(true);
+    try {await briefApi('rollback',{jobId:strategy.id});setDeploymentError('Eliminé lo creado por este despliegue. Crea un nuevo borrador para empezar de nuevo.');setRolledBack(true);}
+    catch(error){setDeploymentError((error as Error).message);}finally{setChecking(false);}
+  }
 
   const handleCopyTextChange = (index: number, newText: string) => {
     if (!strategy.metaAds) return;
@@ -51,6 +73,7 @@ export const StrategyPreview: React.FC<StrategyPreviewProps> = ({
 
     const updatedBuilderPayload = strategy.metaBuilderPayload ? {
       ...strategy.metaBuilderPayload,
+      ticoBrief: strategy.metaBuilderPayload.ticoBrief ? { ...strategy.metaBuilderPayload.ticoBrief, meta: { ...strategy.metaBuilderPayload.ticoBrief.meta, ads: strategy.metaBuilderPayload.ticoBrief.meta.ads.map((ad,i)=>i===index?{...ad,primaryText:newText}:ad) } } : undefined,
       ads: strategy.metaBuilderPayload.ads.map((ad, i) => i === index ? { ...ad, primaryText: newText } : ad)
     } : undefined;
 
@@ -71,6 +94,7 @@ export const StrategyPreview: React.FC<StrategyPreviewProps> = ({
 
     const updatedBuilderPayload = strategy.metaBuilderPayload ? {
       ...strategy.metaBuilderPayload,
+      ticoBrief: strategy.metaBuilderPayload.ticoBrief ? { ...strategy.metaBuilderPayload.ticoBrief, meta: { ...strategy.metaBuilderPayload.ticoBrief.meta, ads: strategy.metaBuilderPayload.ticoBrief.meta.ads.map((ad,i)=>i===index?{...ad,headline:newHeadline}:ad) } } : undefined,
       ads: strategy.metaBuilderPayload.ads.map((ad, i) => i === index ? { ...ad, headline: newHeadline } : ad)
     } : undefined;
 
@@ -113,6 +137,13 @@ export const StrategyPreview: React.FC<StrategyPreviewProps> = ({
 
   return (
     <div className="space-y-8">
+      {strategy.metaBuilderPayload?.ticoBrief && <div className="rounded-2xl border border-indigo-100 bg-white p-5 space-y-3">
+        <p className="text-sm">Antes de crear nada, Tico revisará tu conexión, cuenta, presupuesto y activos. Todo lo nuevo quedará en pausa.</p>
+        <button type="button" disabled={checking||isDeploying} onClick={()=>void checkBrief()} className="text-indigo-600 font-semibold text-sm">{checking?'Revisando…':'Validar despliegue'}</button>
+        {validation?.errors.map((e,i)=><p role="alert" className="text-red-700 text-sm" key={i}>{e}</p>)}
+        {validation?.warnings.map((e,i)=><p className="text-amber-800 text-sm" key={i}>{e}</p>)}
+        {deploymentError&&<div role="alert" className="space-y-3 text-sm"><p className="text-red-700">{deploymentError}</p>{!rolledBack&&<div className="flex gap-5"><button type="button" disabled={isDeploying||checking} onClick={()=>onApprove(strategy)}>Reintentar</button><button type="button" disabled={isDeploying||checking} onClick={()=>void rollback()}>Eliminar lo creado</button></div>}</div>}
+      </div>}
       {/* Top Banner: Strategy Ready & Actions */}
       <div className="rounded-3xl border border-indigo-100 bg-gradient-to-r from-indigo-50/80 via-purple-50/50 to-blue-50/80 p-6 md:p-8 shadow-sm relative overflow-hidden">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">

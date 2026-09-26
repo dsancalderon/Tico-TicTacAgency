@@ -354,10 +354,15 @@ export function App() {
         const deployResponse = await deployMetaBuilderApi(
           strategyToDeploy.metaBuilderPayload,
           metaState.userAccessToken,
-          targetAccountId
+          targetAccountId,
+          strategyToDeploy.id
         );
 
         if (!deployResponse.success) {
+          if (strategyToDeploy.metaBuilderPayload.ticoBrief) {
+            window.dispatchEvent(new CustomEvent('tico:deployment-error', { detail: deployResponse }));
+            return;
+          }
           window.alert(`Error de Meta Marketing API:\n\n${deployResponse.error || 'Ocurrió un error inesperado al orquestar la campaña en Meta.'}`);
           return;
         }

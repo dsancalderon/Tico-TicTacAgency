@@ -1,3 +1,4 @@
+export { validateDeployment } from './briefDeployment.js';
 export interface MetaCampaignPayload {
   name: string;
   objective: string;
@@ -850,6 +851,7 @@ export async function deployMetaBuilder(
   customToken?: string,
   customAccountId?: string
 ) {
+  if (payload.ticoBrief) return { success: false, error: 'Usa el despliegue V2 validado para este briefing.' };
   const token = customToken || process.env.META_ACCESS_TOKEN;
   const rawAccountId = customAccountId || payload.adAccountId || process.env.META_AD_ACCOUNT_ID;
   const isSingleAd = payload.mode === 'single_ad';
@@ -1231,4 +1233,3 @@ export async function deployMetaBuilder(
     };
   }
 }
-

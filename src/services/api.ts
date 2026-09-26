@@ -1,6 +1,7 @@
 import type { ClientBriefing, GeneratedCampaignStrategy, MetaBuilderPayload } from '../types';
 
 import { API_BASE_URL, authHeaders } from './auth';
+import { briefApi } from './briefApi';
 
 export async function checkBackendHealth(): Promise<boolean> {
   try {
@@ -889,9 +890,11 @@ export async function generateMetaBuilderStrategyApi(
 export async function deployMetaBuilderApi(
   payload: MetaBuilderPayload,
   token?: string,
-  adAccountId?: string
+  adAccountId?: string,
+  jobId?: string
 ) {
   try {
+    if (payload.ticoBrief) return await briefApi('deploy', { brief: payload.ticoBrief, jobId });
     const res = await fetch(`${API_BASE_URL}/meta/deploy-builder`, {
       method: 'POST',
       headers: await authHeaders(),
@@ -909,5 +912,4 @@ export async function deployMetaBuilderApi(
     };
   }
 }
-
 
