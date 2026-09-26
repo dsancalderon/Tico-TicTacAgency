@@ -67,64 +67,64 @@ const loadLocalSavedConnections = (): SavedMetaConnection[] => {
 
 const PORTFOLIO_COLOR_PALETTES = [
   {
-    bg: 'bg-indigo-50',
-    border: 'border-indigo-200/90',
-    text: 'text-indigo-600',
+    name: 'purple',
+    gradient: 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)',
+    shadow: '0 4px 12px rgba(109, 40, 217, 0.3)',
   },
   {
-    bg: 'bg-emerald-50',
-    border: 'border-emerald-200/90',
-    text: 'text-emerald-700',
+    name: 'emerald',
+    gradient: 'linear-gradient(135deg, #10b981 0%, #047857 100%)',
+    shadow: '0 4px 12px rgba(4, 120, 87, 0.3)',
   },
   {
-    bg: 'bg-violet-50',
-    border: 'border-violet-200/90',
-    text: 'text-violet-600',
+    name: 'amber',
+    gradient: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+    shadow: '0 4px 12px rgba(217, 119, 6, 0.3)',
   },
   {
-    bg: 'bg-amber-50',
-    border: 'border-amber-200/90',
-    text: 'text-amber-700',
+    name: 'rose',
+    gradient: 'linear-gradient(135deg, #f43f5e 0%, #be123c 100%)',
+    shadow: '0 4px 12px rgba(190, 18, 60, 0.3)',
   },
   {
-    bg: 'bg-rose-50',
-    border: 'border-rose-200/90',
-    text: 'text-rose-600',
+    name: 'cyan',
+    gradient: 'linear-gradient(135deg, #06b6d4 0%, #0284c7 100%)',
+    shadow: '0 4px 12px rgba(2, 132, 199, 0.3)',
   },
   {
-    bg: 'bg-cyan-50',
-    border: 'border-cyan-200/90',
-    text: 'text-cyan-700',
+    name: 'fuchsia',
+    gradient: 'linear-gradient(135deg, #d946ef 0%, #a21caf 100%)',
+    shadow: '0 4px 12px rgba(162, 28, 175, 0.3)',
   },
   {
-    bg: 'bg-fuchsia-50',
-    border: 'border-fuchsia-200/90',
-    text: 'text-fuchsia-600',
+    name: 'orange',
+    gradient: 'linear-gradient(135deg, #fb923c 0%, #ea580c 100%)',
+    shadow: '0 4px 12px rgba(234, 88, 12, 0.3)',
   },
   {
-    bg: 'bg-teal-50',
-    border: 'border-teal-200/90',
-    text: 'text-teal-700',
+    name: 'teal',
+    gradient: 'linear-gradient(135deg, #14b8a6 0%, #0f766e 100%)',
+    shadow: '0 4px 12px rgba(15, 118, 110, 0.3)',
   },
   {
-    bg: 'bg-orange-50',
-    border: 'border-orange-200/90',
-    text: 'text-orange-600',
+    name: 'indigo',
+    gradient: 'linear-gradient(135deg, #4f46e5 0%, #3730a3 100%)',
+    shadow: '0 4px 12px rgba(55, 48, 163, 0.3)',
   },
   {
-    bg: 'bg-blue-50',
-    border: 'border-blue-200/90',
-    text: 'text-blue-600',
+    name: 'red',
+    gradient: 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)',
+    shadow: '0 4px 12px rgba(185, 28, 28, 0.3)',
   },
   {
-    bg: 'bg-purple-50',
-    border: 'border-purple-200/90',
-    text: 'text-purple-600',
+    name: 'lime',
+    gradient: 'linear-gradient(135deg, #84cc16 0%, #4d7c0f 100%)',
+    shadow: '0 4px 12px rgba(77, 124, 15, 0.3)',
   },
   {
-    bg: 'bg-pink-50',
-    border: 'border-pink-200/90',
-    text: 'text-pink-600',
+    name: 'pink',
+    gradient: 'linear-gradient(135deg, #ec4899 0%, #be185d 100%)',
+    shadow: '0 4px 12px rgba(190, 24, 93, 0.3)',
   },
 ];
 
@@ -1020,7 +1020,11 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
                   <div className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
                       <div
-                        className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0 border ${badge.palette.bg} ${badge.palette.border} ${badge.palette.text} shadow-2xs font-['Outfit'] font-black text-sm sm:text-base select-none`}
+                        className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-white font-['Outfit'] font-black text-base select-none tracking-wide"
+                        style={{
+                          background: badge.palette.gradient,
+                          boxShadow: badge.palette.shadow,
+                        }}
                         aria-hidden="true"
                       >
                         {badge.initial}
