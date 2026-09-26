@@ -740,56 +740,7 @@ export function App() {
 
         {dashboardTab === 'agent' && (
           <div className="space-y-8" id="workflow-container">
-            {/* Stepper indicators */}
-            <div className="max-w-2xl mx-auto grid grid-cols-3 gap-3 text-left mb-6">
-              <div
-                className={`p-3.5 rounded-2xl border transition-all ${currentStep === 'briefing'
-                  ? 'border-slate-950 bg-slate-950 text-white shadow-md'
-                  : 'border-slate-200 bg-white text-slate-600'
-                  }`}
-              >
-                <div className="flex items-center gap-2 text-xs font-bold">
-                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-black ${currentStep === 'briefing' ? 'bg-white text-slate-950' : 'bg-slate-100 text-slate-700'
-                    }`}>1</span>
-                  <span>Briefing</span>
-                </div>
-                <p className={`text-[11px] mt-1 ${currentStep === 'briefing' ? 'text-slate-300' : 'text-slate-400'}`}>
-                  Marca & presupuesto
-                </p>
-              </div>
-
-              <div
-                className={`p-3.5 rounded-2xl border transition-all ${currentStep === 'strategy'
-                  ? 'border-slate-950 bg-slate-950 text-white shadow-md'
-                  : 'border-slate-200 bg-white text-slate-600'
-                  }`}
-              >
-                <div className="flex items-center gap-2 text-xs font-bold">
-                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-black ${currentStep === 'strategy' ? 'bg-white text-slate-950' : 'bg-slate-100 text-slate-700'
-                    }`}>2</span>
-                  <span>Plan & Creativos</span>
-                </div>
-                <p className={`text-[11px] mt-1 ${currentStep === 'strategy' ? 'text-slate-300' : 'text-slate-400'}`}>
-                  Copies, piezas & Excel
-                </p>
-              </div>
-
-              <div
-                className={`p-3.5 rounded-2xl border transition-all ${currentStep === 'deployed'
-                  ? 'border-emerald-600 bg-emerald-600 text-white shadow-md'
-                  : 'border-slate-200 bg-white text-slate-600'
-                  }`}
-              >
-                <div className="flex items-center gap-2 text-xs font-bold">
-                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-black ${currentStep === 'deployed' ? 'bg-white text-emerald-800' : 'bg-slate-100 text-slate-700'
-                    }`}>3</span>
-                  <span>Despliegue PAUSED</span>
-                </div>
-                <p className={`text-[11px] mt-1 ${currentStep === 'deployed' ? 'text-emerald-100' : 'text-slate-400'}`}>
-                  Meta Graph API
-                </p>
-              </div>
-            </div>
+            
 
             {/* Dynamic Step Content */}
             {currentStep === 'briefing' && (

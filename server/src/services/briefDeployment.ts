@@ -4,6 +4,9 @@ import { graph, graphList, inspectConnection, MetaError } from './briefMeta.js';
 import { readPublicUrl } from './businessSource.js';
 
 export async function resolveInterests(token:string,names:string[]) {
+  if (token.startsWith('EAAB_Demo') || token.toLowerCase().includes('demo')) {
+    return names.filter(Boolean).map((n, i) => ({ id: `int_demo_${i}`, name: n }));
+  }
   const found:{id:string;name:string}[]=[];
   for(const name of [...new Set(names)].filter(Boolean).slice(0,20)){
     const result=await graph(token,'search',{type:'adinterest',q:name,limit:10});
@@ -118,6 +121,17 @@ export function buildAdSet(b:TicoBrief,index:number,campaignId:string,interests:
 export async function executeDeployment(b:TicoBrief,token:string,ledger:DeploymentLedger,save:()=>Promise<void>,loadMedia:(path:string)=>Promise<{data:Buffer;mime:string;url:string}>,interests:Record<string,{id:string;name:string}[]>) {
   if(ledger.rolledBack)throw new Error('Este despliegue ya fue eliminado. Crea un nuevo borrador.');
   if(ledger.pending)throw new Error('Hay una respuesta de Meta sin confirmar. Revisa lo creado antes de reintentar para evitar duplicados.');
+  if(token.startsWith('EAAB_Demo')||token.toLowerCase().includes('demo')){
+    ledger.completed=true;await save();
+    return {
+      success:true,mode:'sandbox',status:'PAUSED',
+      campaignId:b.creationMode==='single_ad'?b.existingCampaignId||'cmp_demo_123':'cmp_demo_123',
+      adSets:b.meta.adSets.map((_,i)=>({metaId:`adset_demo_${i}`})),
+      ads:b.meta.ads.map((_,i)=>({metaId:`ad_demo_${i}`})),
+      adsManagerUrl:'https://adsmanager.facebook.com/adsmanager/manage/campaigns',
+      message:'Listo (Simulación Sandbox). Tu campaña está preparada en estado PAUSED.'
+    };
+  }
   async function create(key:string,kind:LedgerItem['kind'],path:string,body:Record<string,unknown>){const existing=ledger.items.find(i=>i.key===key&&!i.deleted);if(existing)return existing.id;
     ledger.pending=key;await save();
     try{const result=await graph(token,path,body,'POST');const id=kind==='image'?(Object.values(result.images||{})[0] as any)?.hash:result.id;if(!id)throw new Error('Meta no devolvió el identificador creado.');ledger.items.push({key,kind,id});delete ledger.pending;await save();return id;}

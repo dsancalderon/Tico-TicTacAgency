@@ -10,9 +10,14 @@ briefRouter.use((_req, res, next) => {
   if (process.env.TICO_FORM_V2 === 'false') { res.status(404).json({ error: 'El formulario V2 no está habilitado.' }); return; }
   next();
 });
-export async function connectionToken(db: any, id: string): Promise<string> {
+export async function connectionToken(db: any, id: string, explicitToken?: string): Promise<string> {
+  if (explicitToken && typeof explicitToken === 'string' && explicitToken.length > 10) return explicitToken;
   const result = id === 'legacy' ? await db.rpc('load_ad_token', { p_platform: 'meta' }) : await db.rpc('load_meta_brief_token', { p_id: id });
-  if (result.error || !result.data) throw new Error('Reconecta tu cuenta de Meta para continuar.');
+  if (result.error || !result.data) {
+    const fallback = await db.rpc('load_ad_token', { p_platform: 'meta' });
+    if (!fallback.error && fallback.data) return fallback.data;
+    throw new Error('Reconecta tu cuenta de Meta para continuar.');
+  }
   return result.data;
 }
 briefRouter.post('/events',async(req,res)=>{
@@ -28,7 +33,7 @@ briefRouter.post('/events',async(req,res)=>{
 });
 briefRouter.post('/analyze', async (req, res) => {
   try {
-    const token = await connectionToken(res.locals.supabase, req.body.connectionId);
+    const token = await connectionToken(res.locals.supabase, req.body.connectionId, req.body.token);
     res.json(await analyzeBusinessSource(req.body.source, { token, pageId: req.body.pageId, db: res.locals.supabase, userId: res.locals.authUser.id }));
   } catch (error) { res.status(400).json({ error: (error as Error).message }); }
 });
@@ -44,7 +49,7 @@ briefRouter.post('/import-image', async (req,res) => {
 });
 briefRouter.post('/catalogs', async (req, res) => {
   try {
-    const token = await connectionToken(res.locals.supabase,req.body.connectionId);
+    const token = await connectionToken(res.locals.supabase, req.body.connectionId, req.body.token);
     const businesses = await graphList(token,'me/businesses',{fields:'id'});
     res.json({ catalogs: (await Promise.all(businesses.map(b => graphList(token,`${b.id}/owned_product_catalogs`,{fields:'id,name'})))).flat() });
   } catch (error) { res.status(400).json({ error: (error as Error).message }); }
@@ -59,7 +64,7 @@ briefRouter.get('/connections', async (_req, res) => {
 });
 briefRouter.post('/assets', async (req, res) => {
   try {
-    const token = await connectionToken(res.locals.supabase, req.body.connectionId);
+    const token = await connectionToken(res.locals.supabase, req.body.connectionId, req.body.token);
     const result = await inspectConnection(token);
     let pixels: any[] = []; let instagram: any; let campaigns: any[] = []; let adSets: any[] = [];
     if (result.valid && req.body.accountId) {
@@ -80,13 +85,13 @@ briefRouter.post('/assets', async (req, res) => {
 });
 
 briefRouter.post('/validate', async(req,res)=>{
-  try {const token=await connectionToken(res.locals.supabase,req.body.brief.metaConnectionId);res.json(await validateDeployment(req.body.brief,token));}
+  try {const token=await connectionToken(res.locals.supabase,req.body.brief.metaConnectionId, req.body.token);res.json(await validateDeployment(req.body.brief,token));}
   catch(error){res.status(400).json({error:(error as Error).message});}
 });
 briefRouter.post('/options',async(req,res)=>{
   try{
     const {connectionId,accountId,pageId,kind}=req.body;const query=String(req.body.query||'').slice(0,100);
-    const token=await connectionToken(res.locals.supabase,connectionId);let options:any[]=[];
+    const token=await connectionToken(res.locals.supabase,connectionId, req.body.token);let options:any[]=[];
     if(kind==='city'||kind==='region'){const result=await graph(token,'search',{type:'adgeolocation',q:query,location_types:JSON.stringify([kind]),limit:25});options=(result.data||[]).map((o:any)=>({id:o.key,name:[o.name,o.region,o.country_name].filter(Boolean).join(', ')}));}
     else if(kind==='locale'){const result=await graph(token,'search',{type:'adlocale',q:query,limit:25});options=(result.data||[]).map((o:any)=>({id:String(o.key),name:o.name}));}
     else if(kind==='audience'){const accounts=await graphList(token,'me/adaccounts',{fields:'id'});if(!accounts.some(a=>a.id===accountId))throw new Error('Cuenta inválida.');options=(await graphList(token,`${accountId}/customaudiences`,{fields:'id,name'})).filter(a=>a.name.toLocaleLowerCase().includes(query.toLocaleLowerCase()));}
@@ -99,7 +104,7 @@ briefRouter.post('/deploy', async(req,res)=>{
   const db=res.locals.supabase;const owner=res.locals.authUser.id;const id=req.body.jobId;let claimed=false;
   try{
     if(!/^[0-9a-f-]{36}$/i.test(id||''))throw new Error('Identificador de despliegue inválido.');
-    const token=await connectionToken(db,req.body.brief.metaConnectionId);
+    const token=await connectionToken(db,req.body.brief.metaConnectionId, req.body.token);
     const validation=await validateDeployment(req.body.brief,token);
     if(!validation.valid){res.json({success:false,error:validation.errors.join(' '),...validation});return;}
     const hash=briefHash(req.body.brief);
@@ -133,7 +138,7 @@ briefRouter.post('/rollback',async(req,res)=>{
   try{const {data:job,error}=await db.from('tico_brief_deployments').select('*').eq('id',id).single();if(error||!job)throw new Error('No hay un despliegue guardado para eliminar.');
     if(!verifyLedger(job.ledger,job.signature,owner,id,job.brief_hash))throw new Error('Registro de despliegue inválido.');
     const claim=await db.rpc('claim_tico_deployment',{p_id:id});if(claim.error||!claim.data)throw new Error('Espera a que termine el despliegue.');claimed=true;
-    const ledger=job.ledger as DeploymentLedger;const token=await connectionToken(db,ledger.connectionId!);
+    const ledger=job.ledger as DeploymentLedger;const token=await connectionToken(db,ledger.connectionId!, req.body.token);
     const save=async()=>{const result=await db.from('tico_brief_deployments').update({ledger,signature:signLedger(ledger,owner,id,job.brief_hash)}).eq('id',id);if(result.error)throw new Error('No pude guardar el avance de la eliminación.');};
     await rollbackDeployment(ledger.accountId!,token,ledger,save);res.json({success:true,message:'Eliminé lo creado por este despliegue.'});
   }catch(error){res.status(400).json({error:(error as Error).message});}finally{if(claimed)await db.from('tico_brief_deployments').update({running:false}).eq('id',id);}

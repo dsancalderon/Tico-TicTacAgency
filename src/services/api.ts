@@ -906,7 +906,7 @@ export async function deployMetaBuilderApi(
 ) {
   try {
     if (payload.ticoBrief) {
-      const result=await briefApi('deploy', { brief: payload.ticoBrief, jobId });
+      const result=await briefApi('deploy', { brief: payload.ticoBrief, jobId, token });
       if(result.success&&result.firstAttempt)trackBrief('deployment_first_success');
       return result;
     }
