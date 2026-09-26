@@ -145,7 +145,19 @@ aside *,
 aside::-webkit-scrollbar,
 aside *::-webkit-scrollbar,
 .sidebar-container::-webkit-scrollbar,
-.sidebar-container *::-webkit-scrollbar {
+.sidebar-container *::-webkit-scrollbar,
+aside::-webkit-scrollbar-corner,
+aside *::-webkit-scrollbar-corner,
+.sidebar-container::-webkit-scrollbar-corner,
+.sidebar-container *::-webkit-scrollbar-corner,
+aside::-webkit-resizer,
+aside *::-webkit-resizer,
+.sidebar-container::-webkit-resizer,
+.sidebar-container *::-webkit-resizer,
+aside::-webkit-scrollbar-button,
+aside *::-webkit-scrollbar-button,
+.sidebar-container::-webkit-scrollbar-button,
+.sidebar-container *::-webkit-scrollbar-button {
   display: none !important;
   width: 0 !important;
   height: 0 !important;
@@ -165,6 +177,24 @@ aside *::-webkit-scrollbar-thumb,
 .sidebar-container *::-webkit-scrollbar-thumb {
   display: none !important;
   background: transparent !important;
+}
+
+/* Sidebar stability and elimination of browser focus/composite artifacts */
+.sidebar-container {
+  contain: paint;
+  will-change: width;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+.sidebar-container button,
+.sidebar-container button:focus,
+.sidebar-container button:focus-visible,
+.sidebar-container a,
+.sidebar-container a:focus,
+.sidebar-container a:focus-visible {
+  outline: none !important;
+  -webkit-tap-highlight-color: transparent !important;
 }
 
 @keyframes pulse-subtle {

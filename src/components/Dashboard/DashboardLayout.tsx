@@ -216,14 +216,13 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         <aside 
           onMouseEnter={() => setIsSidebarHovered(true)}
           onMouseLeave={() => setIsSidebarHovered(false)}
-          className={`sidebar-container hidden md:flex flex-col bg-white border-r border-slate-200/90 fixed left-0 top-20 bottom-0 z-30 transition-all duration-300 ease-in-out select-none overflow-hidden ${
-            isSidebarHovered ? 'w-64 lg:w-72 shadow-2xl' : 'w-20 shadow-xs'
+          className={`sidebar-container hidden md:flex flex-col bg-white border-r border-slate-200/90 fixed left-0 top-20 bottom-0 z-30 transition-[width] duration-300 ease-in-out select-none overflow-hidden ${
+            isSidebarHovered ? 'w-64 lg:w-72 shadow-xl' : 'w-20'
           }`}
+          style={{ contain: 'paint', willChange: 'width' }}
         >
           {/* Navigation Items (5 Secciones con iconos Squircle de Tico aumentados, sin barra gris de scroll) */}
-          <div className={`flex-1 px-3 py-4 space-y-2 select-none no-scrollbar ${
-            isSidebarHovered ? 'overflow-y-auto' : 'overflow-hidden'
-          }`}>
+          <div className="flex-1 px-3 py-4 space-y-2 select-none no-scrollbar overflow-y-auto overflow-x-hidden">
             {isSidebarHovered && (
               <div className="px-3 pb-2 text-[10px] font-extrabold text-slate-400 uppercase tracking-widest animate-in fade-in duration-200">
                 Secciones
@@ -240,7 +239,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                   type="button"
                   onClick={() => onSelectTab(item.id)}
                   title={!isSidebarHovered ? `${item.label} — ${item.description}` : undefined}
-                  className={`w-full group flex items-center rounded-2xl text-left transition-all cursor-pointer relative ${
+                  className={`w-full group flex items-center rounded-2xl text-left transition-[padding,background-color] duration-200 cursor-pointer relative outline-none focus:outline-none focus-visible:outline-none ${
                     isSidebarHovered
                       ? 'px-3.5 py-3 justify-between'
                       : 'px-0 py-3 justify-center'
@@ -307,9 +306,9 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           </div>
 
           {/* Sidebar Footer: Usuario y Cerrar Sesión */}
-          <div className="p-3 border-t border-slate-100 space-y-3 bg-slate-50/50 transition-all duration-300">
+          <div className="p-3 border-t border-slate-100 bg-slate-50/50 overflow-hidden">
             {isSidebarHovered ? (
-              <div className="flex items-center justify-between p-2.5 rounded-2xl bg-white border border-slate-200/80 shadow-2xs animate-in fade-in duration-200">
+              <div className="flex items-center justify-between p-2.5 rounded-2xl bg-white border border-slate-200/80 shadow-2xs">
                 <div className="flex items-center gap-2.5 min-w-0">
                   <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-extrabold text-xs shrink-0 shadow-xs">
                     {userSession.name?.charAt(0).toUpperCase() || 'U'}
@@ -328,13 +327,13 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                   type="button"
                   onClick={() => setIsLogoutModalOpen(true)}
                   title="Cerrar Sesión"
-                  className="p-1.5 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                  className="p-1.5 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer outline-none focus:outline-none focus-visible:outline-none"
                 >
                   <LogOut className="w-4 h-4" />
                 </button>
               </div>
             ) : (
-              <div className="flex flex-col items-center gap-2 py-1 animate-in fade-in duration-200">
+              <div className="flex flex-col items-center gap-2 py-1">
                 <div 
                   className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-extrabold text-xs shadow-xs"
                   title={`${userSession.name} (${userSession.workspaceName})`}
@@ -345,7 +344,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                   type="button"
                   onClick={() => setIsLogoutModalOpen(true)}
                   title="Cerrar Sesión"
-                  className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                  className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer outline-none focus:outline-none focus-visible:outline-none"
                 >
                   <LogOut className="w-4 h-4" />
                 </button>
