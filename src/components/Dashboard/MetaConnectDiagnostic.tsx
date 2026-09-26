@@ -65,6 +65,85 @@ const loadLocalSavedConnections = (): SavedMetaConnection[] => {
   return [];
 };
 
+const PORTFOLIO_COLOR_PALETTES = [
+  {
+    bg: 'bg-indigo-50',
+    border: 'border-indigo-200/90',
+    text: 'text-indigo-600',
+  },
+  {
+    bg: 'bg-emerald-50',
+    border: 'border-emerald-200/90',
+    text: 'text-emerald-700',
+  },
+  {
+    bg: 'bg-violet-50',
+    border: 'border-violet-200/90',
+    text: 'text-violet-600',
+  },
+  {
+    bg: 'bg-amber-50',
+    border: 'border-amber-200/90',
+    text: 'text-amber-700',
+  },
+  {
+    bg: 'bg-rose-50',
+    border: 'border-rose-200/90',
+    text: 'text-rose-600',
+  },
+  {
+    bg: 'bg-cyan-50',
+    border: 'border-cyan-200/90',
+    text: 'text-cyan-700',
+  },
+  {
+    bg: 'bg-fuchsia-50',
+    border: 'border-fuchsia-200/90',
+    text: 'text-fuchsia-600',
+  },
+  {
+    bg: 'bg-teal-50',
+    border: 'border-teal-200/90',
+    text: 'text-teal-700',
+  },
+  {
+    bg: 'bg-orange-50',
+    border: 'border-orange-200/90',
+    text: 'text-orange-600',
+  },
+  {
+    bg: 'bg-blue-50',
+    border: 'border-blue-200/90',
+    text: 'text-blue-600',
+  },
+  {
+    bg: 'bg-purple-50',
+    border: 'border-purple-200/90',
+    text: 'text-purple-600',
+  },
+  {
+    bg: 'bg-pink-50',
+    border: 'border-pink-200/90',
+    text: 'text-pink-600',
+  },
+];
+
+const getPortfolioBadge = (name?: string, index: number = 0) => {
+  const cleanName = (name || '').trim();
+  const initial = cleanName ? cleanName.charAt(0).toUpperCase() : 'P';
+
+  let hash = 0;
+  for (let i = 0; i < cleanName.length; i++) {
+    hash = (hash << 5) - hash + cleanName.charCodeAt(i);
+    hash |= 0;
+  }
+  const colorIndex = (Math.abs(hash) + index) % PORTFOLIO_COLOR_PALETTES.length;
+  return {
+    initial,
+    palette: PORTFOLIO_COLOR_PALETTES[colorIndex],
+  };
+};
+
 interface MetaConnectDiagnosticProps {
   metaState: MetaConnectionState;
   onUpdateMetaState: (newState: MetaConnectionState) => void;
@@ -912,8 +991,10 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
           </div>
         ) : (
           <div className="flex flex-col gap-4 w-full">
-            {savedConnections.map((conn) => {
+            {savedConnections.map((conn, index) => {
               const isExpanded = Boolean(expandedConnIds[conn.id]);
+              const portfolioDisplayName = conn.portfolioName || conn.businessManagerName || 'Portafolio Comercial Meta';
+              const badge = getPortfolioBadge(portfolioDisplayName, index);
 
               const accountsForConn: AvailableAccount[] = conn.availableAccounts && conn.availableAccounts.length > 0
                 ? conn.availableAccounts
@@ -938,8 +1019,11 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
                   {/* Fila Principal de la Ficha (Siempre Visible) */}
                   <div className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border bg-blue-50 text-blue-600 border-blue-200/70 shadow-2xs">
-                        <Briefcase className="w-4.5 h-4.5" />
+                      <div
+                        className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0 border ${badge.palette.bg} ${badge.palette.border} ${badge.palette.text} shadow-2xs font-['Outfit'] font-black text-sm sm:text-base select-none`}
+                        aria-hidden="true"
+                      >
+                        {badge.initial}
                       </div>
 
                       <div className="min-w-0 space-y-0.5">
@@ -947,7 +1031,7 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
                           Portafolio Comercial
                         </span>
                         <h4 className="text-sm sm:text-base font-extrabold text-[#0a194f] font-['Outfit'] leading-tight truncate">
-                          {conn.portfolioName || conn.businessManagerName || 'Portafolio Comercial Meta'}
+                          {portfolioDisplayName}
                         </h4>
                         <div className="text-[11px] font-mono text-slate-500 font-medium">
                           ID BM: {conn.businessManagerId || 'Sin ID detectado'}
