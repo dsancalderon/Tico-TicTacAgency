@@ -37,3 +37,6 @@ supabase/.temp
 *.njsproj
 *.sln
 *.sw?
+
+# Contexto local entre sesiones de IA (no versionar)
+handoffs.md
