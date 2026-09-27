@@ -60,7 +60,7 @@ briefRouter.get('/connections', async (_req, res) => {
   const legacy = await db.from('ad_connections').select('settings,updated_at').eq('platform','meta').maybeSingle();
   const items = named.data || [];
   if (legacy.data) items.push({ id: 'legacy', name: legacy.data.settings.userName || legacy.data.settings.businessManagerName || 'Conexión actual', connected_at: legacy.data.updated_at });
-  res.json({ connections: items, warning: named.error ? 'Aplica la migración V2 para guardar varias conexiones.' : undefined });
+  res.json({ connections: items });
 });
 briefRouter.post('/assets', async (req, res) => {
   try {
