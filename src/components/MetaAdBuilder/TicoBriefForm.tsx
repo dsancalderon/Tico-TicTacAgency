@@ -153,6 +153,7 @@ export function TicoBriefForm({ initialData, onSubmit, onDraftChange, isLoading,
   const draftCallback = useRef(onDraftChange); draftCallback.current = onDraftChange;
   const initialized = useRef(false); const lastAssets = useRef<any>(null);
   const lastAssetFetchRef = useRef<string>('');
+  const assetRequestRef = useRef(0);
   const brandAssets=useRef<Record<string,any>>({});
   const [preferencesReady,setPreferencesReady]=useState(false);
   const manualInitialized = useRef(new Set<SectionKey>(initialData?.ticoBrief?.configuredSections || []));
@@ -216,7 +217,6 @@ export function TicoBriefForm({ initialData, onSubmit, onDraftChange, isLoading,
 
   useEffect(() => {
     if (!b.metaConnectionId) return;
-    let active = true;
     const selectedConn = connections.find(c => c.id === b.metaConnectionId);
     const sessionToken = typeof sessionStorage !== 'undefined' ? (sessionStorage.getItem(`tico_token_${b.metaConnectionId}`) || sessionStorage.getItem('tico_meta_active_token')) : null;
     const connToken = selectedConn?.token || metaState?.userAccessToken || sessionToken || undefined;
@@ -224,6 +224,10 @@ export function TicoBriefForm({ initialData, onSubmit, onDraftChange, isLoading,
     const fetchKey = `${b.metaConnectionId}:${b.meta.adAccountId || ''}:${b.meta.pageId || ''}:${b.existingCampaignId || ''}:${connToken || ''}`;
     if (lastAssetFetchRef.current === fetchKey) return;
     lastAssetFetchRef.current = fetchKey;
+    // Re-renders with the same key skip the fetch above, so the request in flight must stay valid
+    // across effect re-runs (e.g. when the connection list loads); only a newer request supersedes it.
+    const requestId = ++assetRequestRef.current;
+    const isLatest = () => assetRequestRef.current === requestId;
 
     const getFallbackData = () => {
       let fallbackAccounts = selectedConn?.availableAccounts && selectedConn.availableAccounts.length > 0 
@@ -297,7 +301,7 @@ export function TicoBriefForm({ initialData, onSubmit, onDraftChange, isLoading,
     rememberBriefConnectionToken(b.metaConnectionId, connToken);
     // The spinner stops after 4s, but the real Meta response is still applied when it arrives:
     // otherwise a placeholder page from the local fallback stays selected and deploy rejects it.
-    const busyTimer = setTimeout(() => { if (active) setAssetBusy(false); }, 4000);
+    const busyTimer = setTimeout(() => { if (isLatest()) setAssetBusy(false); }, 4000);
     api('assets', {
       connectionId: b.metaConnectionId,
       accountId: b.meta.adAccountId,
@@ -305,7 +309,7 @@ export function TicoBriefForm({ initialData, onSubmit, onDraftChange, isLoading,
       campaignId: b.existingCampaignId,
       token: connToken
     }).then((result: any) => {
-      if(!active) return;
+      if(!isLatest()) return;
       const accounts = (result.accounts && result.accounts.length > 0) ? result.accounts : fallbackAccounts;
       const pages = (result.pages && result.pages.length > 0) ? result.pages : fallbackPages;
       const pixels = (result.pixels && result.pixels.length > 0) ? result.pixels : fallbackPixels;
@@ -356,10 +360,9 @@ export function TicoBriefForm({ initialData, onSubmit, onDraftChange, isLoading,
         }
       });
     }).catch(e => {
-      if(!active) return;
+      if(!isLatest()) return;
       console.warn('[TicoBriefForm] Assets inspection completed with local fallback:', e?.message || e);
-    }).finally(() => { clearTimeout(busyTimer); if(active) setAssetBusy(false); });
-    return () => { active = false; clearTimeout(busyTimer); };
+    }).finally(() => { clearTimeout(busyTimer); if(isLatest()) setAssetBusy(false); });
   }, [b.metaConnectionId, b.meta.adAccountId, b.meta.pageId, b.existingCampaignId, metaState?.userAccessToken, connections]);
 
   useEffect(() => {
