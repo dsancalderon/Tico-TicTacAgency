@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { MetaLogoAnimated } from '../MetaLogoAnimated';
-import { GoogleAdsLogoAnimated } from '../GoogleAdsLogoAnimated';
+import { usePrefersReducedMotion } from '../../hooks/usePrefersReducedMotion';
 import type { MetaConnectionState, GoogleConnectionState } from '../../types';
 import { MetaConnectDiagnostic } from './MetaConnectDiagnostic';
 import { 
@@ -11,10 +10,29 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { TicoIconConnections } from './TicoNavIcons';
-import { GoogleAdsBrandLogo } from '../BrandLogos';
+import { MetaBrandLogo, GoogleAdsBrandLogo } from '../BrandLogos';
+
+function ConnectionLogo({ children, reducedMotion }: { children: React.ReactNode; reducedMotion: boolean }) {
+  return (
+    <motion.span
+      className="tico-network-float-hover relative isolate flex h-9 w-9 shrink-0 items-center justify-center"
+      variants={{ rest: { scale: 1, y: 0 }, hover: { scale: reducedMotion ? 1 : 1.08, y: reducedMotion ? 0 : -2 } }}
+      transition={{ type: 'spring', duration: reducedMotion ? 0 : 0.3, bounce: 0.15 }}
+    >
+      {/* A static glow faded in once, following the network node pulse palette. */}
+      <motion.span
+        aria-hidden="true"
+        className="tico-network-node-pulse-hover pointer-events-none absolute -inset-2 -z-10 rounded-full bg-[radial-gradient(circle,#8b9dff66,transparent_70%)]"
+        variants={{ rest: { opacity: 0 }, hover: { opacity: 1 } }}
+        transition={{ duration: reducedMotion ? 0 : 0.3 }}
+      />
+      {children}
+    </motion.span>
+  );
+}
 
 const cardHoverLayer = 'pointer-events-none absolute inset-0 rounded-[inherit] border border-blue-500 shadow-lg shadow-blue-500/15 opacity-0 transition-opacity duration-300 group-hover:opacity-100 group-focus-visible:opacity-100 motion-reduce:transition-none';
-const cardBase = 'relative p-4 sm:p-4.5 rounded-2xl border transition-all duration-300 motion-safe:hover:scale-105 motion-safe:hover:-translate-y-0.5 motion-reduce:transition-none text-left flex items-center justify-between cursor-pointer group focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-500';
+const cardBase = 'relative p-4 sm:p-4.5 rounded-2xl border transition-transform duration-300 motion-safe:hover:scale-105 motion-safe:hover:-translate-y-0.5 motion-reduce:transition-none text-left flex items-center justify-between cursor-pointer group focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-500';
 
 interface UnifiedConnectionsProps {
   metaState: MetaConnectionState;
@@ -30,8 +48,8 @@ export const UnifiedConnections: React.FC<UnifiedConnectionsProps> = ({
   onUpdateGoogleState
 }) => {
   const [activePlatform, setActivePlatform] = useState<'meta' | 'google'>('meta');
-  const [hoveredPlatform, setHoveredPlatform] = useState<'meta' | 'google' | null>(null);
-  const [focusedPlatform, setFocusedPlatform] = useState<'meta' | 'google' | null>(null);
+  const reducedMotion = usePrefersReducedMotion();
+  const hoverMotion = { initial: 'rest', whileHover: 'hover', whileFocus: 'hover' } as const;
 
   // Estado local para Google Ads si no viene provisto externamente
   const [googleState, setGoogleState] = useState<GoogleConnectionState>(
@@ -112,10 +130,7 @@ export const UnifiedConnections: React.FC<UnifiedConnectionsProps> = ({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
           {/* Tarjeta 1: Meta Ads */}
           <motion.button
-            onHoverStart={() => setHoveredPlatform('meta')}
-            onHoverEnd={() => setHoveredPlatform(null)}
-            onFocus={(event) => { if (event.currentTarget.matches(':focus-visible')) setFocusedPlatform('meta'); }}
-            onBlur={() => setFocusedPlatform(null)}
+            {...hoverMotion}
             type="button"
             onClick={() => setActivePlatform('meta')}
             className={`${cardBase} ${
@@ -126,7 +141,9 @@ export const UnifiedConnections: React.FC<UnifiedConnectionsProps> = ({
           >
             <span aria-hidden="true" className={cardHoverLayer} />
             <div className="flex items-center gap-3.5 min-w-0">
-              <MetaLogoAnimated active={hoveredPlatform === 'meta' || focusedPlatform === 'meta'} />
+              <ConnectionLogo reducedMotion={reducedMotion}>
+                <MetaBrandLogo className="w-9 h-9 shrink-0 object-contain drop-shadow-xs" />
+              </ConnectionLogo>
               <div className="min-w-0">
                 <div className="text-sm sm:text-base font-extrabold text-[#0a194f] font-['Outfit'] flex items-center gap-2">
                   <span>Meta Ads</span>
@@ -144,10 +161,7 @@ export const UnifiedConnections: React.FC<UnifiedConnectionsProps> = ({
 
           {/* Tarjeta 2: Google Ads */}
           <motion.button
-            onHoverStart={() => setHoveredPlatform('google')}
-            onHoverEnd={() => setHoveredPlatform(null)}
-            onFocus={(event) => { if (event.currentTarget.matches(':focus-visible')) setFocusedPlatform('google'); }}
-            onBlur={() => setFocusedPlatform(null)}
+            {...hoverMotion}
             type="button"
             onClick={() => setActivePlatform('google')}
             className={`${cardBase} ${
@@ -158,7 +172,9 @@ export const UnifiedConnections: React.FC<UnifiedConnectionsProps> = ({
           >
             <span aria-hidden="true" className={cardHoverLayer} />
             <div className="flex items-center gap-3.5 min-w-0">
-              <GoogleAdsLogoAnimated active={hoveredPlatform === 'google' || focusedPlatform === 'google'} pending={!googleState.isConnected} />
+              <ConnectionLogo reducedMotion={reducedMotion}>
+                <GoogleAdsBrandLogo className="w-9 h-9 shrink-0 drop-shadow-xs" />
+              </ConnectionLogo>
               <div className="min-w-0">
                 <div className="text-sm sm:text-base font-extrabold text-[#0a194f] font-['Outfit'] flex items-center gap-2">
                   <span>Google Ads</span>
