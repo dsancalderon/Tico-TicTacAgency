@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { TicoMascot } from '../TicoMascot';
 import { useScrollLock } from '../../utils/scrollLock';
+import { usePrefersReducedMotion } from '../../hooks/usePrefersReducedMotion';
 import './tico-loader.css';
 
 export type LoaderPhase = 'entering' | 'loading' | 'exiting' | 'done';
@@ -15,6 +16,7 @@ export interface TicoLoaderProps {
 
 export function TicoLoader({ isLoaded, onFinish, minDuration = 1200, forceMotion = false, caption = 'Preparando tu espacio' }: TicoLoaderProps) {
   const [phase, setPhase] = useState<LoaderPhase>('loading');
+  const reducedMotion = usePrefersReducedMotion();
   const started = useRef(0);
   const finish = useRef(onFinish);
   useEffect(() => { started.current = Date.now(); }, []);
@@ -31,13 +33,13 @@ export function TicoLoader({ isLoaded, onFinish, minDuration = 1200, forceMotion
 
   useEffect(() => {
     if (phase !== 'exiting') return;
-    const duration = !forceMotion && window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 450;
+    const duration = !forceMotion && reducedMotion ? 0 : 450;
     const timer = window.setTimeout(() => {
       setPhase('done');
       finish.current?.();
     }, duration);
     return () => window.clearTimeout(timer);
-  }, [phase, forceMotion]);
+  }, [phase, forceMotion, reducedMotion]);
 
   if (phase === 'done') return null;
   return (
