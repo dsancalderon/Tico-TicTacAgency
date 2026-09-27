@@ -81,23 +81,40 @@ briefRouter.post('/assets', async (req, res) => {
       res.json({ valid: false, accounts: [], pages: [], pixels: [], campaigns: [], adSets: [], warnings: [] });
       return;
     }
-    const result = await inspectConnection(token);
+    let result: any;
+    try {
+      result = await inspectConnection(token);
+    } catch (inspectError) {
+      res.json({ valid: false, accounts: [], pages: [], pixels: [], campaigns: [], adSets: [], warnings: [(inspectError as Error).message] });
+      return;
+    }
     let pixels: any[] = []; let instagram: any; let campaigns: any[] = []; let adSets: any[] = [];
     if (result.valid && req.body.accountId) {
-      if (!result.accounts.some((a: any) => a.id === req.body.accountId)) throw new Error('La cuenta no pertenece a esta conexión.');
-      pixels = await graphList(token, `${req.body.accountId}/adspixels`, { fields: 'id,name,last_fired_time' });
-      campaigns = await graphList(token, `${req.body.accountId}/campaigns`, { fields: 'id,name,status,objective' });
-      if (req.body.campaignId) {
-        if (!campaigns.some(c => c.id === req.body.campaignId)) throw new Error('Campaña ajena a la cuenta.');
-        adSets = await graphList(token, `${req.body.campaignId}/adsets`, { fields: 'id,name,status,optimization_goal,destination_type,promoted_object' });
+      if (result.accounts?.some((a: any) => a.id === req.body.accountId)) {
+        try {
+          pixels = await graphList(token, `${req.body.accountId}/adspixels`, { fields: 'id,name,last_fired_time' });
+          campaigns = await graphList(token, `${req.body.accountId}/campaigns`, { fields: 'id,name,status,objective' });
+          if (req.body.campaignId && campaigns.some((c: any) => c.id === req.body.campaignId)) {
+            adSets = await graphList(token, `${req.body.campaignId}/adsets`, { fields: 'id,name,status,optimization_goal,destination_type,promoted_object' });
+          }
+        } catch (e) {
+          console.warn('[brief /assets] error fetching account sub-assets:', (e as Error).message);
+        }
       }
     }
     if (result.valid && req.body.pageId) {
-      if (!result.pages.some((p: any) => p.id === req.body.pageId)) throw new Error('Selecciona una página con permiso para anunciar.');
-      instagram = (await graph(token, req.body.pageId, { fields: 'instagram_business_account' })).instagram_business_account;
+      if (result.pages?.some((p: any) => p.id === req.body.pageId)) {
+        try {
+          instagram = (await graph(token, req.body.pageId, { fields: 'instagram_business_account' })).instagram_business_account;
+        } catch (e) {
+          console.warn('[brief /assets] error fetching instagram account:', (e as Error).message);
+        }
+      }
     }
     res.json({ ...result, pixels, instagram, campaigns, adSets });
-  } catch (error) { res.status(400).json({ error: (error as Error).message }); }
+  } catch (error) {
+    res.json({ valid: false, accounts: [], pages: [], pixels: [], campaigns: [], adSets: [], warnings: [(error as Error).message] });
+  }
 });
 
 briefRouter.post('/validate', async(req,res)=>{

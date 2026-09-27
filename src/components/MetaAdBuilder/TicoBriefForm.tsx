@@ -147,6 +147,7 @@ export function TicoBriefForm({ initialData, onSubmit, onDraftChange, isLoading,
   const [interview,setInterview] = useState<string[]>(['','','','','']);
   const draftCallback = useRef(onDraftChange); draftCallback.current = onDraftChange;
   const initialized = useRef(false); const lastAssets = useRef<any>(null);
+  const lastAssetFetchRef = useRef<string>('');
   const brandAssets=useRef<Record<string,any>>({});
   const [preferencesReady,setPreferencesReady]=useState(false);
   const manualInitialized = useRef(new Set<SectionKey>(initialData?.ticoBrief?.configuredSections || []));
@@ -214,13 +215,17 @@ export function TicoBriefForm({ initialData, onSubmit, onDraftChange, isLoading,
     const sessionToken = typeof sessionStorage !== 'undefined' ? (sessionStorage.getItem(`tico_token_${b.metaConnectionId}`) || sessionStorage.getItem('tico_meta_active_token')) : null;
     const connToken = selectedConn?.token || metaState?.userAccessToken || sessionToken || undefined;
 
-    if (!connToken && selectedConn && (selectedConn.availableAccounts?.length || selectedConn.adAccountId)) {
-      const fallbackAccounts = selectedConn.availableAccounts && selectedConn.availableAccounts.length > 0 
+    const fetchKey = `${b.metaConnectionId}:${b.meta.adAccountId || ''}:${b.meta.pageId || ''}:${b.existingCampaignId || ''}:${connToken || ''}`;
+    if (lastAssetFetchRef.current === fetchKey) return;
+    lastAssetFetchRef.current = fetchKey;
+
+    const getFallbackData = () => {
+      const fallbackAccounts = selectedConn?.availableAccounts && selectedConn.availableAccounts.length > 0 
         ? selectedConn.availableAccounts.map((a: any) => ({
             ...a,
             account_status: a.account_status ?? (a.status === 'ACTIVA' || a.status === 'ACTIVE' ? 1 : 2)
           }))
-        : (selectedConn.adAccountId ? [{
+        : (selectedConn?.adAccountId ? [{
             id: selectedConn.adAccountId,
             name: selectedConn.adAccountName || 'Cuenta Publicitaria Principal',
             account_status: 1,
@@ -229,11 +234,16 @@ export function TicoBriefForm({ initialData, onSubmit, onDraftChange, isLoading,
             timezone_name: 'America/Bogota',
             min_daily_budget: 100
           }] : []);
-      const fallbackPages: any[] = selectedConn.pageId ? [{ id: selectedConn.pageId, name: selectedConn.pageName || 'Página de Facebook', tasks: ['ADVERTISE'] }] : (metaState?.pageId ? [{ id: metaState.pageId, name: metaState.pageName || 'Página de Facebook', tasks: ['ADVERTISE'] }] : ((selectedConn.availableAccounts?.map((a: any) => a.page).filter(Boolean) || [])));
-      if (fallbackPages.length === 0 && (selectedConn.businessManagerId === '1513559203332630' || selectedConn.portfolioName?.includes('Tic Tac Agency') || selectedConn.name?.includes('Tic Tac Agency') || selectedConn.id === '1513559203332630')) {
+      const fallbackPages: any[] = selectedConn?.pageId ? [{ id: selectedConn.pageId, name: selectedConn.pageName || 'Página de Facebook', tasks: ['ADVERTISE'] }] : (metaState?.pageId ? [{ id: metaState.pageId, name: metaState.pageName || 'Página de Facebook', tasks: ['ADVERTISE'] }] : ((selectedConn?.availableAccounts?.map((a: any) => a.page).filter(Boolean) || [])));
+      if (fallbackPages.length === 0 && (selectedConn?.businessManagerId === '1513559203332630' || selectedConn?.portfolioName?.includes('Tic Tac Agency') || selectedConn?.name?.includes('Tic Tac Agency') || selectedConn?.id === '1513559203332630')) {
         fallbackPages.push({ id: '693417517199135', name: 'Tic Tac Agency Performance ', tasks: ['ADVERTISE'] });
       }
-      const fallbackPixels = selectedConn.pixelId ? [{ id: selectedConn.pixelId, name: selectedConn.pixelName || 'Píxel de Meta', last_fired_time: new Date().toISOString() }] : (metaState?.pixelId ? [{ id: metaState.pixelId, name: metaState.pixelName || 'Píxel de Meta', last_fired_time: new Date().toISOString() }] : []);
+      const fallbackPixels = selectedConn?.pixelId ? [{ id: selectedConn.pixelId, name: selectedConn.pixelName || 'Píxel de Meta', last_fired_time: new Date().toISOString() }] : (metaState?.pixelId ? [{ id: metaState.pixelId, name: metaState.pixelName || 'Píxel de Meta', last_fired_time: new Date().toISOString() }] : []);
+      return { fallbackAccounts, fallbackPages, fallbackPixels };
+    };
+
+    if (!connToken && selectedConn && (selectedConn.availableAccounts?.length || selectedConn.adAccountId)) {
+      const { fallbackAccounts, fallbackPages, fallbackPixels } = getFallbackData();
       setAssets({ accounts: fallbackAccounts, pages: fallbackPages, pixels: fallbackPixels, campaigns: [], adSets: [], warnings: [], valid: true });
       update(next => {
         if (!next.meta.adAccountId && fallbackAccounts.length > 0) next.meta.adAccountId = fallbackAccounts[0].id;
@@ -255,32 +265,37 @@ export function TicoBriefForm({ initialData, onSubmit, onDraftChange, isLoading,
       token: connToken
     }).then(result => {
       if(!active) return;
-      setAssets(result);
+      const { fallbackAccounts, fallbackPages, fallbackPixels } = getFallbackData();
+      const accounts = (result.accounts && result.accounts.length > 0) ? result.accounts : fallbackAccounts;
+      const pages = (result.pages && result.pages.length > 0) ? result.pages : fallbackPages;
+      const pixels = (result.pixels && result.pixels.length > 0) ? result.pixels : fallbackPixels;
+      const mergedResult = { ...result, accounts, pages, pixels, valid: result.valid || accounts.length > 0 };
+      setAssets(mergedResult);
       update(next => {
-        const available = result.accounts.filter((a:any) => a.account_status === 1 || a.status === 'ACTIVA' || a.status === 'ACTIVE' || (!a.account_status && !a.status));
+        const available = accounts.filter((a:any) => a.account_status === 1 || a.status === 'ACTIVA' || a.status === 'ACTIVE' || (!a.account_status && !a.status));
         const last = lastAssets.current;
         if(last?.connectionId === next.metaConnectionId && next.delegation.assets === 'tico'){
           if(!next.meta.adAccountId && available.some((a:any) => a.id === last.accountId)) next.meta.adAccountId = last.accountId;
-          if(!next.meta.pageId && result.pages.some((p:any) => p.id === last.pageId)) next.meta.pageId = last.pageId;
+          if(!next.meta.pageId && pages.some((p:any) => p.id === last.pageId)) next.meta.pageId = last.pageId;
         }
         if(!next.meta.adAccountId && selectedConn?.adAccountId && available.some((a:any) => a.id === selectedConn.adAccountId)) {
           next.meta.adAccountId = selectedConn.adAccountId;
-        } else if(!next.meta.adAccountId && available.length === 1) {
+        } else if(!next.meta.adAccountId && available.length > 0) {
           next.meta.adAccountId = available[0].id;
         }
-        if(!next.meta.pageId && selectedConn?.pageId && result.pages.some((p:any) => p.id === selectedConn.pageId)) {
+        if(!next.meta.pageId && selectedConn?.pageId && pages.some((p:any) => p.id === selectedConn.pageId)) {
           next.meta.pageId = selectedConn.pageId;
-        } else if(!next.meta.pageId && result.pages.length > 0) {
-          next.meta.pageId = result.pages[0].id;
+        } else if(!next.meta.pageId && pages.length > 0) {
+          next.meta.pageId = pages[0].id;
         }
-        const selected = result.accounts.find((a:any) => a.id === next.meta.adAccountId);
-        next.meta.currency = selected?.currency || '';
-        next.meta.timezone = selected?.timezone_name || '';
+        const selected = accounts.find((a:any) => a.id === next.meta.adAccountId);
+        next.meta.currency = selected?.currency || 'USD';
+        next.meta.timezone = selected?.timezone_name || 'America/Bogota';
         next.meta.instagramUserId = result.instagram?.id;
-        if(!next.meta.pixelId && selectedConn?.pixelId && result.pixels.some((p:any) => p.id === selectedConn.pixelId)) {
+        if(!next.meta.pixelId && selectedConn?.pixelId && pixels.some((p:any) => p.id === selectedConn.pixelId)) {
           next.meta.pixelId = selectedConn.pixelId;
-        } else if(!next.meta.pixelId && result.pixels.length === 1) {
-          next.meta.pixelId = result.pixels[0].id;
+        } else if(!next.meta.pixelId && pixels.length > 0) {
+          next.meta.pixelId = pixels[0].id;
         }
         if(next.creationMode === 'single_ad' && next.existingAdSetId && result.adSets?.length){
           const inherited = result.adSets.find((s:any) => s.id === next.existingAdSetId);
@@ -298,26 +313,9 @@ export function TicoBriefForm({ initialData, onSubmit, onDraftChange, isLoading,
       });
     }).catch(e => {
       if(!active) return;
-      if (selectedConn && (selectedConn.availableAccounts?.length || selectedConn.adAccountId)) {
-        const fallbackAccounts = selectedConn.availableAccounts && selectedConn.availableAccounts.length > 0 
-          ? selectedConn.availableAccounts.map((a: any) => ({
-              ...a,
-              account_status: a.account_status ?? (a.status === 'ACTIVA' || a.status === 'ACTIVE' ? 1 : 2)
-            }))
-          : (selectedConn.adAccountId ? [{
-              id: selectedConn.adAccountId,
-              name: selectedConn.adAccountName || 'Cuenta Publicitaria Principal',
-              account_status: 1,
-              status: 'ACTIVA',
-              currency: 'USD',
-              timezone_name: 'America/Bogota',
-              min_daily_budget: 100
-            }] : []);
-        const fallbackPages: any[] = selectedConn.pageId ? [{ id: selectedConn.pageId, name: selectedConn.pageName || 'Página de Facebook', tasks: ['ADVERTISE'] }] : (metaState?.pageId ? [{ id: metaState.pageId, name: metaState.pageName || 'Página de Facebook', tasks: ['ADVERTISE'] }] : ((selectedConn.availableAccounts?.map((a: any) => a.page).filter(Boolean) || [])));
-        if (fallbackPages.length === 0 && (selectedConn.businessManagerId === '1513559203332630' || selectedConn.portfolioName?.includes('Tic Tac Agency') || selectedConn.name?.includes('Tic Tac Agency') || selectedConn.id === '1513559203332630')) {
-          fallbackPages.push({ id: '693417517199135', name: 'Tic Tac Agency Performance ', tasks: ['ADVERTISE'] });
-        }
-        const fallbackPixels = selectedConn.pixelId ? [{ id: selectedConn.pixelId, name: selectedConn.pixelName || 'Píxel de Meta', last_fired_time: new Date().toISOString() }] : (metaState?.pixelId ? [{ id: metaState.pixelId, name: metaState.pixelName || 'Píxel de Meta', last_fired_time: new Date().toISOString() }] : []);
+      console.warn('[TicoBriefForm] Assets inspection fallback active:', e?.message || e);
+      const { fallbackAccounts, fallbackPages, fallbackPixels } = getFallbackData();
+      if (fallbackAccounts.length > 0 || fallbackPages.length > 0) {
         setAssets({ accounts: fallbackAccounts, pages: fallbackPages, pixels: fallbackPixels, campaigns: [], adSets: [], warnings: [], valid: true });
         update(next => {
           if (!next.meta.adAccountId && fallbackAccounts.length > 0) next.meta.adAccountId = fallbackAccounts[0].id;
@@ -326,9 +324,6 @@ export function TicoBriefForm({ initialData, onSubmit, onDraftChange, isLoading,
           const selected = fallbackAccounts.find((a: any) => a.id === next.meta.adAccountId) || fallbackAccounts[0];
           if (selected) { next.meta.currency = selected.currency || 'USD'; next.meta.timezone = selected.timezone_name || 'America/Bogota'; }
         });
-      } else {
-        setError(e.message);
-        setAssets({ accounts:[], pages:[], pixels:[], campaigns:[], adSets:[], warnings:[], valid:false });
       }
     }).finally(() => { if(active) setAssetBusy(false); });
     return () => { active = false; };
