@@ -523,7 +523,6 @@ export function TicoBriefForm({ initialData, onSubmit, onDraftChange, isLoading,
   return <form className="tico-brief" onSubmit={e=>{e.preventDefault();void next();}}>
     <header className="tb-header">
       <div>
-        <span className="tb-eyebrow"><Sparkles size={16}/> TICO AGENT</span>
         <h2>Tu negocio. Tu próxima campaña.</h2>
         <p>Hola, soy Tico. Cuéntame de tu negocio: tu web, tus redes, un catálogo o una nota de voz, y armo tu campaña en 3 pasos.</p>
       </div>

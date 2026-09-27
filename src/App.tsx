@@ -805,25 +805,6 @@ export function App() {
             {/* Dynamic Step Content */}
             {currentStep === 'briefing' && (
               <div className="space-y-6">
-                {editingDraftId && (
-                  <div className="flex items-center justify-between p-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs">
-                    <div className="flex items-center gap-2 font-semibold">
-                      <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" />
-                      <span>Editando borrador guardado en tiempo real</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditingDraftId(null);
-                        setEditingDraftPayload(null);
-                      }}
-                      className="px-3 py-1 rounded-xl bg-white border border-amber-300 text-amber-800 text-[11px] font-bold hover:bg-amber-100 transition cursor-pointer"
-                    >
-                      Crear nueva campaña desde cero
-                    </button>
-                  </div>
-                )}
-
                 <MetaAdBuilderForm
                   onReconnect={() => setDashboardTab('connections')}
                   key={editingDraftId || (editingDraftPayload ? 'draft' : 'new')}
