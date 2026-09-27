@@ -5,7 +5,7 @@ import { Cta, type CtaProps } from './hero-10-utils/cta';
 
 export interface Hero10Props {
   id: string;
-  eyebrow: string;
+  eyebrow?: string;
   title: string;
   titleHighlight: string;
   description: string;
@@ -34,9 +34,11 @@ export function Hero10({ id, eyebrow, title, titleHighlight, description, images
         <motion.div className="mx-auto flex max-w-3xl flex-col items-center gap-5 text-center"
           initial={reducedMotion ? false : 'hidden'} whileInView="visible" viewport={{ once: true, amount: 0.2 }}
           variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.1 } } }}>
-          <motion.p variants={reveal} className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-white px-3.5 py-1.5 text-xs font-semibold text-[#0a194f]">
-            <Sparkles aria-hidden="true" className="h-3.5 w-3.5 text-indigo-500" />{eyebrow}
-          </motion.p>
+          {eyebrow && (
+            <motion.p variants={reveal} className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-white px-3.5 py-1.5 text-xs font-semibold text-[#0a194f]">
+              <Sparkles aria-hidden="true" className="h-3.5 w-3.5 text-indigo-500" />{eyebrow}
+            </motion.p>
+          )}
           <motion.h2 id={`${id}-title`} variants={reveal} className="text-balance text-3xl font-extrabold tracking-tight text-[#0a194f] sm:text-5xl sm:leading-[1.12]">
             {title}<br /><span className="bg-linear-to-r from-tico-blue to-tico-purple bg-clip-text text-transparent">{titleHighlight}</span>
           </motion.h2>

@@ -1175,12 +1175,12 @@ export function App() {
               <p className="text-xs text-slate-500 mt-0.5">Experiencia publicitaria de agencia</p>
             </div>
             <div>
-              <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-['Outfit']">Estado PAUSED</div>
-              <p className="text-xs text-slate-500 mt-0.5">Control humano previo a activación</p>
+              <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-['Outfit']">Control</div>
+              <p className="text-xs text-slate-500 mt-0.5">Cero sorpresas: nada se activa sin ti</p>
             </div>
             <div>
-              <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-['Outfit']">Exportación</div>
-              <p className="text-xs text-slate-500 mt-0.5">Planes listos en Excel (.xlsx)</p>
+              <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-['Outfit']">Precisión</div>
+              <p className="text-xs text-slate-500 mt-0.5">Estructuras diseñadas para convertir</p>
             </div>
             <div>
               <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-['Outfit']">100% Oficial</div>
@@ -1196,7 +1196,6 @@ export function App() {
       {/* ========================================================================= */}
       <Hero10
         id="por-que-tico"
-        eyebrow="De la idea a una campaña lista para revisar"
         title="Tu estrategia toma forma."
         titleHighlight="El control sigue siendo tuyo."
         description="Cuéntale a Tico sobre tu marca, convierte tu brief en un plan editable y prepara tus campañas de Meta Ads en pausa para revisarlas antes de activar."
