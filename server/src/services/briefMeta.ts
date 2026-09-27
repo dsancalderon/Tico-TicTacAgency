@@ -28,6 +28,21 @@ export async function graphList(token: string, path: string, params: Record<stri
   }
   throw new Error('Demasiados activos para esta consulta.');
 }
+// Pages assigned to the user (me/accounts) plus pages the ad accounts can promote.
+// Business-owned pages often appear only in promote_pages, so both lists count.
+function mergePages(userPages: any[], accounts: any[]) {
+  const pages = new Map<string, any>();
+  for (const p of userPages) if (p?.id && (p.tasks?.includes('ADVERTISE') || !p.tasks)) pages.set(p.id, p);
+  for (const a of accounts) for (const p of a.promote_pages?.data || []) if (p?.id && !pages.has(p.id)) pages.set(p.id, { id: p.id, name: p.name, tasks: ['ADVERTISE'] });
+  return [...pages.values()];
+}
+export async function advertisablePages(token: string) {
+  const [accountsRes, pagesRes] = await Promise.allSettled([
+    graphList(token, 'me/adaccounts', { fields: 'id,promote_pages{id,name}' }),
+    graphList(token, 'me/accounts', { fields: 'id,name,tasks' })
+  ]);
+  return mergePages(pagesRes.status === 'fulfilled' ? pagesRes.value : [], accountsRes.status === 'fulfilled' ? accountsRes.value : []);
+}
 export async function inspectConnection(token: string) {
   if (token.startsWith('EAAB_Demo') || token.toLowerCase().includes('demo') || token.startsWith('demo_')) {
     return {
@@ -74,18 +89,7 @@ export async function inspectConnection(token: string) {
   ]);
 
   const accounts = accountsRes.status === 'fulfilled' ? accountsRes.value : [];
-  let pages: any[] = pagesRes.status === 'fulfilled' ? pagesRes.value.filter((p: any) => p.tasks?.includes('ADVERTISE') || !p.tasks) : [];
-
-  if (pages.length === 0) {
-    const seenPageIds = new Set<string>();
-    for (const a of accounts) {
-      const p = a.promote_pages?.data?.[0];
-      if (p && !seenPageIds.has(p.id)) {
-        seenPageIds.add(p.id);
-        pages.push({ id: p.id, name: p.name, tasks: ['ADVERTISE'] });
-      }
-    }
-  }
+  const pages = mergePages(pagesRes.status === 'fulfilled' ? pagesRes.value : [], accounts);
 
   return { valid: isValid, missing, expiresAt, accounts, pages,
     warnings: expiresAt && expiresAt * 1000 < Date.now() + 7 * 86400000 ? ['Tu conexión vence en menos de 7 días.'] : [] };

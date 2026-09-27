@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { graph, graphList, inspectConnection } from '../services/briefMeta.js';
+import { graph, graphList, inspectConnection, advertisablePages } from '../services/briefMeta.js';
 import { analyzeBusinessSource } from '../services/aiStrategist.js';
 import { readPublicUrl } from '../services/businessSource.js';
 import { briefHash, signLedger, verifyLedger, validateDeployment, executeDeployment, rollbackDeployment, type DeploymentLedger } from '../services/briefDeployment.js';
@@ -128,7 +128,7 @@ briefRouter.post('/options',async(req,res)=>{
     if(kind==='city'||kind==='region'){const result=await graph(token,'search',{type:'adgeolocation',q:query,location_types:JSON.stringify([kind]),limit:25});options=(result.data||[]).map((o:any)=>({id:o.key,name:[o.name,o.region,o.country_name].filter(Boolean).join(', ')}));}
     else if(kind==='locale'){const result=await graph(token,'search',{type:'adlocale',q:query,limit:25});options=(result.data||[]).map((o:any)=>({id:String(o.key),name:o.name}));}
     else if(kind==='audience'){const accounts=await graphList(token,'me/adaccounts',{fields:'id'});if(!accounts.some(a=>a.id===accountId))throw new Error('Cuenta inválida.');options=(await graphList(token,`${accountId}/customaudiences`,{fields:'id,name'})).filter(a=>a.name.toLocaleLowerCase().includes(query.toLocaleLowerCase()));}
-    else if(kind==='leadForm'){const pages=await graphList(token,'me/accounts',{fields:'id,tasks'});if(!pages.some(p=>p.id===pageId&&p.tasks?.includes('ADVERTISE')))throw new Error('Página inválida.');options=(await graphList(token,`${pageId}/leadgen_forms`,{fields:'id,name,status'})).filter(f=>f.status==='ACTIVE');}
+    else if(kind==='leadForm'){const pages=await advertisablePages(token);if(!pages.some(p=>p.id===pageId))throw new Error('Página inválida.');options=(await graphList(token,`${pageId}/leadgen_forms`,{fields:'id,name,status'})).filter(f=>f.status==='ACTIVE');}
     else throw new Error('Tipo de búsqueda no compatible.');
     res.json({options});
   }catch(error){res.status(400).json({error:(error as Error).message});}

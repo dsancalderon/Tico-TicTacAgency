@@ -6,6 +6,16 @@ export async function briefApi(path: string, body?: unknown) {
   if (!response.ok) throw new Error(result.error || 'No se pudo completar la solicitud.');
   return result;
 }
+// Token of the Meta connection chosen in the form. Returns undefined when unknown so the
+// server resolves it from the vault instead of validating against another connection's token.
+export function briefConnectionToken(connectionId?: string): string | undefined {
+  if (!connectionId) return undefined;
+  try { return sessionStorage.getItem(`tico_token_${connectionId}`) || undefined; } catch { return undefined; }
+}
+export function rememberBriefConnectionToken(connectionId?: string, token?: string) {
+  if (!connectionId || !token) return;
+  try { sessionStorage.setItem(`tico_token_${connectionId}`, token); } catch { /* storage unavailable */ }
+}
 export async function saveBriefPreferences(b: TicoBrief) {
   try {
     const priorRaw = localStorage.getItem('tico_brief_preferences');

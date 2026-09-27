@@ -49,6 +49,7 @@ import {
 import { TicoLoader } from './components/TicoLoader';
 import { TicoStrategyLoader } from './components/TicoLoader/TicoStrategyLoader';
 import { forceResetScroll } from './utils/scrollLock';
+import { briefConnectionToken } from './services/briefApi';
 
 export function App() {
   const [backendOnline, setBackendOnline] = useState<boolean>(false);
@@ -351,9 +352,15 @@ export function App() {
       let result: any;
       if (strategyToDeploy.metaBuilderPayload) {
         const targetAccountId = strategyToDeploy.metaBuilderPayload.adAccountId || metaState.adAccountId;
+        // A Tico brief deploys with the token of the connection chosen in the form, not the global session.
+        const briefConnectionId = strategyToDeploy.metaBuilderPayload.ticoBrief?.metaConnectionId;
+        const activeConnectionIds = ['legacy', 'active-meta-session', metaState.businessManagerId, metaState.adAccountId];
+        const deployToken = briefConnectionId
+          ? briefConnectionToken(briefConnectionId) || (activeConnectionIds.includes(briefConnectionId) ? metaState.userAccessToken : undefined)
+          : metaState.userAccessToken;
         const deployResponse = await deployMetaBuilderApi(
           strategyToDeploy.metaBuilderPayload,
-          metaState.userAccessToken,
+          deployToken,
           targetAccountId,
           strategyToDeploy.id
         );
@@ -600,6 +607,28 @@ export function App() {
     setEditingDraftPayload(null);
     setCurrentStep('briefing');
     setDashboardTab('agent');
+  };
+
+  // Reabrir una campaña guardada donde quedó: la estrategia si ya se formuló, si no el formulario
+  const handleOpenCampaign = (c: GeneratedCampaignStrategy) => {
+    const owner = userSession?.id;
+    if (!owner) return;
+    const hasStrategy = Boolean(c.metaAds || c.googleAds);
+    setDeployResult(null);
+    setEditingDraftId(c.id || null);
+    setEditingDraftPayload(c.metaBuilderPayload || null);
+    if (!hasStrategy) {
+      setStrategy(null);
+      setCurrentStep('briefing');
+      setDashboardTab('agent');
+      return;
+    }
+    void restoreStrategy(c).then(restored => {
+      if (activeOwner.current !== owner) return;
+      setStrategy(restored);
+      setCurrentStep('strategy');
+      setDashboardTab('agent');
+    }).catch(() => setSaveStatus('No se pudo abrir la campaña. Inténtalo de nuevo.'));
   };
 
   // Eliminar Campaña o Borrador
@@ -870,40 +899,15 @@ export function App() {
                       </div>
 
                       <div className="flex items-center flex-wrap gap-2.5">
-                        {/* Continuar editando si es un borrador */}
-                        {isDraft && (
+                        {/* Un solo botón: reabre la campaña exactamente donde quedó */}
+                        {(c.metaBuilderPayload || c.metaAds || c.googleAds) && (
                           <button
                             type="button"
-                            onClick={() => {
-                              setEditingDraftId(c.id || null);
-                              setEditingDraftPayload(c.metaBuilderPayload || null);
-                              setCurrentStep('briefing');
-                              setDashboardTab('agent');
-                            }}
+                            onClick={() => handleOpenCampaign(c)}
                             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-indigo-200 bg-indigo-50/80 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold transition cursor-pointer"
                           >
                             <Pencil className="w-3.5 h-3.5 text-indigo-600" />
-                            <span>Continuar editando</span>
-                          </button>
-                        )}
-
-                        {/* Abrir estrategia si ya cuenta con contenido estratégico */}
-                        {(c.metaAds || c.googleAds) && (
-                          <button
-                            type="button"
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition cursor-pointer"
-                            onClick={() => {
-                              const owner = userSession?.id;
-                              if (!owner) return;
-                              void restoreStrategy(c).then(restored => {
-                                if (activeOwner.current !== owner) return;
-                                setStrategy(restored);
-                                setCurrentStep('strategy');
-                                setDashboardTab('agent');
-                              }).catch(() => setSaveStatus('No se pudo abrir la estrategia. Inténtalo de nuevo.'));
-                            }}
-                          >
-                            <span>Abrir estrategia</span>
+                            <span>{isDraft ? 'Continuar editando' : 'Abrir campaña'}</span>
                           </button>
                         )}
 

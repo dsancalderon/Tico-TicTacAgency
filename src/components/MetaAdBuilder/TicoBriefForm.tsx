@@ -3,7 +3,7 @@ import { ArrowLeft, ArrowRight, Check, Sparkles } from 'lucide-react';
 import { emptyBrief, sections, goalLabels, mapGoal, inheritedGoal, currencyOffset, validateBrief, type SectionKey, type TicoBrief, type BusinessSource, type Goal } from '../../../server/src/domain/ticoBrief';
 import type { MetaBuilderPayload, MetaConnectionState } from '../../types';
 import { requireSupabase } from '../../services/auth';
-import { briefApi, saveBriefPreferences } from '../../services/briefApi';
+import { briefApi, saveBriefPreferences, rememberBriefConnectionToken } from '../../services/briefApi';
 import { toLegacyPayload } from '../../services/ticoBriefAdapter';
 import { VoiceRecorder } from './VoiceRecorder';
 import { trackBrief } from '../../services/briefAnalytics';
@@ -139,7 +139,12 @@ function getAvailableConnections(metaState?: MetaConnectionState, serverConnecti
 export function TicoBriefForm({ initialData, onSubmit, onDraftChange, isLoading, onClose, onReconnect, metaState, onUpdateMetaState, services }: TicoBriefFormProps) {
   const api=services?.api||briefApi;
   const [b,setB] = useState<TicoBrief>(() => initialData?.ticoBrief || emptyBrief());
-  const [step,setStep] = useState(0);
+  // A saved draft reopens on the step it reached; without a connection and page it starts over at step 0.
+  const [step,setStep] = useState(() => {
+    const saved = initialData?.ticoBrief;
+    if (!saved?.metaConnectionId || !saved.meta.pageId) return 0;
+    return Math.max(0, Math.min(3, Math.trunc(saved.formStep || 0)));
+  });
   const [connections,setConnections] = useState<any[]>(() => getAvailableConnections(metaState));
   const [assets,setAssets] = useState<any>({ accounts:[],pages:[],pixels:[],campaigns:[],adSets:[],warnings:[] });
   const [busy,setBusy] = useState(false); const [assetBusy,setAssetBusy] = useState(false); const [error,setError] = useState('');
@@ -155,6 +160,7 @@ export function TicoBriefForm({ initialData, onSubmit, onDraftChange, isLoading,
   let minimum = 0; try { minimum = Number(account?.min_daily_budget || 0) / currencyOffset(b.meta.currency); } catch { /* select account first */ }
   const resolved = resolveBrief(b,minimum);
   function update(fn:(next:TicoBrief)=>void) { setB(previous => { const next = structuredClone(previous); fn(next); return next; }); }
+  function goTo(i:number) { setStep(i); update(next => { next.formStep = i; }); }
 
   useEffect(() => {
     let active = true;
@@ -288,25 +294,29 @@ export function TicoBriefForm({ initialData, onSubmit, onDraftChange, isLoading,
     }
 
     setAssetBusy(true);
-    const timeoutPromise = new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 4000));
-    Promise.race([
-      api('assets', {
-        connectionId: b.metaConnectionId,
-        accountId: b.meta.adAccountId,
-        pageId: b.meta.pageId,
-        campaignId: b.existingCampaignId,
-        token: connToken
-      }),
-      timeoutPromise
-    ]).then((result: any) => {
+    rememberBriefConnectionToken(b.metaConnectionId, connToken);
+    // The spinner stops after 4s, but the real Meta response is still applied when it arrives:
+    // otherwise a placeholder page from the local fallback stays selected and deploy rejects it.
+    const busyTimer = setTimeout(() => { if (active) setAssetBusy(false); }, 4000);
+    api('assets', {
+      connectionId: b.metaConnectionId,
+      accountId: b.meta.adAccountId,
+      pageId: b.meta.pageId,
+      campaignId: b.existingCampaignId,
+      token: connToken
+    }).then((result: any) => {
       if(!active) return;
       const accounts = (result.accounts && result.accounts.length > 0) ? result.accounts : fallbackAccounts;
       const pages = (result.pages && result.pages.length > 0) ? result.pages : fallbackPages;
       const pixels = (result.pixels && result.pixels.length > 0) ? result.pixels : fallbackPixels;
       const mergedResult = { ...result, accounts, pages, pixels, valid: result.valid || accounts.length > 0 };
       setAssets(mergedResult);
+      const realPages = Boolean(result.pages?.length); const realAccounts = Boolean(result.accounts?.length);
       update(next => {
         const available = accounts.filter((a:any) => a.account_status === 1 || a.status === 'ACTIVA' || a.status === 'ACTIVE' || (!a.account_status && !a.status));
+        // Drop selections the token cannot actually use (stale draft or local placeholder).
+        if (realPages && next.meta.pageId && !pages.some((p:any) => p.id === next.meta.pageId)) next.meta.pageId = '';
+        if (realAccounts && next.meta.adAccountId && !accounts.some((a:any) => a.id === next.meta.adAccountId)) next.meta.adAccountId = '';
         const last = lastAssets.current;
         if(last?.connectionId === next.metaConnectionId && next.delegation.assets === 'tico'){
           if(!next.meta.adAccountId && available.some((a:any) => a.id === last.accountId)) next.meta.adAccountId = last.accountId;
@@ -348,8 +358,8 @@ export function TicoBriefForm({ initialData, onSubmit, onDraftChange, isLoading,
     }).catch(e => {
       if(!active) return;
       console.warn('[TicoBriefForm] Assets inspection completed with local fallback:', e?.message || e);
-    }).finally(() => { if(active) setAssetBusy(false); });
-    return () => { active = false; };
+    }).finally(() => { clearTimeout(busyTimer); if(active) setAssetBusy(false); });
+    return () => { active = false; clearTimeout(busyTimer); };
   }, [b.metaConnectionId, b.meta.adAccountId, b.meta.pageId, b.existingCampaignId, metaState?.userAccessToken, connections]);
 
   useEffect(() => {
@@ -462,10 +472,10 @@ export function TicoBriefForm({ initialData, onSubmit, onDraftChange, isLoading,
       if(b.creationMode==='single_ad'&&(!b.existingCampaignId||!b.existingAdSetId)){
         setError('Selecciona la campaña y el conjunto existentes.');return;
       }
-      trackBrief('source_started');setStep(1);return;
+      trackBrief('source_started');goTo(1);return;
     }
     if(step===1){
-      if(b.delegation.business==='user'){setStep(2);return;}
+      if(b.delegation.business==='user'){goTo(2);return;}
       setBusy(true);
       try {
         const selectedConn = connections.find(c => c.id === b.metaConnectionId);
@@ -480,7 +490,7 @@ export function TicoBriefForm({ initialData, onSubmit, onDraftChange, isLoading,
       }catch(e){
         const reason=e instanceof Error&&e.message?` (${e.message})`:'';
         setNotice(`No pude leer tu fuente${reason}. Cuéntame en dos frases qué vendes y a quién.`);
-      }finally{setBusy(false);setStep(2);}
+      }finally{setBusy(false);goTo(2);}
       return;
     }
     if(step===2){
@@ -489,7 +499,7 @@ export function TicoBriefForm({ initialData, onSubmit, onDraftChange, isLoading,
       }
       const last=brandAssets.current[b.brief.businessProfile.brandName]||lastAssets.current;
       if(last?.brand===b.brief.businessProfile.brandName&&last.connectionId===b.metaConnectionId)update(n=>{if(assets.pages.some((p:any)=>p.id===last.pageId))n.meta.pageId=last.pageId;});
-      setStep(3);return;
+      goTo(3);return;
     }
     const errors=validateBrief(resolved);if(errors.length){setError(errors.join(' '));return;}
     try{await (services ? services.savePreferences(b) : saveBriefPreferences(b));}catch(e){setNotice((e as Error).message);}
@@ -515,7 +525,7 @@ export function TicoBriefForm({ initialData, onSubmit, onDraftChange, isLoading,
     </header>
 
     <nav aria-label="Pasos del briefing" className="tb-steps">
-      {['Conexión','Tu negocio','Confirmación','Tu campaña'].map((label,i)=><button type="button" key={label} aria-current={step===i?'step':undefined} disabled={i>step||busy} onClick={()=>setStep(i)}><span>{i<step?<Check size={15}/>:i}</span>{label}</button>)}
+      {['Conexión','Tu negocio','Confirmación','Tu campaña'].map((label,i)=><button type="button" key={label} aria-current={step===i?'step':undefined} disabled={i>step||busy} onClick={()=>goTo(i)}><span>{i<step?<Check size={15}/>:i}</span>{label}</button>)}
     </nav>
 
     {notice&&<p className="tb-notice" role="status">{notice}</p>}
@@ -716,7 +726,7 @@ export function TicoBriefForm({ initialData, onSubmit, onDraftChange, isLoading,
 
     <footer className="tb-footer">
       {step > 0 ? (
-        <button type="button" disabled={busy} onClick={()=>setStep(s=>s-1)}>
+        <button type="button" disabled={busy} onClick={()=>goTo(step-1)}>
           <ArrowLeft size={17}/>Atrás
         </button>
       ) : <div />}

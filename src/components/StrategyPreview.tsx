@@ -15,7 +15,7 @@ import {
 import { exportStrategyToExcel } from '../utils/excelExporter';
 import { CreativeAssignment } from './Dashboard/CreativeAssignment';
 import { TicoCoinIcon } from './BrandLogos';
-import { briefApi } from '../services/briefApi';
+import { briefApi, briefConnectionToken } from '../services/briefApi';
 import { trackBrief } from '../services/briefAnalytics';
 
 interface StrategyPreviewProps {
@@ -57,7 +57,7 @@ export const StrategyPreview: React.FC<StrategyPreviewProps> = ({
   async function checkBrief() {
     if(!strategy.metaBuilderPayload?.ticoBrief) return;
     setChecking(true);
-    try {const result=await briefApi('validate',{brief:strategy.metaBuilderPayload.ticoBrief});setValidation(result);}
+    try {const result=await briefApi('validate',{brief:strategy.metaBuilderPayload.ticoBrief,token:briefConnectionToken(strategy.metaBuilderPayload.ticoBrief.metaConnectionId)});setValidation(result);}
     catch(error){setValidation({errors:[(error as Error).message],warnings:[]});}
     finally{setChecking(false);}
   }

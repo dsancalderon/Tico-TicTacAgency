@@ -29,6 +29,8 @@ export interface AdConfig {
 }
 export interface TicoBrief {
   configuredSections?: SectionKey[];
+  /** Form step the user last reached (0–3); lets a saved draft reopen where it was left. */
+  formStep?: number;
   recommendationProfile?: BusinessProfile;
   version: 2; delegation: Delegation; creationMode: 'full_campaign' | 'single_ad'; metaConnectionId: string;
   existingCampaignId?: string; existingAdSetId?: string;
