@@ -227,7 +227,7 @@ export function TicoBriefForm({ initialData, onSubmit, onDraftChange, isLoading,
         }
         if(!next.meta.pageId && selectedConn?.pageId && result.pages.some((p:any) => p.id === selectedConn.pageId)) {
           next.meta.pageId = selectedConn.pageId;
-        } else if(!next.meta.pageId && result.pages.length === 1) {
+        } else if(!next.meta.pageId && result.pages.length > 0) {
           next.meta.pageId = result.pages[0].id;
         }
         const selected = result.accounts.find((a:any) => a.id === next.meta.adAccountId);
@@ -297,9 +297,17 @@ export function TicoBriefForm({ initialData, onSubmit, onDraftChange, isLoading,
   useEffect(() => {
     if(!preferencesReady || services) return;
     const timer = setTimeout(() => {
-      void requireSupabase().from('tico_brief_preferences').upsert({ delegation: b.delegation }).then(({ error }) => {
-        if(error) setNotice('Tus cambios siguen en el formulario, pero no pude guardar tus preferencias.');
-      });
+      try {
+        localStorage.setItem('tico_brief_preferences', JSON.stringify({ delegation: b.delegation }));
+      } catch {}
+      void (async () => {
+        try {
+          const { error } = await requireSupabase().from('tico_brief_preferences').upsert({ delegation: b.delegation });
+          if (error) console.warn('[TicoBriefForm] Could not sync preferences to cloud:', error.message);
+        } catch (err) {
+          console.warn('[TicoBriefForm] Supabase preferences error:', err);
+        }
+      })();
     }, 600);
     return () => clearTimeout(timer);
   }, [b.delegation, preferencesReady, services]);
