@@ -2,6 +2,10 @@ import { supabase, loadUserSession } from './services/auth';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { loadWorkspace, saveWorkspace, saveConnection, saveCampaign, deleteCampaign, restoreStrategy } from './services/workspace';
 import { Header } from './components/Header';
+import { Hero10 } from './components/ui/hero-10';
+import briefMockup from './assets/landing/tico-brief-mockup.jpg';
+import planMockup from './assets/landing/tico-plan-mockup.jpg';
+import reviewMockup from './assets/landing/tico-review-mockup.jpg';
 import { BriefingForm } from './components/BriefingForm';
 import { MetaAdBuilderForm } from './components/MetaAdBuilder/MetaAdBuilderForm';
 import { StrategyPreview } from './components/StrategyPreview';
@@ -32,12 +36,8 @@ import {
 import {
   ArrowRight,
   Sparkles,
-  ShieldCheck,
   ExternalLink,
-  ChevronRight,
-  Share2,
   FolderKanban,
-  FileCheck2,
   Lock,
   Trash2,
   Pencil,
@@ -1194,75 +1194,24 @@ export function App() {
       {/* ========================================================================= */}
       {/* TRES PILARES / PROPUESTA DE VALOR REAL TIC TAC PERFORMANCE                */}
       {/* ========================================================================= */}
-      <section id="por-que-tico" className="py-20 bg-slate-50 border-y border-slate-200/80">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-3xl mx-auto mb-14">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-slate-200 text-slate-700 text-xs font-semibold mb-3 shadow-2xs">
-              <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-              <span>Metodología TicTac Agency Performance</span>
-            </div>
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 font-['Outfit'] tracking-tight">
-              Diseñado para reducir fricción entre el brief y la pauta activa
-            </h2>
-            <p className="mt-3 text-slate-600 text-sm sm:text-base">
-              TICO automatiza la configuración técnica manteniendo el criterio estratégico y el control del presupuesto en manos del equipo.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {/* Pilar 1 */}
-            <div className="bg-white rounded-3xl p-8 border border-slate-200/90 shadow-sm hover:shadow-md transition-all">
-              <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold mb-6">
-                <FileCheck2 className="w-6 h-6" />
-              </div>
-              <h3 className="text-xl font-bold text-slate-900 font-['Outfit'] mb-2">
-                De Brief a Plan Editable
-              </h3>
-              <p className="text-slate-600 text-sm leading-relaxed">
-                Estructura propuestas de copies, segmentaciones, objetivos y presupuestos proporcionales sin inventar métricas y con descarga a Excel.
-              </p>
-              <div className="mt-6 pt-4 border-t border-slate-100 flex items-center gap-2 text-xs font-semibold text-indigo-600">
-                <span>Exportable a .xlsx</span>
-                <ChevronRight className="w-4 h-4" />
-              </div>
-            </div>
-
-            {/* Pilar 2 */}
-            <div className="bg-white rounded-3xl p-8 border border-slate-200/90 shadow-sm hover:shadow-md transition-all">
-              <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold mb-6">
-                <Share2 className="w-6 h-6" />
-              </div>
-              <h3 className="text-xl font-bold text-slate-900 font-['Outfit'] mb-2">
-                Conexión Oficial con Meta Ads
-              </h3>
-              <p className="text-slate-600 text-sm leading-relaxed">
-                Vinculación directa con tu cuenta publicitaria, validación en tiempo real de permisos (ads_management) y orquestación en estado PAUSED.
-              </p>
-              <div className="mt-6 pt-4 border-t border-slate-100 flex items-center gap-2 text-xs font-semibold text-blue-600">
-                <span>Facebook Business Ready</span>
-                <ChevronRight className="w-4 h-4" />
-              </div>
-            </div>
-
-            {/* Pilar 3 */}
-            <div className="bg-white rounded-3xl p-8 border border-slate-200/90 shadow-sm hover:shadow-md transition-all">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold mb-6">
-                <ShieldCheck className="w-6 h-6" />
-              </div>
-              <h3 className="text-xl font-bold text-slate-900 font-['Outfit'] mb-2">
-                Creación en Pausa & Créditos
-              </h3>
-              <p className="text-slate-600 text-sm leading-relaxed">
-                Las campañas nunca entregan anuncios automáticamente. Se crean en estado <code>PAUSED</code> para que tú las actives, con trazabilidad clara en créditos.
-              </p>
-              <div className="mt-6 pt-4 border-t border-slate-100 flex items-center gap-2 text-xs font-semibold text-emerald-600">
-                <span>Control Humano Total</span>
-                <ChevronRight className="w-4 h-4" />
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+      <Hero10
+        id="por-que-tico"
+        eyebrow="De la idea a una campaña lista para revisar"
+        title="Tu estrategia toma forma."
+        titleHighlight="El control sigue siendo tuyo."
+        description="Cuéntale a Tico sobre tu marca, convierte tu brief en un plan editable y prepara tus campañas de Meta Ads en pausa para revisarlas antes de activar."
+        primaryCTA={{ text: 'Crear mi primer brief', href: '#briefing-section', onClick: scrollToBriefing }}
+        secondaryCTA={{ text: 'Entrar a mi espacio', onClick: () => {
+          setAuthModalTitle('Inicia sesión');
+          setAuthModalSubtitle(undefined);
+          setIsAuthModalOpen(true);
+        } }}
+        images={[
+          { src: briefMockup, alt: 'Mockup de briefing de Tico con marca, objetivo, audiencia y un documento adjunto.', title: 'Cuéntale sobre tu marca', description: 'Reúne objetivos, audiencia y contexto en un solo brief.' },
+          { src: planMockup, alt: 'Mockup de un plan editable de Luna Café con objetivo, copy de anuncio y exportación a Excel.', title: 'Dale forma a tu plan', description: 'Revisa copies, segmentación y presupuesto. Ajusta y exporta a Excel.' },
+          { src: reviewMockup, alt: 'Mockup de una campaña en pausa con revisión de creativos, presupuesto y cuenta vinculada.', title: 'Revisa antes de activar', description: 'Prepara la campaña en pausa y actívala desde Meta Ads cuando estés listo.' },
+        ]}
+      />
 
       {/* ========================================================================= */}
       {/* SANDBOX SECTION: BRIEFING GUIADO CON LOGIN DE PRUEBA                      */}
