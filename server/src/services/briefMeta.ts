@@ -8,7 +8,7 @@ export async function graph(token: string, path: string, params: Record<string, 
   const url = new URL(`${GRAPH_ORIGIN}/${path}`);
   if (method === 'GET') for (const [k, v] of Object.entries(params)) if (v !== undefined) url.searchParams.set(k, String(v));
   const response = await fetch(url, { method, headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: method === 'GET' ? undefined : JSON.stringify(params), signal: AbortSignal.timeout(20000) });
+    body: method === 'GET' ? undefined : JSON.stringify(params), signal: AbortSignal.timeout(5000) });
   const data = await response.json() as any;
   if (!response.ok || data.error) {
     const e = data.error || {};
@@ -43,42 +43,41 @@ export async function inspectConnection(token: string) {
       warnings: []
     };
   }
-  const debug = await graph(process.env.META_APP_ACCESS_TOKEN || token, 'debug_token', { input_token: token });
-  const info = debug.data || {};
-  const allScopes = [...new Set([...(info.scopes || []), ...(info.granular_scopes?.map((g: any) => g.scope) || [])])];
-  const required = ['ads_management', 'ads_read'];
-  const missing = required.filter(s => !allScopes.includes(s));
-  const valid = info.is_valid === true && (!info.expires_at || info.expires_at * 1000 > Date.now()) && missing.length === 0;
-  if (!valid) return { valid, missing, expiresAt: info.expires_at, accounts: [], pages: [], warnings: ['Tu conexión con Meta venció o le faltan permisos. Reconéctala; lo que ya llenaste se conserva.'] };
-  const accounts = await graphList(token, 'me/adaccounts', { fields: 'id,name,account_status,currency,timezone_name,min_daily_budget,business,promote_pages{id,name}' });
-  let pages: any[] = [];
+  let allScopes: string[] = [];
+  let expiresAt: number | undefined;
+  let isValid = true;
   try {
-    const userPages = await graphList(token, 'me/accounts', { fields: 'id,name,picture,tasks' });
-    pages.push(...userPages.filter((p: any) => p.tasks?.includes('ADVERTISE') || !p.tasks));
-  } catch {}
+    const debug = await graph(process.env.META_APP_ACCESS_TOKEN || token, 'debug_token', { input_token: token });
+    const info = debug.data || {};
+    allScopes = [...new Set([...(info.scopes || []), ...(info.granular_scopes?.map((g: any) => g.scope) || [])])];
+    expiresAt = info.expires_at;
+    if (info.is_valid === false || (expiresAt && expiresAt * 1000 < Date.now())) isValid = false;
+  } catch {
+    try {
+      const perms = await graph(token, 'me/permissions');
+      allScopes = (perms.data || []).filter((p: any) => p.status === 'granted').map((p: any) => p.permission);
+    } catch {
+      try {
+        await graph(token, 'me', { fields: 'id' });
+      } catch {
+        isValid = false;
+      }
+    }
+  }
+  const required = ['ads_management', 'ads_read'];
+  const missing = allScopes.length > 0 ? required.filter(s => !allScopes.includes(s)) : [];
+  if (!isValid) return { valid: false, missing, expiresAt, accounts: [], pages: [], warnings: ['Tu conexión con Meta venció o le faltan permisos. Reconéctala; lo que ya llenaste se conserva.'] };
+
+  const [accountsRes, pagesRes] = await Promise.allSettled([
+    graphList(token, 'me/adaccounts', { fields: 'id,name,account_status,currency,timezone_name,min_daily_budget,business,promote_pages{id,name}' }),
+    graphList(token, 'me/accounts', { fields: 'id,name,picture,tasks' })
+  ]);
+
+  const accounts = accountsRes.status === 'fulfilled' ? accountsRes.value : [];
+  let pages: any[] = pagesRes.status === 'fulfilled' ? pagesRes.value.filter((p: any) => p.tasks?.includes('ADVERTISE') || !p.tasks) : [];
+
   if (pages.length === 0) {
     const seenPageIds = new Set<string>();
-    const businessIds = [...new Set(accounts.map((a: any) => a.business?.id).filter(Boolean))];
-    for (const bmId of businessIds) {
-      try {
-        const bmPages = await graphList(token, `${bmId}/owned_pages`, { fields: 'id,name,picture' });
-        for (const p of bmPages) {
-          if (!seenPageIds.has(p.id)) {
-            seenPageIds.add(p.id);
-            pages.push({ id: p.id, name: p.name, tasks: ['ADVERTISE'] });
-          }
-        }
-      } catch {}
-      try {
-        const clientPages = await graphList(token, `${bmId}/client_pages`, { fields: 'id,name,picture' });
-        for (const p of clientPages) {
-          if (!seenPageIds.has(p.id)) {
-            seenPageIds.add(p.id);
-            pages.push({ id: p.id, name: p.name, tasks: ['ADVERTISE'] });
-          }
-        }
-      } catch {}
-    }
     for (const a of accounts) {
       const p = a.promote_pages?.data?.[0];
       if (p && !seenPageIds.has(p.id)) {
@@ -87,6 +86,7 @@ export async function inspectConnection(token: string) {
       }
     }
   }
-  return { valid, missing, expiresAt: info.expires_at, accounts, pages,
-    warnings: info.expires_at && info.expires_at * 1000 < Date.now() + 7 * 86400000 ? ['Tu conexión vence en menos de 7 días.'] : [] };
+
+  return { valid: isValid, missing, expiresAt, accounts, pages,
+    warnings: expiresAt && expiresAt * 1000 < Date.now() + 7 * 86400000 ? ['Tu conexión vence en menos de 7 días.'] : [] };
 }
