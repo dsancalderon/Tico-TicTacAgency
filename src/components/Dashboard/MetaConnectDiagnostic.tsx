@@ -35,8 +35,15 @@ export const sanitizeSavedConnections = (connections?: SavedMetaConnection[] | n
         pagesReadEngagement: Boolean(safe.permissions.pagesReadEngagement || (safe.permissions.adsManagement && safe.permissions.businessManagement)),
         businessManagement: Boolean(safe.permissions.businessManagement)
       } : undefined;
+
+      // Auto-reparar la página si no estaba asociada debido al endpoint antiguo /me/accounts
+      const pageId = safe.pageId || (safe.businessManagerId === '1513559203332630' || safe.portfolioName?.includes('Tic Tac Agency') ? '693417517199135' : undefined);
+      const pageName = safe.pageName || (pageId === '693417517199135' ? 'Tic Tac Agency Performance' : undefined);
+
       return {
         ...safe,
+        pageId,
+        pageName,
         ...(perms ? { permissions: perms } : {})
       } as SavedMetaConnection;
     });
