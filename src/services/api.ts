@@ -260,6 +260,50 @@ async function verifyMetaTokenClientDirect(token: string) {
       // Continuar
     }
 
+    if (pages.length === 0) {
+      const seenPageIds = new Set<string>();
+      const businessIds = [...new Set([
+        ...businesses.map((b: any) => b.id),
+        ...adAccounts.map((a: any) => a.business?.id).filter(Boolean)
+      ])];
+      for (const bmId of businessIds) {
+        try {
+          const bmRes = await fetch(`https://graph.facebook.com/v21.0/${bmId}/owned_pages?fields=id,name`, {
+            headers: { Authorization: `Bearer ${cleanToken}` }
+          });
+          const bmData = await bmRes.json();
+          if (bmData.data && Array.isArray(bmData.data)) {
+            for (const p of bmData.data) {
+              if (!seenPageIds.has(p.id)) {
+                seenPageIds.add(p.id);
+                pages.push({ id: p.id, name: p.name });
+              }
+            }
+          }
+        } catch {}
+        try {
+          const clRes = await fetch(`https://graph.facebook.com/v21.0/${bmId}/client_pages?fields=id,name`, {
+            headers: { Authorization: `Bearer ${cleanToken}` }
+          });
+          const clData = await clRes.json();
+          if (clData.data && Array.isArray(clData.data)) {
+            for (const p of clData.data) {
+              if (!seenPageIds.has(p.id)) {
+                seenPageIds.add(p.id);
+                pages.push({ id: p.id, name: p.name });
+              }
+            }
+          }
+        } catch {}
+      }
+      for (const acc of adAccounts) {
+        if (acc.page && !seenPageIds.has(acc.page.id)) {
+          seenPageIds.add(acc.page.id);
+          pages.push(acc.page);
+        }
+      }
+    }
+
     return {
       success: true,
       diagnostic: {
