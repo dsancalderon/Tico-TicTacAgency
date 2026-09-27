@@ -211,7 +211,8 @@ export function TicoBriefForm({ initialData, onSubmit, onDraftChange, isLoading,
     if (!b.metaConnectionId) return;
     let active = true;
     const selectedConn = connections.find(c => c.id === b.metaConnectionId);
-    const connToken = selectedConn?.token || metaState?.userAccessToken;
+    const sessionToken = typeof sessionStorage !== 'undefined' ? (sessionStorage.getItem(`tico_token_${b.metaConnectionId}`) || sessionStorage.getItem('tico_meta_active_token')) : null;
+    const connToken = selectedConn?.token || metaState?.userAccessToken || sessionToken || undefined;
 
     if (!connToken && selectedConn && (selectedConn.availableAccounts?.length || selectedConn.adAccountId)) {
       const fallbackAccounts = selectedConn.availableAccounts && selectedConn.availableAccounts.length > 0 
@@ -357,7 +358,8 @@ export function TicoBriefForm({ initialData, onSubmit, onDraftChange, isLoading,
   useEffect(() => {
     if(b.brief.businessSource.type === 'meta_catalog' && b.metaConnectionId) {
       const selectedConn = connections.find(c => c.id === b.metaConnectionId);
-      const connToken = selectedConn?.token || metaState?.userAccessToken;
+      const sessionToken = typeof sessionStorage !== 'undefined' ? (sessionStorage.getItem(`tico_token_${b.metaConnectionId}`) || sessionStorage.getItem('tico_meta_active_token')) : null;
+      const connToken = selectedConn?.token || metaState?.userAccessToken || sessionToken || undefined;
       void api('catalogs', { connectionId: b.metaConnectionId, token: connToken })
         .then(r => setCatalogs(r.catalogs))
         .catch(e => setError(e.message));
@@ -449,7 +451,8 @@ export function TicoBriefForm({ initialData, onSubmit, onDraftChange, isLoading,
       setBusy(true);
       try {
         const selectedConn = connections.find(c => c.id === b.metaConnectionId);
-        const connToken = selectedConn?.token || metaState?.userAccessToken;
+        const sessionToken = typeof sessionStorage !== 'undefined' ? (sessionStorage.getItem(`tico_token_${b.metaConnectionId}`) || sessionStorage.getItem('tico_meta_active_token')) : null;
+        const connToken = selectedConn?.token || metaState?.userAccessToken || sessionToken || undefined;
         const result=await api('analyze',{connectionId:b.metaConnectionId,pageId:b.meta.pageId,source:b.brief.businessSource,token:connToken});
         update(next=>{
           next.brief.businessProfile=result.businessProfile;next.recommendationProfile=structuredClone(result.businessProfile);next.brief.countries=result.businessProfile.countries;

@@ -509,6 +509,10 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
           ...savedConnections.filter(c => c.id !== newSavedConn.id && (c.adAccountId ? c.adAccountId !== newSavedConn.adAccountId : true))
         ];
         sessionTokenCache.current[connId] = cleanToken;
+        try {
+          sessionStorage.setItem('tico_meta_active_token', cleanToken);
+          sessionStorage.setItem(`tico_token_${connId}`, cleanToken);
+        } catch {}
         const sanitizedSaved = sanitizeSavedConnections(updatedSaved);
         setSavedConnections(sanitizedSaved);
         saveToLocalStorageSafely(sanitizedSaved);
