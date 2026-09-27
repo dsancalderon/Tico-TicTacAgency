@@ -214,7 +214,7 @@ export function TicoBriefForm({ initialData, onSubmit, onDraftChange, isLoading,
       if(!active) return;
       setAssets(result);
       update(next => {
-        const available = result.accounts.filter((a:any) => a.account_status === 1);
+        const available = result.accounts.filter((a:any) => a.account_status === 1 || a.status === 'ACTIVA' || a.status === 'ACTIVE' || (!a.account_status && !a.status));
         const last = lastAssets.current;
         if(last?.connectionId === next.metaConnectionId && next.delegation.assets === 'tico'){
           if(!next.meta.adAccountId && available.some((a:any) => a.id === last.accountId)) next.meta.adAccountId = last.accountId;
@@ -256,14 +256,20 @@ export function TicoBriefForm({ initialData, onSubmit, onDraftChange, isLoading,
     }).catch(e => {
       if(!active) return;
       if (selectedConn && (selectedConn.availableAccounts?.length || selectedConn.adAccountId)) {
-        const fallbackAccounts = selectedConn.availableAccounts && selectedConn.availableAccounts.length > 0 ? selectedConn.availableAccounts : (selectedConn.adAccountId ? [{
-          id: selectedConn.adAccountId,
-          name: selectedConn.adAccountName || 'Cuenta Publicitaria Principal',
-          account_status: 1,
-          currency: 'USD',
-          timezone_name: 'America/Bogota',
-          min_daily_budget: 100
-        }] : []);
+        const fallbackAccounts = selectedConn.availableAccounts && selectedConn.availableAccounts.length > 0 
+          ? selectedConn.availableAccounts.map((a: any) => ({
+              ...a,
+              account_status: a.account_status ?? (a.status === 'ACTIVA' || a.status === 'ACTIVE' ? 1 : 2)
+            }))
+          : (selectedConn.adAccountId ? [{
+              id: selectedConn.adAccountId,
+              name: selectedConn.adAccountName || 'Cuenta Publicitaria Principal',
+              account_status: 1,
+              status: 'ACTIVA',
+              currency: 'USD',
+              timezone_name: 'America/Bogota',
+              min_daily_budget: 100
+            }] : []);
         const fallbackPages = selectedConn.pageId ? [{ id: selectedConn.pageId, name: selectedConn.pageName || 'Página de Facebook', tasks: ['ADVERTISE'] }] : (metaState?.pageId ? [{ id: metaState.pageId, name: metaState.pageName || 'Página de Facebook', tasks: ['ADVERTISE'] }] : []);
         const fallbackPixels = selectedConn.pixelId ? [{ id: selectedConn.pixelId, name: selectedConn.pixelName || 'Píxel de Meta', last_fired_time: new Date().toISOString() }] : (metaState?.pixelId ? [{ id: metaState.pixelId, name: metaState.pixelName || 'Píxel de Meta', last_fired_time: new Date().toISOString() }] : []);
         setAssets({ accounts: fallbackAccounts, pages: fallbackPages, pixels: fallbackPixels, campaigns: [], adSets: [], warnings: [], valid: true });
@@ -379,7 +385,8 @@ export function TicoBriefForm({ initialData, onSubmit, onDraftChange, isLoading,
   async function next() {
     setError('');
     if(step===0){
-      if(assetBusy||!assets.valid||!account||account.account_status!==1||!b.meta.pageId){
+      const isAccountActive = account && (account.account_status === 1 || account.status === 'ACTIVA' || account.status === 'ACTIVE' || (!account.account_status && !account.status));
+      if(assetBusy||!assets.valid||!account||!isAccountActive||!b.meta.pageId){
         setError('Selecciona una conexión válida, cuenta activa y página.');return;
       }
       if(b.creationMode==='single_ad'&&(!b.existingCampaignId||!b.existingAdSetId)){
@@ -498,7 +505,15 @@ export function TicoBriefForm({ initialData, onSubmit, onDraftChange, isLoading,
         <Field label="Cuenta publicitaria">
           <select value={b.meta.adAccountId} onChange={e=>update(n=>{n.meta.adAccountId=e.target.value;n.meta.pixelId=undefined;n.existingCampaignId=undefined;n.existingAdSetId=undefined;})}>
             <option value="">Elige tu cuenta</option>
-            {assets.accounts.map((a:any)=><option key={a.id} value={a.id} disabled={a.account_status!==1}>{a.name}{a.account_status!==1?' · no disponible (estado '+a.account_status+')':''}</option>)}
+            {assets.accounts.map((a:any) => {
+              const isAct = a.account_status === 1 || a.status === 'ACTIVA' || a.status === 'ACTIVE' || (!a.account_status && !a.status);
+              const statusDesc = !isAct ? (a.statusLabel || (a.account_status !== undefined ? `estado ${a.account_status}` : a.status || 'inactiva')) : '';
+              return (
+                <option key={a.id} value={a.id} disabled={!isAct}>
+                  {a.name}{!isAct ? ` · no disponible (${statusDesc})` : ''}
+                </option>
+              );
+            })}
           </select>
         </Field>
         <Field label="Página de Facebook">

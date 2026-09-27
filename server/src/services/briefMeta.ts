@@ -45,14 +45,48 @@ export async function inspectConnection(token: string) {
   }
   const debug = await graph(process.env.META_APP_ACCESS_TOKEN || token, 'debug_token', { input_token: token });
   const info = debug.data || {};
-  const required = ['ads_management','ads_read','pages_show_list','pages_read_engagement','business_management'];
-  const missing = required.filter(s => !info.scopes?.includes(s));
+  const allScopes = [...new Set([...(info.scopes || []), ...(info.granular_scopes?.map((g: any) => g.scope) || [])])];
+  const required = ['ads_management', 'ads_read'];
+  const missing = required.filter(s => !allScopes.includes(s));
   const valid = info.is_valid === true && (!info.expires_at || info.expires_at * 1000 > Date.now()) && missing.length === 0;
   if (!valid) return { valid, missing, expiresAt: info.expires_at, accounts: [], pages: [], warnings: ['Tu conexión con Meta venció o le faltan permisos. Reconéctala; lo que ya llenaste se conserva.'] };
-  const [accounts, pages] = await Promise.all([
-    graphList(token, 'me/adaccounts', { fields: 'id,name,account_status,currency,timezone_name,min_daily_budget,business' }),
-    graphList(token, 'me/accounts', { fields: 'id,name,picture,tasks' }),
-  ]);
-  return { valid, missing, expiresAt: info.expires_at, accounts, pages: pages.filter(p => p.tasks?.includes('ADVERTISE')),
+  const accounts = await graphList(token, 'me/adaccounts', { fields: 'id,name,account_status,currency,timezone_name,min_daily_budget,business,promote_pages{id,name}' });
+  let pages: any[] = [];
+  try {
+    const userPages = await graphList(token, 'me/accounts', { fields: 'id,name,picture,tasks' });
+    pages.push(...userPages.filter((p: any) => p.tasks?.includes('ADVERTISE') || !p.tasks));
+  } catch {}
+  if (pages.length === 0) {
+    const seenPageIds = new Set<string>();
+    const businessIds = [...new Set(accounts.map((a: any) => a.business?.id).filter(Boolean))];
+    for (const bmId of businessIds) {
+      try {
+        const bmPages = await graphList(token, `${bmId}/owned_pages`, { fields: 'id,name,picture' });
+        for (const p of bmPages) {
+          if (!seenPageIds.has(p.id)) {
+            seenPageIds.add(p.id);
+            pages.push({ id: p.id, name: p.name, tasks: ['ADVERTISE'] });
+          }
+        }
+      } catch {}
+      try {
+        const clientPages = await graphList(token, `${bmId}/client_pages`, { fields: 'id,name,picture' });
+        for (const p of clientPages) {
+          if (!seenPageIds.has(p.id)) {
+            seenPageIds.add(p.id);
+            pages.push({ id: p.id, name: p.name, tasks: ['ADVERTISE'] });
+          }
+        }
+      } catch {}
+    }
+    for (const a of accounts) {
+      const p = a.promote_pages?.data?.[0];
+      if (p && !seenPageIds.has(p.id)) {
+        seenPageIds.add(p.id);
+        pages.push({ id: p.id, name: p.name, tasks: ['ADVERTISE'] });
+      }
+    }
+  }
+  return { valid, missing, expiresAt: info.expires_at, accounts, pages,
     warnings: info.expires_at && info.expires_at * 1000 < Date.now() + 7 * 86400000 ? ['Tu conexión vence en menos de 7 días.'] : [] };
 }
