@@ -477,8 +477,9 @@ export function TicoBriefForm({ initialData, onSubmit, onDraftChange, isLoading,
           if(result.pixelIds?.some((id:string)=>assets.pixels.some((p:any)=>p.id===id)))next.meta.pixelId=result.pixelIds.find((id:string)=>assets.pixels.some((p:any)=>p.id===id));
         });
         setImages(result.images||[]);
-      }catch{
-        setNotice('No pude leer tu fuente. Cuéntame en dos frases qué vendes y a quién.');
+      }catch(e){
+        const reason=e instanceof Error&&e.message?` (${e.message})`:'';
+        setNotice(`No pude leer tu fuente${reason}. Cuéntame en dos frases qué vendes y a quién.`);
       }finally{setBusy(false);setStep(2);}
       return;
     }

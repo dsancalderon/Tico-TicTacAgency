@@ -8,12 +8,13 @@ export function publicAddress(address: string) {
   // Reject IPv6 too: this bounded reader only connects to validated public IPv4.
   if (isIP(address) !== 4) return false;
   const [a,b] = address.split('.').map(Number);
-  return !(a === 0 || a === 10 || a === 127 || a >= 224 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && (b === 168 || b === 0)) || (a === 100 && b >= 64 && b <= 127) || a === 198);
+  return !(a === 0 || a === 10 || a === 127 || a >= 224 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && (b === 168 || b === 0)) || (a === 100 && b >= 64 && b <= 127) || (a === 198 && (b === 18 || b === 19)));
 }
 export async function readPublicUrl(raw: string, maxBytes = 2_000_000): Promise<{ body: Buffer; contentType: string }> {
   const url = new URL(raw);
   if (url.protocol !== 'https:' || url.username || url.password || (url.port && url.port !== '443')) throw new Error('Usa una URL pública HTTPS.');
-  const addresses = await lookup(url.hostname, { all: true });
+  // Most hosts publish AAAA records too; only the IPv4 answers are used, and all of them must be public.
+  const addresses = (await lookup(url.hostname, { all: true })).filter(a => a.family === 4);
   if (!addresses.length || addresses.some(a => !publicAddress(a.address))) throw new Error('La dirección no es una web pública compatible.');
   const ip = addresses[0].address;
   return new Promise((resolve, reject) => {
@@ -48,17 +49,21 @@ export const businessSchema = { type: 'OBJECT', required: ['brandName','industry
   countries: stringArray, specialAdCategories: { type: 'ARRAY', items: { type: 'STRING', enum: ['HOUSING','EMPLOYMENT','FINANCIAL_PRODUCTS_SERVICES','ISSUES_ELECTIONS_POLITICS'] } },
 } };
 export async function geminiJson(prompt: string, schema: object, media: any[] = []) {
-  const key = process.env.GEMINI_API_KEY;
+  const key = (process.env.GEMINI_API_KEY || '').trim();
   if (!key) throw new Error('Configura Gemini en el servidor para analizar tu negocio.');
-  const model = process.env.GEMINI_BRIEF_MODEL || 'gemini-2.5-flash';
-  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-    method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, signal: AbortSignal.timeout(45000),
-    body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }, ...media] }], generationConfig: { responseMimeType: 'application/json', responseSchema: schema, temperature: 0.3 } }),
-  });
-  const data = await response.json() as any;
-  if (!response.ok) throw new Error('Gemini no pudo analizar la fuente. Inténtalo de nuevo o completa la ficha.');
-  const text = data.candidates?.[0]?.content?.parts?.filter((p: any) => p.text).map((p: any) => p.text).join('');
-  return JSON.parse(text || '{}');
+  // Same model as the strategy service first; the env override and older model are fallbacks.
+  const models = [...new Set([(process.env.GEMINI_BRIEF_MODEL || '').trim(), 'gemini-3.6-flash', 'gemini-2.5-flash'].filter(Boolean))];
+  for (const model of models) {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, signal: AbortSignal.timeout(45000),
+      body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }, ...media] }], generationConfig: { responseMimeType: 'application/json', responseSchema: schema, temperature: 0.3 } }),
+    });
+    const data = await response.json().catch(() => ({})) as any;
+    if (!response.ok) { console.error(`[TICO-BRIEF] Gemini ${model} respondió ${response.status}:`, JSON.stringify(data?.error || data).slice(0, 300)); continue; }
+    const text = data.candidates?.[0]?.content?.parts?.filter((p: any) => p.text).map((p: any) => p.text).join('');
+    try { return JSON.parse(text || '{}'); } catch { console.error(`[TICO-BRIEF] Gemini ${model} devolvió JSON inválido.`); }
+  }
+  throw new Error('Gemini no pudo analizar la fuente. Inténtalo de nuevo o completa la ficha.');
 }
 export function validateBusinessProfile(value: any, source: BusinessSource['type']): BusinessProfile {
   if (!value || ['brandName','industry','offerSummary','targetAudience'].some(f => typeof value[f] !== 'string') || !Array.isArray(value.differentiators) || !Array.isArray(value.conversionChannels) || !Array.isArray(value.countries) || !Array.isArray(value.specialAdCategories)) throw new Error('La ficha recibida no es válida. Completa los datos manualmente.');
