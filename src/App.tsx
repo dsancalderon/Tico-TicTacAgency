@@ -1100,7 +1100,7 @@ export function App() {
       {/* ========================================================================= */}
       {/* HERO SECTION: ENFOQUE REAL EN PAUTA Y PUBLICIDAD DE PERFORMANCE           */}
       {/* ========================================================================= */}
-      <section className="relative overflow-hidden pt-10 sm:pt-16 lg:pt-20 pb-20 sm:pb-32 bg-white">
+      <section className="relative overflow-hidden pt-1 sm:pt-8 pb-24 sm:pb-32 bg-white">
 
         {/* Subtle prismatic beam background */}
         <div
@@ -1112,12 +1112,9 @@ export function App() {
           }}
         />
 
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10 flex flex-col">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
 
-          {/* Main Hero Viewport Area */}
-          <div className="min-h-[calc(100vh-14rem)] flex flex-col justify-center items-center py-4 sm:py-6">
-
-            {/* MAIN HERO HEADLINE */}
+          {/* MAIN HERO HEADLINE */}
           <h1 className="text-4xl sm:text-6xl lg:text-7xl font-extrabold text-slate-900 tracking-tight font-['Outfit'] leading-[1.15]">
             <span>Deja tu{' '}</span>
             <span className="relative inline-block whitespace-nowrap">
@@ -1171,10 +1168,8 @@ export function App() {
             </button>
           </div>
 
-          </div>
-
-          {/* Trust Banner Bar: Situated below initial fold */}
-          <div className="mt-8 pt-10 border-t border-slate-100 grid grid-cols-2 md:grid-cols-4 gap-6 text-left">
+          {/* Trust Banner Bar */}
+          <div className="mt-14 pt-8 border-t border-slate-100 grid grid-cols-2 md:grid-cols-4 gap-6 text-left">
             <div>
               <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 font-['Outfit']">6 Años</div>
               <p className="text-xs text-slate-500 mt-0.5">Experiencia publicitaria de agencia</p>

@@ -12,6 +12,6 @@ export function usePrefersReducedMotion() {
   return useSyncExternalStore(
     subscribe,
     () => window.matchMedia(query).matches,
-    () => true,
+    () => false,
   );
 }
