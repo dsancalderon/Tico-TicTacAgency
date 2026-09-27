@@ -1,5 +1,7 @@
+import { useState, useEffect } from 'react';
 import { Sparkles } from 'lucide-react';
 import { useInView } from '../../hooks/useInView';
+import { usePrefersReducedMotion } from '../../hooks/usePrefersReducedMotion';
 import { Cta, type CtaProps } from './hero-10-utils/cta';
 import { RevealOnScroll } from './RevealOnScroll';
 import { AnimatedCard } from './AnimatedCard';
@@ -16,8 +18,8 @@ export interface Hero10Props {
 }
 
 /**
- * Hero-10 section adapted with custom useInView scroll reveal,
- * staggered deploy animations, and interactive hover effects.
+ * Hero-10 section adapted with fan-out deployment emerging from center card,
+ * text blocks appearing after card deployment, and interactive 3D tilt hover.
  */
 export function Hero10({
   id,
@@ -29,10 +31,28 @@ export function Hero10({
   primaryCTA,
   secondaryCTA,
 }: Hero10Props) {
-  // Viewport observers with triggerOnce: true and threshold 0.15 - 0.2
+  // Viewport observers with triggerOnce: true
   const [headerRef, headerInView] = useInView<HTMLDivElement>({ threshold: 0.15, triggerOnce: true });
   const [fanRef, fanInView] = useInView<HTMLDivElement>({ threshold: 0.15, triggerOnce: true });
-  const [blocksRef, blocksInView] = useInView<HTMLDivElement>({ threshold: 0.2, triggerOnce: true });
+  const prefersReducedMotion = usePrefersReducedMotion();
+
+  // Cards deployment state: text blocks only appear once cards finish fan-out
+  const [cardsDeployed, setCardsDeployed] = useState(false);
+
+  useEffect(() => {
+    if (prefersReducedMotion) {
+      setCardsDeployed(true);
+      return;
+    }
+    if (fanInView) {
+      // Fan cards deploy in ~750ms + 140ms stagger = ~890ms.
+      // Text blocks reveal right after cards settle into position.
+      const timer = setTimeout(() => {
+        setCardsDeployed(true);
+      }, 850);
+      return () => clearTimeout(timer);
+    }
+  }, [fanInView, prefersReducedMotion]);
 
   return (
     <section
@@ -89,13 +109,13 @@ export function Hero10({
           </RevealOnScroll>
         </div>
 
-        {/* 1. Mockup Fan Scroll Reveal & 2. Interactive Hover */}
+        {/* 1. Mockup Fan: Emerge from center card & 2. Interactive 3D Hover */}
         <div
           ref={fanRef}
           role="group"
           aria-label="Tres etapas del trabajo con Tico. Desliza para ver las imágenes en móvil."
           tabIndex={0}
-          className="tico-method-fan -mx-5 mt-10 flex snap-x snap-mandatory items-start gap-4 overflow-x-auto px-5 pt-2 pb-8 focus-visible:outline-2 focus-visible:outline-blue-600 sm:mx-auto sm:mt-14 sm:max-w-[940px] sm:justify-center sm:gap-0 sm:overflow-visible sm:px-0 sm:pb-14"
+          className="tico-method-fan -mx-5 mt-10 flex snap-x snap-mandatory items-start gap-4 overflow-x-auto px-5 pt-2 pb-8 focus-visible:outline-2 focus-visible:outline-blue-600 sm:mx-auto sm:mt-14 sm:max-w-[940px] sm:justify-center sm:gap-0 sm:overflow-visible sm:px-0 sm:pb-14 [perspective:1200px]"
         >
           {images.slice(0, 3).map((image, index) => (
             <AnimatedCard
@@ -127,17 +147,14 @@ export function Hero10({
           ))}
         </div>
 
-        {/* 3. Text Blocks (01, 02, 03) with Cascading Delays */}
-        <div
-          ref={blocksRef}
-          className="mx-auto hidden max-w-4xl grid-cols-3 gap-8 text-center sm:grid"
-        >
+        {/* 3. Text Blocks (01, 02, 03): Appear only AFTER cards have finished fanning out */}
+        <div className="mx-auto hidden max-w-4xl grid-cols-3 gap-8 text-center sm:grid">
           {images.slice(0, 3).map((image, index) => {
-            const baseDelay = index * 140;
+            const baseDelay = index * 130;
             return (
               <div key={image.src}>
                 <RevealOnScroll
-                  inView={blocksInView}
+                  inView={cardsDeployed}
                   delay={baseDelay}
                   duration={550}
                   yOffset={18}
@@ -151,8 +168,8 @@ export function Hero10({
                 </RevealOnScroll>
 
                 <RevealOnScroll
-                  inView={blocksInView}
-                  delay={baseDelay + 100}
+                  inView={cardsDeployed}
+                  delay={baseDelay + 90}
                   duration={550}
                   yOffset={16}
                   as="p"
@@ -165,7 +182,7 @@ export function Hero10({
           })}
         </div>
 
-        <RevealOnScroll inView={blocksInView} delay={450} duration={500} yOffset={10}>
+        <RevealOnScroll inView={cardsDeployed} delay={380} duration={500} yOffset={10}>
           <p className="mt-7 text-center text-[11px] text-slate-500">
             Vistas ilustrativas de Tico. Tú defines el presupuesto y decides cuándo activar en Meta Ads.
           </p>
