@@ -28,6 +28,7 @@ export async function graphList(token: string, path: string, params: Record<stri
   }
   throw new Error('Demasiados activos para esta consulta.');
 }
+export const NO_PAGE_ACCESS = 'Esta conexión no tiene acceso a ninguna página de Facebook. En Meta Business Settings asigna tu página al usuario de la conexión con permiso para crear anuncios, y genera un token nuevo que incluya pages_show_list y pages_read_engagement.';
 // Pages assigned to the user (me/accounts) plus pages the ad accounts can promote.
 // Business-owned pages often appear only in promote_pages, so both lists count.
 function mergePages(userPages: any[], accounts: any[]) {
@@ -91,6 +92,7 @@ export async function inspectConnection(token: string) {
   const accounts = accountsRes.status === 'fulfilled' ? accountsRes.value : [];
   const pages = mergePages(pagesRes.status === 'fulfilled' ? pagesRes.value : [], accounts);
 
-  return { valid: isValid, missing, expiresAt, accounts, pages,
-    warnings: expiresAt && expiresAt * 1000 < Date.now() + 7 * 86400000 ? ['Tu conexión vence en menos de 7 días.'] : [] };
+  const warnings = expiresAt && expiresAt * 1000 < Date.now() + 7 * 86400000 ? ['Tu conexión vence en menos de 7 días.'] : [];
+  if (accountsRes.status === 'fulfilled' && pages.length === 0) warnings.push(NO_PAGE_ACCESS);
+  return { valid: isValid, missing, expiresAt, accounts, pages, warnings };
 }

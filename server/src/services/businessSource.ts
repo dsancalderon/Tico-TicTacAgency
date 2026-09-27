@@ -2,7 +2,7 @@ import https from 'node:https';
 import { lookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
 import { emptyBrief, type BusinessProfile, type BusinessSource } from '../domain/ticoBrief.js';
-import { graph, graphList, advertisablePages } from './briefMeta.js';
+import { graph, graphList, advertisablePages, NO_PAGE_ACCESS } from './briefMeta.js';
 
 export function publicAddress(address: string) {
   // Reject IPv6 too: this bounded reader only connects to validated public IPv4.
@@ -88,9 +88,13 @@ export async function analyzeBusinessSource(source: BusinessSource, context: { t
     content += extra.filter(r => r.status === 'fulfilled').map(r => r.value).join('\n').slice(0,30000);
   } else if (source.type === 'social') {
     const pages = await advertisablePages(context.token);
-    if (!pages.some(p => p.id === context.pageId)) throw new Error('Selecciona una página de tu conexión.');
-    const page = await graph(context.token,context.pageId,{ fields:'name,about,description,category,phone,website,instagram_business_account' });
-    const posts = await graph(context.token,`${context.pageId}/posts`,{ fields:'message,full_picture',limit:25 });
+    if (!pages.length) throw new Error(NO_PAGE_ACCESS);
+    if (!pages.some(p => p.id === context.pageId)) throw new Error('La página elegida no está asignada a esta conexión. Elige otra página en el paso Conexión o asígnala en Meta Business Settings.');
+    let page: any; let posts: any;
+    try {
+      page = await graph(context.token,context.pageId,{ fields:'name,about,description,category,phone,website,instagram_business_account' });
+      posts = await graph(context.token,`${context.pageId}/posts`,{ fields:'message,full_picture',limit:25 });
+    } catch { throw new Error('No tengo permiso para leer tu página. Genera un token nuevo que incluya pages_read_engagement, o usa otra fuente (tu web o las 5 preguntas).'); }
     content = JSON.stringify({ page, posts: posts.data }); images = (posts.data || []).map((p: any) => p.full_picture).filter(Boolean);
     if (page.instagram_business_account?.id) {
       try { const ig = await graph(context.token,page.instagram_business_account.id,{ fields:'biography,website,media.limit(25){caption,media_url,media_type}' }); content += JSON.stringify(ig); images.push(...(ig.media?.data || []).filter((m: any) => m.media_type === 'IMAGE').map((m: any) => m.media_url)); } catch { /* Facebook source remains usable when Instagram permission is missing. */ }

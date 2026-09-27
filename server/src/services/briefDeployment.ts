@@ -1,6 +1,6 @@
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { mapGoal, inheritedGoal, specialAudience, toMinorUnits, validateBrief, type TicoBrief } from '../domain/ticoBrief.js';
-import { graph, graphList, inspectConnection, MetaError } from './briefMeta.js';
+import { graph, graphList, inspectConnection, MetaError, NO_PAGE_ACCESS } from './briefMeta.js';
 import { readPublicUrl } from './businessSource.js';
 
 export async function resolveInterests(token:string,names:string[]) {
@@ -25,7 +25,7 @@ export async function validateDeployment(input:TicoBrief,token:string) {
     warnings.push(...connection.warnings);
     const account=connection.accounts.find((a:any)=>a.id===b.meta.adAccountId);
     if(!account||account.account_status!==1)errors.push('Tu cuenta publicitaria está inactiva o no pertenece a esta conexión.');
-    if(!connection.pages.some((p:any)=>p.id===b.meta.pageId))errors.push('Selecciona una página donde puedas anunciar.');
+    if(!connection.pages.length)errors.push(NO_PAGE_ACCESS);else if(!connection.pages.some((p:any)=>p.id===b.meta.pageId))errors.push('Selecciona una página donde puedas anunciar.');
     if(errors.length)return {valid:false,errors,warnings,brief:b,interests};
     b.meta.currency=account.currency;b.meta.timezone=account.timezone_name;
     if(b.creationMode==='single_ad'){
