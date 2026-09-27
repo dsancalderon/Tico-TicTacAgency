@@ -5,8 +5,8 @@ import type { RequestHandler } from 'express';
 export const requireAuth: RequestHandler = async (req, res, next) => {
   const token = /^Bearer (\S+)$/i.exec(req.headers.authorization || '')?.[1];
   if (!token) { res.status(401).json({ error: 'Autenticación requerida' }); return; }
-  const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_PUBLISHABLE_KEY;
+  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+  const key = process.env.SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
   if (!url || !key) { res.status(503).json({ error: 'Autenticación no configurada' }); return; }
   try {
     const client = createClient(url, key, {
