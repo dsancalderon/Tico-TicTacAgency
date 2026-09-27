@@ -497,11 +497,7 @@ export function TicoBriefForm({ initialData, onSubmit, onDraftChange, isLoading,
       )}
 
       {assets.warnings.map((w:string)=><p className="tb-notice" key={w}>{w}</p>)}
-      {assets.valid===false&&<button type="button" onClick={onReconnect}>Reconectar</button>}
-
-      {section('assets','Usaré la única combinación disponible o la última que usaste para tu marca.',<p>Elige los activos para esta campaña.</p>)}
-
-      {(b.delegation.assets==='user'||assets.accounts.length!==1||assets.pages.length!==1||!b.meta.adAccountId||!b.meta.pageId)&&<div className="tb-grid">
+      <div className="tb-grid">
         <Field label="Cuenta publicitaria">
           <select value={b.meta.adAccountId} onChange={e=>update(n=>{n.meta.adAccountId=e.target.value;n.meta.pixelId=undefined;n.existingCampaignId=undefined;n.existingAdSetId=undefined;})}>
             <option value="">Elige tu cuenta</option>
@@ -522,7 +518,7 @@ export function TicoBriefForm({ initialData, onSubmit, onDraftChange, isLoading,
             {assets.pages.map((p:any)=><option key={p.id} value={p.id}>{p.name}</option>)}
           </select>
         </Field>
-      </div>}
+      </div>
 
       {account?.name&&<p className="tb-summary">{account.name} · {b.meta.currency||'USD'} · {b.meta.timezone||'Zona horaria de tu cuenta'}</p>}
 
