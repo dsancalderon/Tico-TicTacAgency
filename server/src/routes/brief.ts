@@ -74,7 +74,13 @@ briefRouter.get('/connections', async (_req, res) => {
 });
 briefRouter.post('/assets', async (req, res) => {
   try {
-    const token = await connectionToken(res.locals.supabase, req.body.connectionId, req.body.token);
+    let token: string;
+    try {
+      token = await connectionToken(res.locals.supabase, req.body.connectionId, req.body.token);
+    } catch {
+      res.json({ valid: false, accounts: [], pages: [], pixels: [], campaigns: [], adSets: [], warnings: [] });
+      return;
+    }
     const result = await inspectConnection(token);
     let pixels: any[] = []; let instagram: any; let campaigns: any[] = []; let adSets: any[] = [];
     if (result.valid && req.body.accountId) {
