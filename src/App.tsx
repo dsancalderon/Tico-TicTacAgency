@@ -16,6 +16,7 @@ import { DashboardLayout } from './components/Dashboard/DashboardLayout';
 import { HomeOverview } from './components/Dashboard/HomeOverview';
 import { UnifiedConnections } from './components/Dashboard/UnifiedConnections';
 import { AssetDashboard } from './components/Dashboard/AssetDashboard';
+import { DeleteCampaignModal } from './components/Dashboard/DeleteCampaignModal';
 import type {
   ClientBriefing,
   GeneratedCampaignStrategy,
@@ -44,6 +45,7 @@ import {
   X,
   CheckCircle2,
   Info,
+  AlertCircle,
   Eraser
 } from 'lucide-react';
 import { TicoLoader } from './components/TicoLoader';
@@ -61,7 +63,9 @@ export function App() {
   const [editingDraftPayload, setEditingDraftPayload] = useState<MetaBuilderPayload | null>(null);
   const [editingDraftId, setEditingDraftId] = useState<string | null>(null);
   const [isCloseConfirmModalOpen, setIsCloseConfirmModalOpen] = useState<boolean>(false);
-  const [toastNotification, setToastNotification] = useState<{ text: string; type: 'success' | 'info' } | null>(null);
+  const [campaignToDelete, setCampaignToDelete] = useState<{ id: string; name: string; isDraft: boolean } | null>(null);
+  const [isDeletingCampaign, setIsDeletingCampaign] = useState<boolean>(false);
+  const [toastNotification, setToastNotification] = useState<{ text: string; type: 'success' | 'info' | 'error' } | null>(null);
 
   useEffect(() => {
     if (!toastNotification) return;
@@ -475,6 +479,12 @@ export function App() {
     setEditingDraftPayload(payload);
     if (!userSession?.isAuthenticated) return;
 
+    // Solo auto-guardar si ya se superó el paso 0 (Conexión) para evitar guardar borradores irrelevantes
+    const formStep = payload.ticoBrief?.formStep ?? 0;
+    if (payload.ticoBrief && formStep <= 0 && !editingDraftId) {
+      return;
+    }
+
     const owner = userSession.id;
     const draftId = editingDraftId || crypto.randomUUID();
     if (!editingDraftId) {
@@ -631,25 +641,46 @@ export function App() {
     }).catch(() => setSaveStatus('No se pudo abrir la campaña. Inténtalo de nuevo.'));
   };
 
-  // Eliminar Campaña o Borrador
-  const handleDeleteCampaign = async (campaignId?: string, campaignName?: string) => {
+  // Solicitar confirmación para eliminar Campaña o Borrador (Abre el popup glassmorphic)
+  const handleRequestDeleteCampaign = (campaignId?: string, campaignName?: string, isDraft?: boolean) => {
     if (!campaignId || !userSession?.isAuthenticated) return;
-    const confirmed = window.confirm(`¿Estás seguro de que deseas eliminar "${campaignName || 'este elemento'}"? Esta acción eliminará el registro de la base de datos de forma permanente.`);
-    if (!confirmed) return;
+    setCampaignToDelete({
+      id: campaignId,
+      name: campaignName || (isDraft ? 'Borrador sin título' : 'Campaña sin nombre'),
+      isDraft: Boolean(isDraft)
+    });
+  };
 
+  // Confirmar y procesar la eliminación desde el popup
+  const handleConfirmDeleteCampaign = async () => {
+    if (!campaignToDelete || !userSession?.isAuthenticated) return;
+    const targetId = campaignToDelete.id;
+    const isDraft = campaignToDelete.isDraft;
+
+    setIsDeletingCampaign(true);
     try {
-      await deleteCampaign(userSession.id, campaignId);
-      setDeployedCampaignsList(prev => prev.filter(c => c.id !== campaignId));
-      if (strategy?.id === campaignId) {
+      await deleteCampaign(userSession.id, targetId);
+      setDeployedCampaignsList(prev => prev.filter(c => c.id !== targetId));
+      if (strategy?.id === targetId) {
         setStrategy(null);
         setCurrentStep('briefing');
       }
-      if (editingDraftId === campaignId) {
+      if (editingDraftId === targetId) {
         setEditingDraftId(null);
         setEditingDraftPayload(null);
       }
+      setToastNotification({
+        text: isDraft ? 'Borrador eliminado correctamente' : 'Campaña eliminada correctamente',
+        type: 'info'
+      });
+      setCampaignToDelete(null);
     } catch (error) {
-      window.alert(error instanceof Error ? error.message : 'No se pudo eliminar la campaña.');
+      setToastNotification({
+        text: error instanceof Error ? error.message : 'No se pudo eliminar la campaña.',
+        type: 'error'
+      });
+    } finally {
+      setIsDeletingCampaign(false);
     }
   };
 
@@ -927,7 +958,7 @@ export function App() {
                         {/* Botón Eliminar Borrador / Campaña */}
                         <button
                           type="button"
-                          onClick={() => handleDeleteCampaign(c.id, c.brandName)}
+                          onClick={() => handleRequestDeleteCampaign(c.id, c.brandName, isDraft)}
                           className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 text-xs font-semibold transition cursor-pointer"
                           title="Eliminar de la base de datos"
                         >
@@ -1014,7 +1045,19 @@ export function App() {
           </div>
         )}
 
-        {/* Notificación Toast flotante ("Guardado en campañas" / "Descartado") */}
+        {/* Modal de Confirmación para Eliminar Campaña o Borrador */}
+        <DeleteCampaignModal
+          isOpen={Boolean(campaignToDelete)}
+          campaignTitle={campaignToDelete?.name}
+          isDraft={campaignToDelete?.isDraft}
+          isDeleting={isDeletingCampaign}
+          onClose={() => {
+            if (!isDeletingCampaign) setCampaignToDelete(null);
+          }}
+          onConfirm={handleConfirmDeleteCampaign}
+        />
+
+        {/* Notificación Toast flotante ("Guardado en campañas" / "Descartado" / "Eliminado") */}
         {toastNotification && (
           <div
             role="status"
@@ -1022,6 +1065,8 @@ export function App() {
           >
             {toastNotification.type === 'success' ? (
               <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+            ) : toastNotification.type === 'error' ? (
+              <AlertCircle className="w-5 h-5 text-rose-400 shrink-0" />
             ) : (
               <Info className="w-5 h-5 text-sky-400 shrink-0" />
             )}

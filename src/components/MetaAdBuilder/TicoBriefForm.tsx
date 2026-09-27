@@ -152,6 +152,7 @@ export function TicoBriefForm({ initialData, onSubmit, onDraftChange, isLoading,
   const [interview,setInterview] = useState<string[]>(['','','','','']);
   const draftCallback = useRef(onDraftChange); draftCallback.current = onDraftChange;
   const initialized = useRef(false); const lastAssets = useRef<any>(null);
+  const hasPassedStep0 = useRef(Boolean(initialData?.ticoBrief?.formStep && initialData.ticoBrief.formStep > 0));
   const lastAssetFetchRef = useRef<string>('');
   const assetRequestRef = useRef(0);
   const brandAssets=useRef<Record<string,any>>({});
@@ -161,7 +162,7 @@ export function TicoBriefForm({ initialData, onSubmit, onDraftChange, isLoading,
   let minimum = 0; try { minimum = Number(account?.min_daily_budget || 0) / currencyOffset(b.meta.currency); } catch { /* select account first */ }
   const resolved = resolveBrief(b,minimum);
   function update(fn:(next:TicoBrief)=>void) { setB(previous => { const next = structuredClone(previous); fn(next); return next; }); }
-  function goTo(i:number) { setStep(i); update(next => { next.formStep = i; }); }
+  function goTo(i:number) { if (i > 0) hasPassedStep0.current = true; setStep(i); update(next => { next.formStep = i; }); }
 
   useEffect(() => {
     let active = true;
@@ -367,9 +368,11 @@ export function TicoBriefForm({ initialData, onSubmit, onDraftChange, isLoading,
 
   useEffect(() => {
     if (!initialized.current) { initialized.current = true; return; }
+    // Solo auto-guardar si ya se superó el paso 0 (Conexión) para evitar guardar borradores irrelevantes
+    if (!hasPassedStep0.current && step <= 0) return;
     const timer = setTimeout(() => draftCallback.current?.(toLegacyPayload(b)), 800);
     return () => clearTimeout(timer);
-  }, [b]);
+  }, [b, step]);
 
   useEffect(() => {
     if(!preferencesReady) return;
