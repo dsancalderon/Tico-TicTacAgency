@@ -880,7 +880,7 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
               className="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 font-mono"
             />
             <span className="text-[11px] text-slate-400 mt-1 block">
-              Encuentra o genera tu token permanente en Meta Business Manager &gt; Usuarios del Sistema con permisos ads_management.
+              Genera tu token permanente en Meta Business Manager &gt; Usuarios del Sistema con ads_management, ads_read, business_management, pages_show_list y pages_read_engagement (ver la guía abajo).
             </span>
           </div>
 
@@ -1564,7 +1564,7 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
                   </h4>
                 </div>
                 <span className="text-xs text-slate-400 hidden sm:inline">
-                  3 Pasos Rápidos
+                  4 Pasos
                 </span>
               </div>
 
@@ -1614,7 +1614,7 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
                   </div>
 
                   <p className="text-[11px] text-slate-300 leading-relaxed">
-                    Con <code>Tico Performance</code> seleccionado, haz clic en el botón <strong>"Agregar activos"</strong>. Se abrirá la ventana oficial de 3 columnas. Debes vincular <strong>ambos activos</strong>:
+                    Con <code>Tico Performance</code> seleccionado, haz clic en el botón <strong>"Agregar activos"</strong>. Se abrirá la ventana oficial de 3 columnas. Repite el proceso para <strong>estos 4 tipos de activo</strong>, todos con <strong>Acceso total</strong>:
                   </p>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
@@ -1655,24 +1655,90 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
                         </li>
                       </ul>
                     </div>
+
+                    {/* Activo 3: Página de Facebook */}
+                    <div className="p-3 rounded-xl bg-slate-900/90 border border-emerald-500/50 space-y-2">
+                      <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs">
+                        <span className="w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px]">3</span>
+                        <span>Asignar la Página de Facebook (¡Imprescindible!)</span>
+                      </div>
+                      <ul className="text-[11px] text-slate-300 space-y-1.5 list-disc pl-4">
+                        <li>
+                          <strong>Columna 1:</strong> Haz clic en <span className="text-white font-semibold">Páginas</span>.
+                        </li>
+                        <li>
+                          <strong>Columna 2:</strong> Marca la <span className="text-white font-semibold">página con la que vas a anunciar</span>.
+                        </li>
+                        <li>
+                          <strong>Columna 3:</strong> Activa <strong className="text-white">"Control total"</strong> (incluye crear anuncios y leer publicaciones).
+                        </li>
+                      </ul>
+                      <p className="text-[10px] text-amber-300">Sin la página, Tico no puede crear anuncios ni leer "Mis redes".</p>
+                    </div>
+
+                    {/* Activo 4: Cuenta de Instagram */}
+                    <div className="p-3 rounded-xl bg-slate-900/90 border border-blue-500/40 space-y-2">
+                      <div className="flex items-center gap-2 text-blue-300 font-bold text-xs">
+                        <span className="w-4 h-4 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px]">4</span>
+                        <span>Asignar la Cuenta de Instagram</span>
+                      </div>
+                      <ul className="text-[11px] text-slate-300 space-y-1.5 list-disc pl-4">
+                        <li>
+                          <strong>Columna 1:</strong> Haz clic en <span className="text-white font-semibold">Cuentas de Instagram</span>.
+                        </li>
+                        <li>
+                          <strong>Columna 2:</strong> Marca tu <span className="text-white font-semibold">@cuenta de Instagram</span>.
+                        </li>
+                        <li>
+                          <strong>Columna 3:</strong> Activa <strong className="text-white">"Control total"</strong>.
+                        </li>
+                      </ul>
+                      <p className="text-[10px] text-slate-400">Necesario para que los anuncios salgan con tu @usuario y no con el nombre de la página.</p>
+                    </div>
                   </div>
 
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 rounded-xl bg-blue-950/40 border border-blue-800/40 text-[11px] text-blue-200">
                     <span>
-                      👉 Al marcar ambos, verifica que abajo diga <strong>"2 activos seleccionados"</strong> y pulsa el botón azul <strong className="text-white">"Asignar activos"</strong>.
+                      👉 Pulsa <strong className="text-white">"Asignar activos"</strong> en cada tipo. Al terminar, en <em>Activos asignados</em> de Tico deben aparecer la <strong>app</strong>, tus <strong>cuentas publicitarias</strong>, la <strong>página</strong> y la <strong>cuenta de Instagram</strong>, todas con <strong>Acceso total</strong>.
                     </span>
                   </div>
                 </div>
 
-                {/* Paso C */}
+                {/* Paso C: Conectar Instagram con la página y la cuenta publicitaria */}
+                <div className="bg-slate-800/80 border border-blue-500/40 rounded-2xl p-4 sm:p-5 space-y-2.5 lg:col-span-3">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-700/60">
+                    <div className="flex items-center gap-2">
+                      <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center shrink-0">
+                        C
+                      </span>
+                      <span className="text-xs sm:text-sm font-bold text-white">
+                        Conectar tu Instagram con la Página y la Cuenta Publicitaria
+                      </span>
+                    </div>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-900/60 text-blue-200 border border-blue-700/40 font-bold">
+                      Activos conectados
+                    </span>
+                  </div>
+                  <ol className="text-[11px] text-slate-300 space-y-1.5 list-decimal pl-4 leading-relaxed">
+                    <li>En la Configuración del negocio entra a <strong>Cuentas &gt; Cuentas de Instagram</strong> y selecciona tu <strong>@cuenta</strong>.</li>
+                    <li>Abre la pestaña <strong>"Activos conectados"</strong> y pulsa <strong>"Conectar activos"</strong>.</li>
+                    <li>Conecta tu <strong className="text-white">Página de Facebook</strong> y tu <strong className="text-white">Cuenta publicitaria</strong>.</li>
+                    <li>Verifica que diga <strong>"2 activos están conectados a esta cuenta de Instagram"</strong>: la página y la cuenta publicitaria.</li>
+                  </ol>
+                  <div className="text-[10px] text-amber-300 bg-amber-950/40 p-2 rounded-lg border border-amber-800/50">
+                    ⚠️ Si Instagram no está conectado a la cuenta publicitaria, los anuncios saldrán en Instagram con el nombre de la página y no podrás usar los objetivos <em>Visitas al perfil</em> ni <em>Mensajes por Instagram Direct</em>.
+                  </div>
+                </div>
+
+                {/* Paso D */}
                 <div className="bg-slate-800/80 border border-emerald-500/40 rounded-2xl p-4 sm:p-5 space-y-2.5 shadow-md lg:col-span-3">
                   <div className="flex items-center justify-between pb-2 border-b border-slate-700/60">
                     <div className="flex items-center gap-2">
                       <span className="w-6 h-6 rounded-full bg-emerald-600 text-white text-xs font-bold flex items-center justify-center shrink-0">
-                        C
+                        D
                       </span>
                       <span className="text-xs sm:text-sm font-bold text-white">
-                        Generar Token Permanente con los 3 Permisos Obligatorios
+                        Generar Token Permanente con los 5 Permisos Obligatorios
                       </span>
                     </div>
                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-900/60 text-emerald-300 border border-emerald-700/50 font-bold">
@@ -1681,14 +1747,16 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
                   </div>
 
                   <p className="text-[11px] text-slate-300 leading-relaxed">
-                    Pulsa el botón <strong>"Generar nuevo token"</strong>, elige tu App (<code>Tico Performance Ads</code>), caducidad <strong>"Permanente" (Never expire)</strong> y marca estas 3 casillas obligatorias (haz clic para copiarlas):
+                    Pulsa el botón <strong>"Generar nuevo token"</strong>, elige tu App (<code>Tico Performance Ads</code>), caducidad <strong>"Permanente" (Never expire)</strong> y marca estas 5 casillas obligatorias (haz clic para copiarlas):
                   </p>
 
                   <div className="flex flex-wrap gap-2 pt-1">
                     {[
                       { id: 'ads_management', label: 'ads_management (Crear y editar campañas)' },
                       { id: 'ads_read', label: 'ads_read (Lectura de métricas y anuncios)' },
-                      { id: 'business_management', label: 'business_management (Gestión en BM)' }
+                      { id: 'business_management', label: 'business_management (Gestión en BM)' },
+                      { id: 'pages_show_list', label: 'pages_show_list (Ver tus páginas)' },
+                      { id: 'pages_read_engagement', label: 'pages_read_engagement (Leer tu página y publicaciones)' }
                     ].map((p) => (
                       <button
                         key={p.id}
@@ -1705,6 +1773,15 @@ export const MetaConnectDiagnostic: React.FC<MetaConnectDiagnosticProps> = ({
                         )}
                       </button>
                     ))}
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10px]">
+                    <div className="text-amber-300 bg-amber-950/40 p-2 rounded-lg border border-amber-800/50">
+                      ⚠️ <strong>Los permisos quedan fijos al generar el token.</strong> Si asignas activos después, se aplican solos. Si te falta un permiso, tienes que <strong>generar un token nuevo</strong> y reconectarlo aquí. Meta puede pedirte verificar tu cuenta antes de generarlo.
+                    </div>
+                    <div className="text-slate-300 bg-slate-900/80 p-2 rounded-lg border border-slate-700/60">
+                      💡 No necesitas <code>pages_manage_ads</code> ni <code>instagram_basic</code>: con estos 5 permisos y los activos en <em>Control total</em>, Tico crea anuncios en Facebook e Instagram y lee tu página.
+                    </div>
                   </div>
 
                   <div className="text-[11px] text-emerald-300 bg-emerald-950/40 p-2.5 rounded-xl border border-emerald-800/50 mt-1">
