@@ -51,19 +51,34 @@ export const businessSchema = { type: 'OBJECT', required: ['brandName','industry
 export async function geminiJson(prompt: string, schema: object, media: any[] = []) {
   const key = (process.env.GEMINI_API_KEY || '').trim();
   if (!key) throw new Error('Configura Gemini en el servidor para analizar tu negocio.');
-  // Same model as the strategy service first; the env override and older model are fallbacks.
-  const models = [...new Set([(process.env.GEMINI_BRIEF_MODEL || '').trim(), 'gemini-3.6-flash', 'gemini-2.5-flash'].filter(Boolean))];
-  for (const model of models) {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, signal: AbortSignal.timeout(45000),
-      body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }, ...media] }], generationConfig: { responseMimeType: 'application/json', responseSchema: schema, temperature: 0.3 } }),
-    });
+  // Always gemini-3.6-flash (same model as the strategy service) so analyses stay consistent.
+  const models = ['gemini-3.6-flash'];
+  // Each model is tried with the strict responseSchema first, then with the schema only described in
+  // the prompt (the shape the strategy service already uses successfully); the result is validated later.
+  const attempts = models.flatMap(model => [{ model, strict: true }, { model, strict: false }]);
+  const errors: string[] = []; let lastError = '';
+  for (const { model, strict } of attempts) {
+    const text = strict ? prompt : `${prompt}\n\nDevuelve SOLO un objeto JSON válido que cumpla este esquema:\n${JSON.stringify(schema)}`;
+    let response: Response;
+    try {
+      response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, signal: AbortSignal.timeout(25000),
+        body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text }, ...media] }], generationConfig: { responseMimeType: 'application/json', ...(strict ? { responseSchema: schema } : {}), temperature: 0.3 } }),
+      });
+    } catch (error) { lastError = `${model}: ${(error as Error).message}`; errors.push(lastError); console.error(`[TICO-BRIEF] Gemini ${lastError}`); continue; }
     const data = await response.json().catch(() => ({})) as any;
-    if (!response.ok) { console.error(`[TICO-BRIEF] Gemini ${model} respondió ${response.status}:`, JSON.stringify(data?.error || data).slice(0, 300)); continue; }
-    const text = data.candidates?.[0]?.content?.parts?.filter((p: any) => p.text).map((p: any) => p.text).join('');
-    try { return JSON.parse(text || '{}'); } catch { console.error(`[TICO-BRIEF] Gemini ${model} devolvió JSON inválido.`); }
+    if (!response.ok) {
+      lastError = `${model} ${response.status}: ${String(data?.error?.message || data?.error?.status || 'sin detalle').slice(0, 160)}`;
+      errors.push(lastError); console.error(`[TICO-BRIEF] Gemini ${lastError}`);
+      // Wrong key, quota or unknown model will not improve without the schema: go to the next model.
+      if (response.status !== 400 && strict) attempts.splice(attempts.findIndex(a => a.model === model && !a.strict), 1);
+      continue;
+    }
+    const raw = data.candidates?.[0]?.content?.parts?.filter((p: any) => p.text && !p.thought).map((p: any) => p.text).join('') || '';
+    try { return JSON.parse(raw.replace(/^\s*```(?:json)?\s*|\s*```\s*$/g, '') || '{}'); }
+    catch { lastError = `${model}: respuesta sin JSON válido (${data.candidates?.[0]?.finishReason || 'sin motivo'})`; errors.push(lastError); console.error(`[TICO-BRIEF] Gemini ${lastError}`); }
   }
-  throw new Error('Gemini no pudo analizar la fuente. Inténtalo de nuevo o completa la ficha.');
+  throw new Error(`Gemini no pudo analizar la fuente [${[...new Set(errors)].join(' | ')}]. Inténtalo de nuevo o completa la ficha.`);
 }
 export function validateBusinessProfile(value: any, source: BusinessSource['type']): BusinessProfile {
   if (!value || ['brandName','industry','offerSummary','targetAudience'].some(f => typeof value[f] !== 'string') || !Array.isArray(value.differentiators) || !Array.isArray(value.conversionChannels) || !Array.isArray(value.countries) || !Array.isArray(value.specialAdCategories)) throw new Error('La ficha recibida no es válida. Completa los datos manualmente.');
