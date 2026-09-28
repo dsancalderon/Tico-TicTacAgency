@@ -13,9 +13,26 @@ export async function graph(token: string, path: string, params: Record<string, 
   if (!response.ok || data.error) {
     const e = data.error || {};
     console.error('[Meta brief]', { code: e.code, fbtrace_id: e.fbtrace_id });
-    throw new MetaError(e.code === 190 ? 'Tu conexión con Meta venció. Reconéctala en un clic; lo que ya llenaste se conserva.' : (e.error_user_msg || e.message || 'Meta no pudo completar la solicitud.'), e.code, e.fbtrace_id);
+    // Subcode 2069032: the call needs a Page token (New Pages Experience), the connection itself is fine.
+    throw new MetaError(e.code === 190 && e.error_subcode !== 2069032 ? 'Tu conexión con Meta venció. Reconéctala en un clic; lo que ya llenaste se conserva.' : (e.error_user_msg || e.message || 'Meta no pudo completar la solicitud.'), e.code, e.fbtrace_id);
   }
   return data;
+}
+// Page reads (posts, linked Instagram) require the Page's own token in the New Pages Experience.
+export async function pageToken(token: string, pageId: string) {
+  try {
+    const pages = await graphList(token, 'me/accounts', { fields: 'id,access_token' });
+    return pages.find(p => p.id === pageId)?.access_token || token;
+  } catch { return token; }
+}
+// Instagram account to run ads as: the one linked to the Page, else one connected to the ad account.
+export async function instagramAccountFor(token: string, pageId: string, accountId?: string): Promise<{ id: string } | undefined> {
+  try {
+    const linked = (await graph(await pageToken(token, pageId), pageId, { fields: 'instagram_business_account' })).instagram_business_account;
+    if (linked?.id) return linked;
+  } catch { /* fall back to the ad account */ }
+  if (!accountId) return undefined;
+  try { return (await graphList(token, `${accountId}/instagram_accounts`, { fields: 'id' }))[0]; } catch { return undefined; }
 }
 export async function graphList(token: string, path: string, params: Record<string, unknown> = {}) {
   const items: any[] = []; let after: string | undefined;

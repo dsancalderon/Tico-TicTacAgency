@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { graph, graphList, inspectConnection, advertisablePages } from '../services/briefMeta.js';
+import { graph, graphList, inspectConnection, advertisablePages, instagramAccountFor } from '../services/briefMeta.js';
 import { analyzeBusinessSource } from '../services/aiStrategist.js';
 import { readPublicUrl } from '../services/businessSource.js';
 import { briefHash, signLedger, verifyLedger, validateDeployment, executeDeployment, rollbackDeployment, type DeploymentLedger } from '../services/briefDeployment.js';
@@ -105,7 +105,7 @@ briefRouter.post('/assets', async (req, res) => {
     if (result.valid && req.body.pageId) {
       if (result.pages?.some((p: any) => p.id === req.body.pageId)) {
         try {
-          instagram = (await graph(token, req.body.pageId, { fields: 'instagram_business_account' })).instagram_business_account;
+          instagram = await instagramAccountFor(token, req.body.pageId, result.accounts?.some((a: any) => a.id === req.body.accountId) ? req.body.accountId : undefined);
         } catch (e) {
           console.warn('[brief /assets] error fetching instagram account:', (e as Error).message);
         }

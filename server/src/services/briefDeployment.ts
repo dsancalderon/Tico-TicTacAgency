@@ -1,6 +1,6 @@
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { mapGoal, inheritedGoal, specialAudience, toMinorUnits, validateBrief, type TicoBrief } from '../domain/ticoBrief.js';
-import { graph, graphList, inspectConnection, MetaError, NO_PAGE_ACCESS } from './briefMeta.js';
+import { graph, graphList, inspectConnection, instagramAccountFor, MetaError, NO_PAGE_ACCESS } from './briefMeta.js';
 import { readPublicUrl } from './businessSource.js';
 
 export async function resolveInterests(token:string,names:string[]) {
@@ -60,8 +60,7 @@ export async function validateDeployment(input:TicoBrief,token:string) {
     if(b.creationMode==='full_campaign'&&['objective','destinationType','optimizationGoal'].some(k=>(b.meta as any)[k] !== (expected as any)[k]))errors.push('La combinación de objetivo, destino y optimización no está validada para este flujo. Restablece la recomendación.');
     if(b.brief.goal==='calls')errors.push('TODO v21: PHONE_CALL no está verificado. Elige otro objetivo mientras se valida.');
     if(b.brief.goal==='messages'&&!b.brief.messageChannels.length)errors.push('Elige al menos un canal de mensajes.');
-    const page=await graph(token,b.meta.pageId,{fields:'id,instagram_business_account'});
-    b.meta.instagramUserId=page.instagram_business_account?.id;
+    b.meta.instagramUserId=(await instagramAccountFor(token,b.meta.pageId,b.meta.adAccountId))?.id;
     if((b.brief.goal==='ig_profile'||b.brief.messageChannels.includes('instagram_direct')&&b.brief.goal==='messages')&&!b.meta.instagramUserId)errors.push('Vincula Instagram a tu página para usar este destino.');
     if(b.brief.goal==='messages'&&b.brief.messageChannels.includes('whatsapp')){
       // TODO: verify version-specific WhatsApp linked-number field and creative CTA value.
