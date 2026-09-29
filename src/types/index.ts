@@ -246,6 +246,7 @@ export interface MetaAdFormItem {
 }
 
 export interface MetaBuilderPayload {
+  goalForecast?: import('../../server/src/domain/performanceGoals').GoalForecast;
   ticoBrief?: import('../../server/src/domain/ticoBrief').TicoBrief;
   // Contexto y ADN de Marca (Unificado)
   brandName: string;

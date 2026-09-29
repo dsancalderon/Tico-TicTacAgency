@@ -451,7 +451,7 @@ export function App() {
     const owner = userSession.id;
 
     try {
-      const { strategy: generated, enrichedPayload } = await generateMetaBuilderStrategyApi(payload, options?.useMock);
+      const { strategy: generated, enrichedPayload } = await generateMetaBuilderStrategyApi(payload, payload.ticoBrief?.testMode ? true : options?.useMock);
       if (activeOwner.current !== owner) return;
       const strategyId = editingDraftId || crypto.randomUUID();
       const identified = { ...generated, id: strategyId, metaBuilderPayload: enrichedPayload };
@@ -826,7 +826,7 @@ export function App() {
                 onChange={handleStrategyChange}
                 strategy={strategy}
                 onApprove={handleApproveStrategy}
-                onBack={() => setCurrentStep('briefing')}
+                onBack={() => { setEditingDraftPayload(strategy.metaBuilderPayload || null); setEditingDraftId(strategy.id || null); setCurrentStep('briefing'); }}
                 onClose={() => setIsCloseConfirmModalOpen(true)}
                 isDeploying={isDeploying}
                 userCredits={userSession.credits}

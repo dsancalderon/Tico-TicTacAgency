@@ -1,5 +1,5 @@
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
-import { mapGoal, inheritedGoal, specialAudience, toMinorUnits, validateBrief, type TicoBrief } from '../domain/ticoBrief.js';
+import { mapGoal, inheritedGoal, specialAudience, toMinorUnits, currencyOffset, validateBrief, type TicoBrief } from '../domain/ticoBrief.js';
 import { graph, graphList, inspectConnection, instagramAccountFor, MetaError, NO_PAGE_ACCESS } from './briefMeta.js';
 import { readPublicUrl } from './businessSource.js';
 
@@ -19,6 +19,7 @@ export async function validateDeployment(input:TicoBrief,token:string) {
   const b=structuredClone(input);const errors=validateBrief(b);const warnings:string[]=[];
   const interests:Record<string,{id:string;name:string}[]>={};
   if(errors.length)return {valid:false,errors,warnings,brief:b,interests};
+  if(b.creationMode==='full_campaign')delete b.goalContext;
   try {
     const connection=await inspectConnection(token);
     if(!connection.valid)return {valid:false,errors:connection.warnings,warnings,brief:b,interests};
@@ -29,14 +30,25 @@ export async function validateDeployment(input:TicoBrief,token:string) {
     if(errors.length)return {valid:false,errors,warnings,brief:b,interests};
     b.meta.currency=account.currency;b.meta.timezone=account.timezone_name;
     if(b.creationMode==='single_ad'){
-      const campaign=await graph(token,b.existingCampaignId!,{fields:'id,account_id,objective'});
-      const set=await graph(token,b.existingAdSetId!,{fields:'id,account_id,campaign_id,optimization_goal,destination_type,promoted_object'});
+      const campaign=await graph(token,b.existingCampaignId!,{fields:'id,account_id,objective,daily_budget,lifetime_budget,bid_strategy'});
+      const set=await graph(token,b.existingAdSetId!,{fields:'id,account_id,campaign_id,optimization_goal,destination_type,promoted_object,daily_budget,lifetime_budget,start_time,end_time,targeting,bid_strategy,bid_amount,attribution_spec'});
       const normAcc=(id?:string)=>id?.startsWith('act_')?id:`act_${id}`;
       if(normAcc(campaign.account_id)!==normAcc(b.meta.adAccountId)||normAcc(set.account_id)!==normAcc(b.meta.adAccountId)||set.campaign_id!==b.existingCampaignId)errors.push('El conjunto debe pertenecer a la campaña y cuenta elegidas.');
       b.meta.objective=campaign.objective;b.meta.optimizationGoal=set.optimization_goal;b.meta.destinationType=set.destination_type;
       b.brief.goal=inheritedGoal(campaign.objective,set.destination_type||'');
       b.meta.pixelId=set.promoted_object?.pixel_id;
       b.meta.conversionEvent=set.promoted_object?.custom_event_type;
+      if(b.goalPlan){
+        const parent=Number(campaign.daily_budget)>0||Number(campaign.lifetime_budget)>0?campaign:set;
+        const daily=Number(parent.daily_budget)>0;
+        if(parent===campaign&&!daily)errors.push('La proyección de anuncios dentro de una campaña con presupuesto total compartido requiere validar su periodo completo. Usa una campaña nueva o un presupuesto diario.');
+        const amount=Number(daily?parent.daily_budget:parent.lifetime_budget);
+        if(!Number.isFinite(amount)||amount<=0)errors.push('No pude leer el presupuesto compartido del anuncio.');
+        else {b.brief.dailyBudget=amount/currencyOffset(account.currency);b.meta.budgetPeriod=daily?'daily':'lifetime';b.meta.budgetType=parent===campaign?'CBO':'ABO';}
+        b.meta.startDate=set.start_time;b.brief.endDate=set.end_time;
+        if(!set.targeting||typeof set.targeting!=='object')errors.push('No pude leer la segmentación vigente del conjunto existente.');
+        b.goalContext={targeting:set.targeting,bidStrategy:set.bid_strategy||campaign.bid_strategy,bidAmount:set.bid_amount,attribution:set.attribution_spec};
+      }
       if(b.brief.goal==='messages'){const ch=(['instagram_direct','messenger','whatsapp'] as const).filter(c=>(set.destination_type||'').includes(c.toUpperCase()));b.brief.messageChannels=ch.length?ch:['messenger'];}
       if(set.promoted_object?.page_id&&set.promoted_object.page_id!==b.meta.pageId)errors.push('Usa la página del conjunto existente.');
     }
@@ -80,6 +92,7 @@ export async function validateDeployment(input:TicoBrief,token:string) {
     for(const set of b.meta.adSets){
       interests[set.id]=await resolveInterests(token,set.interests);
       if(interests[set.id].length<set.interests.filter(Boolean).length)warnings.push(`Descarté intereses no encontrados en Meta para ${set.name}.`);
+      if(b.goalPlan)set.interests=interests[set.id].map(i=>i.name);
       if(b.delegation.placements==='user'&&!set.publisherPlatforms.length)errors.push(`Selecciona ubicaciones para ${set.name}.`);
       if(set.publisherPlatforms.some(p=>!['facebook','instagram','messenger','audience_network'].includes(p)))errors.push('Ubicación inválida.');
       if(set.customAudiences.length||set.excludedAudiences.length){const allowed=await graphList(token,`${b.meta.adAccountId}/customaudiences`,{fields:'id'});if([...set.customAudiences,...set.excludedAudiences].some(id=>!allowed.some(a=>a.id===id)))errors.push('Una audiencia personalizada no pertenece a tu cuenta.');}
@@ -93,7 +106,7 @@ export async function validateDeployment(input:TicoBrief,token:string) {
   return {valid:errors.length===0,errors,warnings,brief:b,interests};
 }
 export type LedgerItem={key:string;id:string;kind:'image'|'video'|'campaign'|'adset'|'creative'|'ad';deleted?:boolean};
-export type DeploymentLedger={items:LedgerItem[];pending?:string;completed?:boolean;rolledBack?:boolean;accountId?:string;connectionId?:string;attempts?:number};
+export type DeploymentLedger={items:LedgerItem[];pending?:string;completed?:boolean;rolledBack?:boolean;accountId?:string;connectionId?:string;attempts?:number;goalForecastId?:string};
 // JSONB normalizes key order. Sign canonical values so a DB round trip stays valid.
 export function canonicalJson(value:unknown):string {
   if(Array.isArray(value))return `[${value.map(canonicalJson).join(',')}]`;

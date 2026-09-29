@@ -17,6 +17,8 @@ import { CreativeAssignment } from './Dashboard/CreativeAssignment';
 import { TicoCoinIcon } from './BrandLogos';
 import { briefApi, briefConnectionToken } from '../services/briefApi';
 import { trackBrief } from '../services/briefAnalytics';
+import { GoalForecastPanel } from './GoalForecastPanel';
+import { dayInZone, forecastInputKey } from '../../server/src/domain/performanceGoals';
 
 interface StrategyPreviewProps {
   strategy: GeneratedCampaignStrategy;
@@ -40,8 +42,13 @@ export const StrategyPreview: React.FC<StrategyPreviewProps> = ({
   onChange
 }) => {
   const [strategy, setStrategy] = useState<GeneratedCampaignStrategy>(initialStrategy);
+  const goalBrief = strategy.metaBuilderPayload?.ticoBrief;
+  const testMode = Boolean(goalBrief?.testMode);
+  const goalForecast = strategy.metaBuilderPayload?.goalForecast;
+  const goalReady = !goalBrief || !!(goalForecast && goalForecast.inputKey === forecastInputKey(goalBrief) && goalForecast.period.since >= dayInZone(new Date(), goalForecast.timezone) && (testMode ? goalForecast.source === 'manual' : Boolean(goalForecast.period.subscriptionUntil)));
   useEffect(() => { onChange?.(strategy); }, [strategy, onChange]);
   const [confirmedTerms, setConfirmedTerms] = useState(false);
+  function updatePreview(next: GeneratedCampaignStrategy) { setConfirmedTerms(false); setStrategy(next); }
   const [activeTab, setActiveTab] = useState<'all' | 'meta' | 'google'>('all');
   const [isEditingCopies, setIsEditingCopies] = useState(false);
   const [activeAdIndex, setActiveAdIndex] = useState(0);
@@ -79,7 +86,7 @@ export const StrategyPreview: React.FC<StrategyPreviewProps> = ({
       ads: strategy.metaBuilderPayload.ads.map((ad, i) => i === index ? { ...ad, primaryText: newText } : ad)
     } : undefined;
 
-    setStrategy({
+    updatePreview({
       ...strategy,
       metaBuilderPayload: updatedBuilderPayload,
       metaAds: {
@@ -101,7 +108,7 @@ export const StrategyPreview: React.FC<StrategyPreviewProps> = ({
       ads: strategy.metaBuilderPayload.ads.map((ad, i) => i === index ? { ...ad, headline: newHeadline } : ad)
     } : undefined;
 
-    setStrategy({
+    updatePreview({
       ...strategy,
       metaBuilderPayload: updatedBuilderPayload,
       metaAds: {
@@ -122,7 +129,7 @@ export const StrategyPreview: React.FC<StrategyPreviewProps> = ({
     } : undefined;
 
     if(updatedBuilderPayload?.ticoBrief){const brief=structuredClone(updatedBuilderPayload.ticoBrief);brief.brief.assets=creatives.filter(c=>c.storagePath).map(c=>({uploadId:c.storagePath!,type:c.type,name:c.name,aspectRatio:c.aspectRatio}));brief.meta.ads=brief.meta.ads.map((ad,i)=>({...ad,uploadId:(creatives.find(c=>c.assignedAdTitle===ad.headline)||creatives[i%Math.max(1,creatives.length)])?.storagePath}));updatedBuilderPayload.ticoBrief=brief;}
-    setStrategy({
+    updatePreview({
       ...strategy,
       creatives,
       metaBuilderPayload: updatedBuilderPayload,
@@ -142,12 +149,13 @@ export const StrategyPreview: React.FC<StrategyPreviewProps> = ({
 
   return (
     <div className="space-y-8">
+      {testMode&&<div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-950"><strong>Modo sin Gemini.</strong> Revisa marca, presupuesto, URL, creativos y metas manuales. Al aprobar, Tico creará recursos reales en Meta en estado PAUSED y cobrará los créditos indicados.</div>}
       {strategy.metaBuilderPayload?.ticoBrief && <div className="rounded-2xl border border-indigo-100 bg-white p-5 space-y-3">
         <p className="text-sm">Antes de crear nada, Tico revisará tu conexión, cuenta, presupuesto y activos. Todo lo nuevo quedará en pausa.</p>
         <button type="button" disabled={checking||isDeploying} onClick={()=>void checkBrief()} className="text-indigo-600 font-semibold text-sm">{checking?'Revisando…':'Validar despliegue'}</button>
         {validation?.errors.map((e,i)=><p role="alert" className="text-red-700 text-sm" key={i}>{e}</p>)}
         {validation?.warnings.map((e,i)=><p className="text-amber-800 text-sm" key={i}>{e}</p>)}
-        {deploymentError&&<div role="alert" className="space-y-3 text-sm"><p className="text-red-700">{deploymentError}</p>{!rolledBack&&<div className="flex gap-5"><button type="button" disabled={isDeploying||checking} onClick={()=>onApprove(strategy)}>Reintentar</button><button type="button" disabled={isDeploying||checking} onClick={()=>void rollback()}>Eliminar lo creado</button></div>}</div>}
+        {deploymentError&&<div role="alert" className="space-y-3 text-sm"><p className="text-red-700">{deploymentError}</p>{!rolledBack&&<div className="flex gap-5"><button type="button" disabled={isDeploying||checking||!goalReady} onClick={()=>onApprove(strategy)}>Reintentar</button><button type="button" disabled={isDeploying||checking} onClick={()=>void rollback()}>Eliminar lo creado</button></div>}</div>}
       </div>}
       {/* Top Banner: Strategy Ready & Actions */}
       <div className="rounded-3xl border border-indigo-100 bg-gradient-to-r from-indigo-50/80 via-purple-50/50 to-blue-50/80 p-6 md:p-8 shadow-sm relative overflow-hidden">
@@ -571,6 +579,8 @@ export const StrategyPreview: React.FC<StrategyPreviewProps> = ({
           </div>
         </div>
 
+        {goalBrief && <GoalForecastPanel strategy={strategy} onChange={updatePreview} disabled={isDeploying || rolledBack} />}
+        {goalBrief && !goalReady && <p className="text-sm text-amber-800">{testMode?'Guarda metas manuales vigentes antes de desplegar. El escenario esperado será la meta del dashboard.':'Genera una proyección vigente con la suscripción confirmada antes de desplegar. El escenario esperado será tu meta.'}</p>}
         {/* Confirmation terms & credit balance preview */}
         <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2 text-xs pb-3 border-b border-slate-200 text-slate-600">
@@ -619,7 +629,7 @@ export const StrategyPreview: React.FC<StrategyPreviewProps> = ({
 
           <button
             type="button"
-            disabled={!confirmedTerms || isDeploying || !hasEnoughCredits || rolledBack || checking}
+            disabled={!confirmedTerms || isDeploying || !hasEnoughCredits || rolledBack || checking || !goalReady}
             onClick={() => onApprove(strategy)}
             className="w-full sm:w-auto px-8 py-3.5 rounded-full bg-slate-950 hover:bg-slate-800 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-sm tracking-wide shadow-md hover:shadow-lg flex items-center justify-center gap-2 transition-all cursor-pointer"
           >

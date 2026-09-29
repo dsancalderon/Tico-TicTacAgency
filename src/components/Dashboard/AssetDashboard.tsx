@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
+import { GoalDashboard } from './GoalDashboard';
 import { requireSupabase } from '../../services/auth';
 import type { MetaConnectionState, GoogleConnectionState } from '../../types';
 
@@ -57,6 +58,7 @@ export function AssetDashboard({ metaState, googleState }: { metaState: MetaConn
     ['CPC', valid && totals.clicks ? `${(totals.spend / totals.clicks).toFixed(2)} ${rows[0]?.currency}` : '—'],
   ];
   return <div className="space-y-6">
+    <GoalDashboard />
     <div className="bg-white rounded-3xl border border-slate-200 p-6 space-y-5">
       <div><h1 className="text-2xl font-extrabold text-slate-900">Dashboards de Rendimiento</h1><p className="text-sm text-slate-500 mt-1">Resultados guardados de tus cuentas publicitarias.</p></div>
       <div className="flex flex-wrap gap-3 items-center">

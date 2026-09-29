@@ -11,6 +11,7 @@ import { ManualAudience } from './ManualAudience';
 import { MetaOptionPicker } from './MetaOptionPicker';
 import { ManualPlacements } from './ManualPlacements';
 import { resolveBrief, recommendedSet } from './briefRecommendations';
+import { createTicoTestBrief, TEST_PROFILE, testSource } from './testBrief';
 import './tico-brief.css';
 
 const labels: Record<SectionKey,string> = { assets:'Tus activos de Meta',business:'Cómo conozco tu negocio',objective:'¿Qué quieres que pase?',budget:'Cómo distribuir tu presupuesto',bid:'Puja',specialCategory:'Categoría especial',audience:'A quién llegar',placements:'Dónde aparecer',structure:'Estructura de la campaña',creatives:'Ángulos de tus creativos',copys:'Qué dirán tus anuncios',tracking:'Seguimiento' };
@@ -139,6 +140,9 @@ function getAvailableConnections(metaState?: MetaConnectionState, serverConnecti
 export function TicoBriefForm({ initialData, onSubmit, onDraftChange, isLoading, onClose, onReconnect, metaState, onUpdateMetaState, services }: TicoBriefFormProps) {
   const api=services?.api||briefApi;
   const [b,setB] = useState<TicoBrief>(() => initialData?.ticoBrief || emptyBrief());
+  const [testMode,setTestMode] = useState(Boolean(initialData?.ticoBrief?.testMode));
+  const testModeRef = useRef(Boolean(initialData?.ticoBrief?.testMode));
+  const beforeTest = useRef<{brief:TicoBrief;step:number;connections:any[];assets:any}|null>(null);
   // A saved draft reopens on the step it reached; without a connection and page it starts over at step 0.
   const [step,setStep] = useState(() => {
     const saved = initialData?.ticoBrief;
@@ -163,6 +167,30 @@ export function TicoBriefForm({ initialData, onSubmit, onDraftChange, isLoading,
   const resolved = resolveBrief(b,minimum);
   function update(fn:(next:TicoBrief)=>void) { setB(previous => { const next = structuredClone(previous); fn(next); return next; }); }
   function goTo(i:number) { if (i > 0) hasPassedStep0.current = true; setStep(i); update(next => { next.formStep = i; }); }
+
+  function startTestMode() {
+    if (testModeRef.current) return;
+    beforeTest.current = { brief: structuredClone(b), step, connections, assets };
+    testModeRef.current = true;
+    ++assetRequestRef.current;
+    lastAssetFetchRef.current = '';
+    setTestMode(true);
+    setB(createTicoTestBrief(b));
+    setAssetBusy(false); setBusy(false); setError(''); setNotice(''); setImages([]);
+    setStep(0);
+  }
+
+  function stopTestMode() {
+    const saved = beforeTest.current;
+    testModeRef.current = false;
+    ++assetRequestRef.current;
+    lastAssetFetchRef.current = '';
+    setTestMode(false);
+    if (saved) { setB(saved.brief); setStep(saved.step); setConnections(saved.connections); setAssets(saved.assets); }
+    else { update(n => { n.testMode = false; }); }
+    setError(''); setNotice('');
+    beforeTest.current = null;
+  }
 
   useEffect(() => {
     let active = true;
@@ -364,7 +392,7 @@ export function TicoBriefForm({ initialData, onSubmit, onDraftChange, isLoading,
       if(!isLatest()) return;
       console.warn('[TicoBriefForm] Assets inspection completed with local fallback:', e?.message || e);
     }).finally(() => { clearTimeout(busyTimer); if(isLatest()) setAssetBusy(false); });
-  }, [b.metaConnectionId, b.meta.adAccountId, b.meta.pageId, b.existingCampaignId, metaState?.userAccessToken, connections]);
+  }, [testMode, b.metaConnectionId, b.meta.adAccountId, b.meta.pageId, b.existingCampaignId, metaState?.userAccessToken, connections]);
 
   useEffect(() => {
     if (!initialized.current) { initialized.current = true; return; }
@@ -372,7 +400,7 @@ export function TicoBriefForm({ initialData, onSubmit, onDraftChange, isLoading,
     if (!hasPassedStep0.current && step <= 0) return;
     const timer = setTimeout(() => draftCallback.current?.(toLegacyPayload(b)), 800);
     return () => clearTimeout(timer);
-  }, [b, step]);
+  }, [b, step, testMode]);
 
   useEffect(() => {
     if(!preferencesReady) return;
@@ -387,10 +415,10 @@ export function TicoBriefForm({ initialData, onSubmit, onDraftChange, isLoading,
       } catch {}
     }, 600);
     return () => clearTimeout(timer);
-  }, [b.delegation, preferencesReady]);
+  }, [b.delegation, preferencesReady, testMode]);
 
   useEffect(() => {
-    if(b.brief.businessSource.type === 'meta_catalog' && b.metaConnectionId) {
+    if(!testMode && b.brief.businessSource.type === 'meta_catalog' && b.metaConnectionId) {
       const selectedConn = connections.find(c => c.id === b.metaConnectionId);
       const sessionToken = typeof sessionStorage !== 'undefined' ? (sessionStorage.getItem(`tico_token_${b.metaConnectionId}`) || sessionStorage.getItem('tico_meta_active_token')) : null;
       const connToken = selectedConn?.token || metaState?.userAccessToken || sessionToken || undefined;
@@ -398,7 +426,7 @@ export function TicoBriefForm({ initialData, onSubmit, onDraftChange, isLoading,
         .then(r => setCatalogs(r.catalogs))
         .catch(e => setError(e.message));
     }
-  }, [b.brief.businessSource.type, b.metaConnectionId, connections, metaState?.userAccessToken]);
+  }, [testMode, b.brief.businessSource.type, b.metaConnectionId, connections, metaState?.userAccessToken]);
 
   function toggle(section:SectionKey,checked:boolean) {
     trackBrief('delegation_changed',{section,mode:checked?'tico':'user'});
@@ -470,6 +498,11 @@ export function TicoBriefForm({ initialData, onSubmit, onDraftChange, isLoading,
 
   async function next() {
     setError('');
+    if (testMode && step === 1) {
+      try { if (new URL(b.brief.businessSource.url || '').protocol !== 'https:') throw new Error(); }
+      catch { setError('Indica un enlace HTTPS real para el destino del anuncio.'); return; }
+      goTo(2); return;
+    }
     if(step===0){
       const isAccountActive = account && (account.account_status === 1 || account.status === 'ACTIVA' || account.status === 'ACTIVE' || (!account.account_status && !account.status));
       if(assetBusy||!assets.valid||!account||!isAccountActive||!b.meta.pageId){
@@ -477,6 +510,10 @@ export function TicoBriefForm({ initialData, onSubmit, onDraftChange, isLoading,
       }
       if(b.creationMode==='single_ad'&&(!b.existingCampaignId||!b.existingAdSetId)){
         setError('Selecciona la campaña y el conjunto existentes.');return;
+      }
+      if(testMode && b.brief.dailyBudget < Math.max(minimum, b.meta.currency==='COP'?30000:30)) {
+        const suggested = Math.max(minimum, b.meta.currency==='COP'?30000:30);
+        update(n=>{n.brief.dailyBudget=suggested;n.meta.adSets=n.meta.adSets.map(set=>({...set,budgetAmount:suggested}));});
       }
       trackBrief('source_started');goTo(1);return;
     }
@@ -524,10 +561,15 @@ export function TicoBriefForm({ initialData, onSubmit, onDraftChange, isLoading,
     <header className="tb-header">
       <div>
         <h2>Tu negocio. Tu próxima campaña.</h2>
-        <p>Hola, soy Tico. Cuéntame de tu negocio: tu web, tus redes, un catálogo o una nota de voz, y armo tu campaña en 3 pasos.</p>
+        <p>Hola, soy Tico. Cuéntame de tu negocio: tu web, tus redes, un catálogo o una nota de voz, y armo tu campaña en 4 pasos.</p>
       </div>
-      {onClose&&<button type="button" className="tb-reset" onClick={onClose}>Cerrar</button>}
+      <div className="tb-header-actions">
+        <button type="button" className="tb-test-button" onClick={testMode ? stopTestMode : startTestMode}>{testMode ? 'Salir del modo de prueba' : 'Iniciar modo de prueba'}</button>
+        {onClose&&<button type="button" className="tb-reset" onClick={onClose}>Cerrar</button>}
+      </div>
     </header>
+
+    {testMode&&<p className="tb-test-notice" role="status">Modo de prueba sin Gemini · La ficha y los textos son ejemplos editables. Elige una conexión y creativos reales; al aprobar se desplegará en Meta en estado PAUSED y consumirá los créditos indicados.</p>}
 
     <nav aria-label="Pasos del briefing" className="tb-steps">
       {['Conexión','Tu negocio','Confirmación','Tu campaña'].map((label,i)=><button type="button" key={label} aria-current={step===i?'step':undefined} disabled={i>step||busy} onClick={()=>goTo(i)}><span>{i<step?<Check size={15}/>:i}</span>{label}</button>)}
@@ -619,7 +661,7 @@ export function TicoBriefForm({ initialData, onSubmit, onDraftChange, isLoading,
       {b.meta.pixelId&&(!assets.pixels.find((p:any)=>p.id===b.meta.pixelId)?.last_fired_time||Date.parse(assets.pixels.find((p:any)=>p.id===b.meta.pixelId)?.last_fired_time)<Date.now()-7*86400000)&&<p className="tb-notice">Tu píxel no registra eventos recientes. Revisa su actividad antes de optimizar ventas.</p>}
 
       <Field label="¿Qué quieres crear?">
-        <select value={b.creationMode} onChange={e=>update(n=>{n.creationMode=e.target.value as any;})}>
+        <select value={b.creationMode} onChange={e=>update(n=>{n.creationMode=e.target.value as any;if(n.creationMode==='single_ad'){n.meta.adSets=[];n.meta.ads=n.meta.ads.slice(0,1);n.existingCampaignId=undefined;n.existingAdSetId=undefined;}})}>
           <option value="full_campaign">Una campaña completa</option>
           <option value="single_ad">Un anuncio en una campaña existente</option>
         </select>
@@ -655,10 +697,13 @@ export function TicoBriefForm({ initialData, onSubmit, onDraftChange, isLoading,
     </div>}
 
     {step===1&&<div className="tb-body">
-      {section('business','Leeré tu fuente y te mostraré lo que entendí.',profileFields())}
+      {section('business',testMode?'Usaré la ficha de ejemplo y podrás corregirla antes de desplegar.':'Leeré tu fuente y te mostraré lo que entendí.',profileFields())}
       {b.delegation.business==='tico'&&<>
         <h3>¿Cómo conozco tu negocio?</h3>
-        <div className="tb-source-grid">{Object.entries(sourceLabels).map(([type,label])=><button type="button" aria-pressed={b.brief.businessSource.type===type} key={type} onClick={()=>update(n=>{n.brief.businessSource={type:type as BusinessSource['type']};})}>{label}{type==='social'&&<small>Recomendada si no tienes web</small>}</button>)}</div>
+        <div className="tb-source-grid">{Object.entries(sourceLabels).map(([type,label])=><button type="button" aria-pressed={b.brief.businessSource.type===type} key={type} onClick={()=>update(n=>{n.brief.businessSource=testMode?testSource(type as BusinessSource['type'], n.brief.businessSource.url||''):{type:type as BusinessSource['type']};if(testMode){n.brief.businessProfile=structuredClone(TEST_PROFILE);n.recommendationProfile=structuredClone(TEST_PROFILE);n.brief.countries=['CO'];}})}>{label}{type==='social'&&<small>Recomendada si no tienes web</small>}</button>)}</div>
+        {testMode&&<div className="tb-test-card"><strong>Ficha de ejemplo para cualquier opción</strong><p>{TEST_PROFILE.brandName} · {TEST_PROFILE.industry}</p><p>{TEST_PROFILE.offerSummary}</p><p>Audiencia: {TEST_PROFILE.targetAudience} · País: Colombia</p></div>}
+        {testMode&&<Field label="Enlace HTTPS real de destino (obligatorio)"><input type="url" placeholder="https://tu-negocio.com" value={b.brief.businessSource.url||''} onChange={e=>update(n=>{n.brief.businessSource.url=e.target.value;n.meta.destinationUrl=e.target.value;})}/></Field>}
+        {!testMode&&<>
         {['website','other_link'].includes(b.brief.businessSource.type)&&<Field label="Enlace de tu negocio"><input type="url" placeholder="https://tunegocio.com" value={b.brief.businessSource.url||''} onChange={e=>update(n=>{n.brief.businessSource.url=e.target.value;})}/></Field>}
         {b.brief.businessSource.type==='social'&&<p>Leeré la descripción y las publicaciones de la página elegida y su Instagram vinculado.</p>}
         {b.brief.businessSource.type==='meta_catalog'&&<Field label="Tu catálogo"><select value={b.brief.businessSource.catalogId||''} onChange={e=>update(n=>{n.brief.businessSource.catalogId=e.target.value;})}><option value="">Elige tu catálogo</option>{catalogs.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></Field>}
@@ -666,6 +711,7 @@ export function TicoBriefForm({ initialData, onSubmit, onDraftChange, isLoading,
         {b.brief.businessSource.type==='voice'&&<VoiceRecorder onRecorded={file=>upload(file)}/>}
         {b.brief.businessSource.uploadIds?.length&&<p>Archivo guardado. Listo para analizar.</p>}
         {b.brief.businessSource.type==='interview'&&['¿Qué vendes y cómo se llama tu negocio?','¿A quién le vendes?','¿En qué países o ciudades vendes?','¿Qué te hace diferente?','¿Tienes una oferta o promoción?'].map((q,i)=><Field label={q} key={q}><input value={interview[i]} onChange={e=>{const answers=[...interview];answers[i]=e.target.value;setInterview(answers);update(n=>{n.brief.businessSource.transcript=answers.map((a,j)=>`${j+1}: ${a}`).join('\n');});}}/></Field>)}
+        </>}
       </>}
     </div>}
 
@@ -708,7 +754,7 @@ export function TicoBriefForm({ initialData, onSubmit, onDraftChange, isLoading,
 
       <section className="tb-section" onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault();void addFiles(e.dataTransfer.files);}}>
         <h3>Tus creativos</h3>
-        <p>Arrastra de 1 a 6 imágenes o videos. JPG, PNG, MP4 o MOV, hasta 20 MB por archivo.</p>
+        <p>Arrastra de 1 a 6 imágenes o videos reales. JPG, PNG, MP4 o MOV, hasta 20 MB por archivo. Meta exige al menos uno para desplegar.</p>
         <input aria-label="Subir creativos" type="file" multiple accept="image/jpeg,image/png,video/mp4,video/quicktime" disabled={busy} onChange={e=>{if(e.target.files)void addFiles(e.target.files);}}/>
         <ul>{b.brief.assets.map(a=><li key={a.uploadId}>{a.name||'Creativo'} · {a.aspectRatio}<button type="button" onClick={()=>update(n=>{n.brief.assets=n.brief.assets.filter(x=>x.uploadId!==a.uploadId);})}>Quitar</button></li>)}</ul>
         {b.brief.assets.length>0&&!b.brief.assets.some(a=>a.aspectRatio==='9:16')&&<p className="tb-notice">Añade una versión 9:16 para Stories y Reels.</p>}
@@ -735,7 +781,7 @@ export function TicoBriefForm({ initialData, onSubmit, onDraftChange, isLoading,
           <ArrowLeft size={17}/>Atrás
         </button>
       ) : <div />}
-      <span>Todo se creará en pausa.</span>
+      <span>{testMode?'Sin Gemini · Meta recibirá la campaña en pausa.':'Todo se creará en pausa.'}</span>
       <button className="tb-primary" type="submit" disabled={busy||assetBusy||isLoading}>
         {busy?'Estoy leyendo tu fuente…':isLoading?'Armando tu campaña…':step===3?'Ver mi estrategia':step===2?'Todo correcto':'Continuar'}
         <ArrowRight size={17}/>

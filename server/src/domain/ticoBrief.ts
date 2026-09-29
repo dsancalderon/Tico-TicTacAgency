@@ -28,6 +28,11 @@ export interface AdConfig {
   headlines?: string[]; primaryTexts?: string[]; formula?: 'AIDA' | 'PAS';
 }
 export interface TicoBrief {
+  /** Prefilled workflow without Gemini; real Meta assets and manual goals are still required. */
+  testMode?: boolean;
+  goalPlan?: import('./performanceGoals.js').GoalPlan;
+  /** Replaced by the server from Meta when forecasting an ad in an existing set. */
+  goalContext?: { targeting: Record<string, unknown>; bidStrategy?: string; bidAmount?: string; attribution?: unknown };
   configuredSections?: SectionKey[];
   /** Form step the user last reached (0–3); lets a saved draft reopen where it was left. */
   formStep?: number;

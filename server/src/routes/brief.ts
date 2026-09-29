@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { goalsRouter, deploymentGoal } from './goals.js';
 import { graph, graphList, inspectConnection, advertisablePages, instagramAccountFor } from '../services/briefMeta.js';
 import { analyzeBusinessSource } from '../services/aiStrategist.js';
 import { readPublicUrl } from '../services/businessSource.js';
@@ -10,6 +11,7 @@ briefRouter.use((_req, res, next) => {
   if (process.env.TICO_FORM_V2 === 'false') { res.status(404).json({ error: 'El formulario V2 no está habilitado.' }); return; }
   next();
 });
+briefRouter.use('/goals', goalsRouter);
 export async function connectionToken(db: any, id: string, explicitToken?: string): Promise<string> {
   if (explicitToken && typeof explicitToken === 'string' && explicitToken.length > 10) return explicitToken;
   try {
@@ -140,6 +142,8 @@ briefRouter.post('/deploy', async(req,res)=>{
     const token=await connectionToken(db,req.body.brief.metaConnectionId, req.body.token);
     const validation=await validateDeployment(req.body.brief,token);
     if(!validation.valid){res.json({success:false,error:validation.errors.join(' '),...validation});return;}
+    const goal=await deploymentGoal(db,owner,id,validation.brief,validation.interests);
+    if(goal.forecast.id!==req.body.forecastId)throw new Error('La proyección guardada cambió. Abre y revisa la última estimación antes de desplegar.');
     const hash=briefHash(req.body.brief);
     let job=(await db.from('tico_brief_deployments').select('*').eq('id',id).maybeSingle()).data;
     if(!job){const ledger:DeploymentLedger={items:[],accountId:validation.brief.meta.adAccountId,connectionId:validation.brief.metaConnectionId};const initial={id,brief_hash:hash,ledger,signature:signLedger(ledger,owner,id,hash)};
@@ -149,6 +153,12 @@ briefRouter.post('/deploy', async(req,res)=>{
     if(!verifyLedger(job.ledger,job.signature,owner,id,hash))throw new Error('El registro de despliegue no pasó la verificación.');
     const claim=await db.rpc('claim_tico_deployment',{p_id:id});if(claim.error||!claim.data)throw new Error('Este despliegue está en curso o necesita revisar una interrupción.');claimed=true;
     const ledger=job.ledger as DeploymentLedger;
+    // Re-read after the deployment row freezes the goal; concurrent forecast writes
+    // must never change which scenario was approved before the first Meta write.
+    const frozenGoal=await deploymentGoal(db,owner,id,validation.brief,validation.interests);
+    if(frozenGoal.signature!==goal.signature)throw new Error('La meta cambió al iniciar el despliegue. Revisa el borrador.');
+    if(ledger.goalForecastId&&ledger.goalForecastId!==goal.forecast.id)throw new Error('La meta no coincide con el despliegue iniciado.');
+    ledger.goalForecastId=goal.forecast.id;
     const save=async()=>{const result=await db.from('tico_brief_deployments').update({ledger,signature:signLedger(ledger,owner,id,hash),updated_at:new Date().toISOString()}).eq('id',id);if(result.error)throw new Error('No pude guardar el avance. Revisa Meta antes de reintentar.');};
     ledger.attempts=(ledger.attempts||0)+1;await save();
     const loadMedia=async(path:string)=>{

@@ -890,11 +890,30 @@ export async function generateMetaBuilderStrategyApi(
   // 1. Si el usuario solicitó explícitamente simulación / textos predeterminados
   if (useMock) {
     const mockEnriched = createDeterministicPayload(payload);
+    if (mockEnriched.ticoBrief?.testMode) {
+      const brief = structuredClone(mockEnriched.ticoBrief);
+      brief.meta.ads = brief.meta.ads.map((ad, i) => ({ ...ad,
+        headline: mockEnriched.ads[i]?.headline || ad.headline,
+        primaryText: mockEnriched.ads[i]?.primaryText || ad.primaryText,
+        description: mockEnriched.ads[i]?.description || ad.description,
+        callToAction: mockEnriched.ads[i]?.callToAction || ad.callToAction,
+      }));
+      mockEnriched.ticoBrief = brief;
+    }
     const mockStrategy = createStrategyFromPayload(
       payload,
       mockEnriched,
-      `[SIMULACIÓN] Estrategia de prueba con textos de muestra para ${payload.brandName} en Meta Ads.`
+      payload.ticoBrief?.testMode ? `Estrategia con textos predeterminados para ${payload.brandName}. Lista para revisar y desplegar en Meta sin Gemini.` : `[SIMULACIÓN] Estrategia de prueba con textos de muestra para ${payload.brandName} en Meta Ads.`
     );
+    if (mockEnriched.ticoBrief?.testMode) {
+      const db = requireSupabase();
+      mockStrategy.creatives = await Promise.all(mockEnriched.ticoBrief.brief.assets.map(async asset => {
+        const { data, error } = await db.storage.from('user-creatives').createSignedUrl(asset.uploadId, 3600);
+        if (error || !data?.signedUrl) throw new Error('No pude preparar la vista previa del creativo real.');
+        return { id: asset.uploadId, storagePath: asset.uploadId, name: asset.name || 'Creativo', type: asset.type, url: data.signedUrl, aspectRatio: asset.aspectRatio === '9:16' ? '9:16' as const : '1:1' as const };
+      }));
+      if (mockStrategy.metaAds) mockStrategy.metaAds.creatives = mockStrategy.creatives;
+    }
     return { strategy: mockStrategy, enrichedPayload: mockEnriched };
   }
 
@@ -950,7 +969,7 @@ export async function deployMetaBuilderApi(
 ) {
   try {
     if (payload.ticoBrief) {
-      const result=await briefApi('deploy', { brief: payload.ticoBrief, jobId, token });
+        const result=await briefApi('deploy', { brief: payload.ticoBrief, jobId, token, forecastId: payload.goalForecast?.id });
       if(result.success&&result.firstAttempt)trackBrief('deployment_first_success');
       return result;
     }

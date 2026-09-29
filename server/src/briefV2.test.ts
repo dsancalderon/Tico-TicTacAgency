@@ -32,8 +32,8 @@ function graphMock(options:{expired?:boolean;inactive?:boolean;failAdset?:boolea
   if(path==='456')return response({id:'456',name:'Panadería',description:'Pan fresco en Bogotá',category:'Bakery'});
   if(path==='456/posts')return response({data:[{message:'Pan fresco todos los días',full_picture:'https://example.com/pan.jpg'}]});
   if(path==='search')return response({data:url.searchParams.get('q')==='Pan'? [{id:'6001',name:'Pan'}]:[{id:'999',name:'Otro interés'}]});
-  if(path==='camp_1')return response({id:'camp_1',account_id:'123',objective:'OUTCOME_LEADS'});
-  if(path==='set_1')return response({id:'set_1',account_id:'123',campaign_id:'camp_1',optimization_goal:'LEAD_GENERATION',destination_type:'ON_AD',promoted_object:{page_id:'456'}});
+  if(path==='camp_1')return response({id:'camp_1',account_id:'123',objective:'OUTCOME_LEADS',daily_budget:'4000',bid_strategy:'LOWEST_COST_WITHOUT_CAP'});
+  if(path==='set_1')return response({id:'set_1',account_id:'123',campaign_id:'camp_1',optimization_goal:'LEAD_GENERATION',destination_type:'ON_AD',promoted_object:{page_id:'456'},targeting:{geo_locations:{countries:['CO']},age_min:25},daily_budget:'2500',start_time:'2026-09-28T00:00:00-0500'});
   if(path==='456/leadgen_forms')return response({data:[{id:'form_1',name:'Formulario contacto',status:'ACTIVE'}]});
   throw new Error(`Unexpected request ${path}`);
  };return {fetcher,writes};
@@ -49,6 +49,7 @@ test('currency offsets reject unknowns and nonfinite amounts; CBO never invents 
 });
 test('special categories broaden targeting and preserve input',()=>{const set=fixture().meta.adSets[0];set.ageMin=25;set.gender='women';set.interests=['Pan'];set.cities=[{key:'city',radius:1,distance_unit:'mile'}];const adjusted=specialAudience(set);assert.equal(adjusted.ageMin,18);assert.equal(adjusted.gender,'all');assert.equal(adjusted.cities[0].radius,15);assert.deepEqual(adjusted.interests,[]);assert.equal(set.ageMin,25);});
 test('schema catches missing assets, invalid budget and single-ad parents',()=>{const b=fixture();assert.deepEqual(validateBrief(b),[]);b.creationMode='single_ad';b.brief.dailyBudget=0;b.brief.assets=[];assert.ok(validateBrief(b).length>=3);});
+test('prefilled mode validates Meta and can deploy real resources in PAUSED',async t=>{const mock=graphMock();t.mock.method(globalThis,'fetch',mock.fetcher);const b=fixture();b.testMode=true;const checked=await validateDeployment(b,'token');assert.equal(checked.valid,true,checked.errors.join(' '));assert.equal(mock.writes.length,0);const ledger:DeploymentLedger={items:[]};const result=await executeDeployment(checked.brief,'token',ledger,async()=>{},async()=>({data:Buffer.from('fixture-image'),mime:'image/jpeg',url:'https://example.com/signed'}),checked.interests);assert.equal(result.success,true);assert.ok(mock.writes.some(write=>write.path.endsWith('/ads')));assert.ok(mock.writes.filter(write=>/\/(campaigns|adsets|ads)$/.test(write.path)).every(write=>write.body.status==='PAUSED'));});
 test('readers reject private IP ranges and extract metadata, pixel, internal links',()=>{for(const ip of ['127.0.0.1','10.2.3.4','169.254.169.254','172.16.0.1','192.168.1.1','::1','::ffff:127.0.0.1'])assert.equal(publicAddress(ip),false);assert.equal(publicAddress('93.184.216.34'),true);const data=extractHtml(`<title>Pan</title><meta name="description" content="Pan fresco"><script>fbq('init', '123');</script><a href="/menu">Menú</a><img src="/pan.jpg">`,'https://example.com');assert.deepEqual(data.pixelIds,['123']);assert.deepEqual(data.links,['https://example.com/menu']);assert.ok(!data.text.includes('fbq'));});
 test('interest resolution sends only exact provider-returned IDs',async t=>{const mock=graphMock();t.mock.method(globalThis,'fetch',mock.fetcher);assert.deepEqual(await resolveInterests('token',['Pan','Inventado']),[{id:'6001',name:'Pan'}]);});
 test('preflight blocks expired tokens, inactive accounts, low budgets and sales without pixel before any write',async t=>{
@@ -95,4 +96,18 @@ test('single_ad inherits existing campaign and adSet config and deploys ad direc
  assert.ok(adWrite);
  assert.equal(adWrite.body.adset_id,'set_1');
  assert.equal(adWrite.body.status,'PAUSED');
+});
+
+test('single-ad forecasts inherit actual shared budget and targeting before signing',async t=>{
+ const mock=graphMock();t.mock.method(globalThis,'fetch',mock.fetcher);
+ const b=fixture();b.creationMode='single_ad';b.existingCampaignId='camp_1';b.existingAdSetId='set_1';b.meta.leadFormId='form_1';b.meta.adSets=[];b.goalPlan={days:30,singleAdBudgetShare:25};
+ const checked=await validateDeployment(b,'token');
+ assert.equal(checked.valid,true,checked.errors.join(' '));
+ assert.equal(checked.brief.brief.dailyBudget,40);
+ assert.equal(checked.brief.meta.budgetType,'CBO');
+ assert.equal(checked.brief.meta.budgetPeriod,'daily');
+ assert.deepEqual(checked.brief.goalContext?.targeting,{geo_locations:{countries:['CO']},age_min:25});
+ assert.equal(checked.brief.goalContext?.bidStrategy,'LOWEST_COST_WITHOUT_CAP');
+ assert.equal(checked.brief.brief.goal,'leads');
+ assert.equal(mock.writes.length,0);
 });
