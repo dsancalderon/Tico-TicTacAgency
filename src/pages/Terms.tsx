@@ -22,7 +22,7 @@ const sections: LegalSectionContent[] = [
     id: 'uso-aceptable', title: '6. Uso aceptable', content: <p>Usted debe cumplir las leyes aplicables y las políticas publicitarias de Meta y Google. Está prohibido usar Tico para contenido ilegal, engañoso o discriminatorio, vulnerar derechos de terceros, eludir controles de seguridad o acceder sin autorización a cuentas ajenas.</p>
   },
   {
-    id: 'inteligencia-artificial', title: '7. Contenido generado por IA', content: <p>Las estrategias, campañas, segmentaciones, textos y análisis generados por IA son sugerencias automatizadas que pueden contener errores. Usted debe revisarlos y aprobarlos antes de su publicación o activación. Tico no garantiza ventas, conversiones ni resultados específicos.</p>
+    id: 'inteligencia-artificial', title: '7. Contenido generado por IA', content: <p>Las estrategias, campañas, segmentaciones, textos y análisis generados por IA son sugerencias automatizadas que pueden contener errores. Usted debe revisarlos y aprobarlos antes de su publicación o activación. Tras la aprobación del usuario, Tico crea los recursos publicitarios en Meta Ads en estado pausado; solo el usuario decide cuándo activarlos. Tico no garantiza ventas, conversiones ni resultados específicos.</p>
   },
   {
     id: 'inversion', title: '8. Inversión publicitaria', content: <p>El presupuesto de pauta es independiente de la suscripción a Tico. Cuando se activen campañas, el usuario pagará la inversión publicitaria directamente a Meta o Google según la configuración de sus propias cuentas. El usuario controla y supervisa su presupuesto, la activación y los cargos de las plataformas publicitarias; no garantizamos el rendimiento de las campañas.</p>
@@ -46,7 +46,7 @@ const sections: LegalSectionContent[] = [
     id: 'responsabilidad', title: '14. Responsabilidad', content: <p>En la medida permitida por la ley aplicable, no respondemos por decisiones comerciales del usuario, resultados publicitarios, cambios en plataformas externas ni interrupciones ajenas a nuestro control. Esta cláusula no limita derechos que no puedan excluirse legalmente ni nuestra responsabilidad por actuaciones propias cuando la ley la imponga.</p>
   },
   {
-    id: 'suspension', title: '15. Suspensión y terminación', content: <p>Podremos suspender el acceso si detectamos uso prohibido, un riesgo de seguridad o una obligación legal que lo exija. Comunicaremos el motivo cuando sea razonablemente posible. El usuario puede solicitar el cierre de su cuenta y la eliminación de sus datos según <a href="/data-deletion">estas instrucciones</a>, sin perjuicio de las obligaciones legales de conservación.</p>
+    id: 'suspension', title: '15. Suspensión y terminación', content: <p>Podremos suspender el acceso si detectamos uso prohibido, un riesgo de seguridad o una obligación legal que lo exija. Comunicaremos el motivo cuando sea razonablemente posible. El usuario puede solicitar el cierre de su cuenta y la eliminación de sus datos según nuestra <a href="/data-deletion">página de Eliminación de datos</a>, sin perjuicio de las obligaciones legales de conservación.</p>
   },
   {
     id: 'cambios', title: '16. Cambios a estos términos', content: <p>Si modificamos estos términos, publicaremos la nueva versión con su fecha de actualización en esta página. Cuando el cambio sea sustancial, también procuraremos avisar a los usuarios registrados por correo o dentro del servicio antes de que entre en vigor.</p>
