@@ -3,6 +3,7 @@ import { X, Lock, Mail, User, Briefcase, Eye, EyeOff } from 'lucide-react';
 import { TicoMascot } from './TicoMascot';
 import { requireSupabase, loadUserSession, supabase } from '../services/auth';
 import { useScrollLock } from '../utils/scrollLock';
+import { LEGAL_CONSENT_VERSION } from '../legalConsent';
 import type { UserSession } from '../types';
 import './AuthModal.css';
 
@@ -28,6 +29,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [showPassword, setShowPassword] = useState(false);
   const [name, setName] = useState('');
   const [workspace, setWorkspace] = useState('');
+  const [legalConsentAccepted, setLegalConsentAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const [error, setError] = useState('');
@@ -41,6 +43,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       setNotice('');
       setPassword('');
       setShowPassword(false);
+      setLegalConsentAccepted(false);
     }
   }, [isOpen, initialMode]);
 
@@ -54,6 +57,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setNotice('');
 
     try {
+      if (!isLogin && !legalConsentAccepted) {
+        throw new Error('Debes aceptar los Términos y autorizar el tratamiento de datos para crear tu cuenta.');
+      }
       if (!isLogin && !/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{12,}$/.test(password)) {
         throw new Error('Usa al menos 12 caracteres, con mayúscula, minúscula, número y símbolo.');
       }
@@ -64,7 +70,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             email: email.trim(),
             password,
             options: {
-              data: { display_name: name.trim(), workspace_name: workspace.trim() },
+              data: {
+                display_name: name.trim(),
+                workspace_name: workspace.trim(),
+                legal_consent_accepted: true,
+                legal_consent_version: LEGAL_CONSENT_VERSION,
+              },
               emailRedirectTo: new URL('?auth=confirmed', window.location.origin + import.meta.env.BASE_URL).toString(),
             }
           });
@@ -230,6 +241,25 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </p>
           )}
 
+          {!isLogin && (
+            <label className="flex items-start gap-2 rounded-xl border border-[#e2e8f5] bg-[#f0f3fa]/70 px-3 py-2.5 text-[11px] leading-5 text-slate-700">
+              <input
+                type="checkbox"
+                required
+                checked={legalConsentAccepted}
+                onChange={(e) => setLegalConsentAccepted(e.target.checked)}
+                className="mt-1 h-4 w-4 shrink-0 accent-[#5B67FA]"
+              />
+              <span>
+                He leído y acepto los{' '}
+                <a href="/terms" target="_blank" rel="noopener noreferrer" className="font-semibold text-[#424fe8] underline underline-offset-2">Términos y Condiciones</a>
+                {' '}y autorizo el tratamiento de mis datos personales conforme a la{' '}
+                <a href="/privacy" target="_blank" rel="noopener noreferrer" className="font-semibold text-[#424fe8] underline underline-offset-2">Política de Privacidad</a>,
+                incluida la comunicación internacional necesaria a Vercel, Supabase y Google descrita allí.
+              </span>
+            </label>
+          )}
+
           {/* Submit Button */}
           <button
             type="submit"
@@ -253,7 +283,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <button
               type="button"
               disabled={loading}
-              onClick={() => { setIsLogin(false); setError(''); setNotice(''); }}
+              onClick={() => { setIsLogin(false); setLegalConsentAccepted(false); setError(''); setNotice(''); }}
               className="text-xs font-bold text-[#5B67FA] hover:text-[#424fe8] transition-colors cursor-pointer"
             >
               Crear una cuenta
@@ -262,7 +292,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <button
               type="button"
               disabled={loading}
-              onClick={() => { setIsLogin(true); setError(''); setNotice(''); }}
+              onClick={() => { setIsLogin(true); setLegalConsentAccepted(false); setError(''); setNotice(''); }}
               className="text-xs font-bold text-[#5B67FA] hover:text-[#424fe8] transition-colors cursor-pointer"
             >
               ¿Ya tienes cuenta? Inicia sesión
@@ -273,4 +303,3 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     </div>
   );
 };
-
