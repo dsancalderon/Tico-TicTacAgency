@@ -139,7 +139,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         <h2 className="text-xl sm:text-[22px] font-bold text-slate-800 tracking-tight font-['Outfit'] mt-1 mb-3.5 text-center">
           {isLogin 
             ? (customTitle && customTitle !== 'Acceso a la Plataforma TICO' ? customTitle : 'Inicia sesión')
-            : (customTitle && customTitle !== 'Acceso a la Plataforma TICO' ? customTitle : 'Crear una cuenta')}
+            : 'Crear una cuenta'}
         </h2>
 
         {/* Error / Notice feedback */}
