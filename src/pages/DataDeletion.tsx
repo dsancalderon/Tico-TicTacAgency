@@ -1,4 +1,5 @@
 import { LegalLayout, type LegalSectionContent } from '../components/LegalLayout';
+import { legalHref } from '../legalPaths';
 
 const email = 'tictacagencyperformance@gmail.com';
 const deletionMailto = `mailto:${email}?subject=${encodeURIComponent('Eliminación de datos')}&body=${encodeURIComponent('Hola, solicito la eliminación de mis datos de Tico.\n\nCorreo de registro: \n\nGracias.')}`;
@@ -14,7 +15,7 @@ const sections: LegalSectionContent[] = [
     id: 'plazo', title: '3. Plazo y excepciones', content: <p>Atenderemos el reclamo y, cuando proceda la supresión, eliminaremos los datos operativos bajo nuestro control de los sistemas activos en un máximo de <strong>15 días hábiles</strong> contados desde el día siguiente a la recepción de la solicitud. Si no es posible atenderla dentro de ese plazo, le informaremos los motivos antes de su vencimiento y la nueva fecha, que no podrá superar los <strong>8 días hábiles</strong> siguientes. Si el reclamo está incompleto, le solicitaremos la información necesaria para tramitarlo. Las copias de respaldo administradas por proveedores se depuran conforme a sus ciclos de retención; si se restaura una copia anterior, volveremos a aplicar la solicitud de eliminación. Podremos conservar información mínima cuando exista una obligación legal o contractual vigente, por ejemplo documentos contables o registros necesarios para atender una reclamación. Si aplica una excepción, le informaremos qué categorías se conservan y por qué motivo.</p>
   },
   {
-    id: 'contacto', title: '4. Ayuda y seguimiento', content: <p>Si necesita ayuda o desea consultar el estado de su solicitud, escriba a <a href={`mailto:${email}`}>{email}</a>. Puede consultar más información en nuestra <a href="/privacy">Política de Privacidad</a>.</p>
+    id: 'contacto', title: '4. Ayuda y seguimiento', content: <p>Si necesita ayuda o desea consultar el estado de su solicitud, escriba a <a href={`mailto:${email}`}>{email}</a>. Puede consultar más información en nuestra <a href={legalHref('/privacy')}>Política de Privacidad</a>.</p>
   }
 ];
 

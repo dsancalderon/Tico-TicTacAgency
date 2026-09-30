@@ -1,6 +1,7 @@
 import { Terms } from './pages/Terms';
 import { Privacy } from './pages/Privacy';
 import { DataDeletion } from './pages/DataDeletion';
+import { legalRoutePath } from './legalPaths';
 
 export const legalRoutes = {
   '/terms': {
@@ -21,6 +22,6 @@ export const legalRoutes = {
 } as const;
 
 export function getLegalRoute(pathname: string) {
-  const normalized = pathname.replace(/\.html$/, '').replace(/\/+$/, '') || '/';
+  const normalized = legalRoutePath(pathname).replace(/\.html$/, '').replace(/\/+$/, '') || '/';
   return legalRoutes[normalized as keyof typeof legalRoutes];
 }

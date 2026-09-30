@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { TicoLogo } from './TicoLogo';
+import { legalHref } from '../legalPaths';
 
 export interface LegalSectionContent {
   id: string;
@@ -23,10 +24,10 @@ export function LegalLayout({ title, introduction, sections }: LegalLayoutProps)
       </a>
       <header className="border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-4 px-5 py-5 sm:px-8">
-          <a href="/" aria-label="Tico, volver al inicio" className="rounded-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-indigo-600">
+          <a href={legalHref('/')} aria-label="Tico, volver al inicio" className="rounded-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-indigo-600">
             <TicoLogo size="sm" showPoweredBy />
           </a>
-          <a href="/" className="rounded-lg text-sm font-semibold text-indigo-700 underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-indigo-600">
+          <a href={legalHref('/')} className="rounded-lg text-sm font-semibold text-indigo-700 underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-indigo-600">
             Volver al inicio
           </a>
         </div>
@@ -70,9 +71,9 @@ export function LegalLayout({ title, introduction, sections }: LegalLayoutProps)
       <footer className="border-t border-slate-200 bg-white">
         <div className="mx-auto flex max-w-5xl flex-col gap-5 px-5 py-8 text-sm text-slate-600 sm:px-8">
           <nav aria-label="Páginas legales" className="flex flex-wrap gap-x-6 gap-y-2">
-            <a href="/terms" className="hover:text-indigo-700 hover:underline">Términos y Condiciones</a>
-            <a href="/privacy" className="hover:text-indigo-700 hover:underline">Política de Privacidad</a>
-            <a href="/data-deletion" className="hover:text-indigo-700 hover:underline">Eliminación de datos</a>
+            <a href={legalHref('/terms')} className="hover:text-indigo-700 hover:underline">Términos y Condiciones</a>
+            <a href={legalHref('/privacy')} className="hover:text-indigo-700 hover:underline">Política de Privacidad</a>
+            <a href={legalHref('/data-deletion')} className="hover:text-indigo-700 hover:underline">Eliminación de datos</a>
           </nav>
           <p>© 2026 TIC TAC AGENCY PERFORMANCE SAS · Powered by TicTac Agency</p>
         </div>

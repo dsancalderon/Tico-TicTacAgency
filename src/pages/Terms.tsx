@@ -1,4 +1,5 @@
 import { LegalLayout, type LegalSectionContent } from '../components/LegalLayout';
+import { legalHref } from '../legalPaths';
 
 const email = 'tictacagencyperformance@gmail.com';
 
@@ -16,7 +17,7 @@ const sections: LegalSectionContent[] = [
     id: 'cuenta', title: '4. Registro, cuenta y elegibilidad', content: <p>El servicio está dirigido a personas mayores de 18 años. Usted debe proporcionar información veraz y actualizada, proteger sus credenciales y avisarnos si detecta un acceso no autorizado a su cuenta.</p>
   },
   {
-    id: 'autorizacion', title: '5. Acceso a cuentas publicitarias', content: <p>Cuando una integración esté disponible, usted podrá autorizar el acceso a sus cuentas publicitarias mediante el mecanismo admitido por Meta o Google, incluido OAuth cuando corresponda. Tico accederá únicamente a las cuentas, permisos y datos autorizados para prestar las funciones solicitadas. Puede revocar el acceso desde Meta o Google y solicitar la eliminación de los datos conservados por Tico conforme a nuestra <a href="/data-deletion">página de eliminación de datos</a>. Revocar el acceso en una plataforma no equivale por sí solo a solicitar la eliminación de los datos almacenados en Tico.</p>
+    id: 'autorizacion', title: '5. Acceso a cuentas publicitarias', content: <p>Cuando una integración esté disponible, usted podrá autorizar el acceso a sus cuentas publicitarias mediante el mecanismo admitido por Meta o Google, incluido OAuth cuando corresponda. Tico accederá únicamente a las cuentas, permisos y datos autorizados para prestar las funciones solicitadas. Puede revocar el acceso desde Meta o Google y solicitar la eliminación de los datos conservados por Tico conforme a nuestra <a href={legalHref('/data-deletion')}>página de eliminación de datos</a>. Revocar el acceso en una plataforma no equivale por sí solo a solicitar la eliminación de los datos almacenados en Tico.</p>
   },
   {
     id: 'uso-aceptable', title: '6. Uso aceptable', content: <p>Usted debe cumplir las leyes aplicables y las políticas publicitarias de Meta y Google. Está prohibido usar Tico para contenido ilegal, engañoso o discriminatorio, vulnerar derechos de terceros, eludir controles de seguridad o acceder sin autorización a cuentas ajenas.</p>
@@ -34,7 +35,7 @@ const sections: LegalSectionContent[] = [
     id: 'propiedad-intelectual', title: '10. Propiedad intelectual', content: <p>Las marcas Tico y TicTac Agency, el software, el diseño y los contenidos propios del servicio pertenecen a TIC TAC AGENCY PERFORMANCE SAS o a sus licenciantes. Usted conserva la titularidad de sus datos, cuentas publicitarias y materiales que aporte. El uso del servicio no transfiere derechos de propiedad intelectual.</p>
   },
   {
-    id: 'datos-personales', title: '11. Protección de datos personales', content: <p>Tratamos los datos personales conforme a la Ley 1581 de 2012 y a nuestra <a href="/privacy">Política de Privacidad</a>, donde explicamos finalidades, derechos, conservación y canales de contacto.</p>
+    id: 'datos-personales', title: '11. Protección de datos personales', content: <p>Tratamos los datos personales conforme a la Ley 1581 de 2012 y a nuestra <a href={legalHref('/privacy')}>Política de Privacidad</a>, donde explicamos finalidades, derechos, conservación y canales de contacto.</p>
   },
   {
     id: 'terceros', title: '12. Servicios de terceros', content: <p>Tico depende de servicios de terceros, entre ellos Meta, Google, proveedores de IA, alojamiento web y base de datos. Su disponibilidad, reglas y APIs pueden cambiar. Cuando usted conecte una cuenta de un tercero, también estará sujeto a las condiciones de esa plataforma.</p>
@@ -46,7 +47,7 @@ const sections: LegalSectionContent[] = [
     id: 'responsabilidad', title: '14. Responsabilidad', content: <p>En la medida permitida por la ley aplicable, no respondemos por decisiones comerciales del usuario, resultados publicitarios, cambios en plataformas externas ni interrupciones ajenas a nuestro control. Esta cláusula no limita derechos que no puedan excluirse legalmente ni nuestra responsabilidad por actuaciones propias cuando la ley la imponga.</p>
   },
   {
-    id: 'suspension', title: '15. Suspensión y terminación', content: <p>Podremos suspender el acceso si detectamos uso prohibido, un riesgo de seguridad o una obligación legal que lo exija. Comunicaremos el motivo cuando sea razonablemente posible. El usuario puede solicitar el cierre de su cuenta y la eliminación de sus datos según nuestra <a href="/data-deletion">página de Eliminación de datos</a>, sin perjuicio de las obligaciones legales de conservación.</p>
+    id: 'suspension', title: '15. Suspensión y terminación', content: <p>Podremos suspender el acceso si detectamos uso prohibido, un riesgo de seguridad o una obligación legal que lo exija. Comunicaremos el motivo cuando sea razonablemente posible. El usuario puede solicitar el cierre de su cuenta y la eliminación de sus datos según nuestra <a href={legalHref('/data-deletion')}>página de Eliminación de datos</a>, sin perjuicio de las obligaciones legales de conservación.</p>
   },
   {
     id: 'cambios', title: '16. Cambios a estos términos', content: <p>Si modificamos estos términos, publicaremos la nueva versión con su fecha de actualización en esta página. Cuando el cambio sea sustancial, también procuraremos avisar a los usuarios registrados por correo o dentro del servicio antes de que entre en vigor.</p>
