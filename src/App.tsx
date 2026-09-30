@@ -1288,9 +1288,7 @@ export function App() {
                 Acceso Plataforma
               </button>
               <a
-                href="https://api.whatsapp.com/send?text=Hola%20TicTac%20Agency"
-                target="_blank"
-                rel="noopener noreferrer"
+                href="mailto:tictacagencyperformance@gmail.com?subject=Consulta%20sobre%20Tico"
                 className="hover:text-slate-950 transition-colors"
               >
                 Contacto

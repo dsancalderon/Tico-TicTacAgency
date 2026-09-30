@@ -98,9 +98,7 @@ export const Header: React.FC<HeaderProps> = ({
               Por Qué TICO
             </a>
             <a 
-              href="https://api.whatsapp.com/send?text=Hola%20equipo%20TicTac%20Agency,%20quisiera%20conocer%20m%C3%A1s%20de%20TICO"
-              target="_blank"
-              rel="noopener noreferrer"
+              href="mailto:tictacagencyperformance@gmail.com?subject=Consulta%20sobre%20Tico"
               className="hover:text-slate-950 transition-colors"
             >
               Contacto Agencia

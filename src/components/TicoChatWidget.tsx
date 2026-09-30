@@ -26,7 +26,7 @@ export const TicoChatWidget: React.FC = () => {
       sender: 'tico',
       text: '¡Hola! Soy Tico, el agente de IA de TicTac Agency. 👋 ¿En qué puedo ayudarte hoy?',
       time: 'Ahora',
-      options: ['Quiero automatizar mi WhatsApp', 'Quiero crear pauta en Meta Ads', 'Hablar con un asesor humano']
+      options: ['Quiero crear pauta en Meta Ads', 'Conocer el flujo de Tico', 'Hablar con la agencia']
     }
   ]);
   const [isTyping, setIsTyping] = useState(false);
@@ -58,33 +58,33 @@ export const TicoChatWidget: React.FC = () => {
         reply = {
           id: (Date.now() + 1).toString(),
           sender: 'tico',
-          text: '¡Excelente! Con Tico puedes automatizar respuestas en menos de 2 segundos, gestionar catálogos, pedidos y calificar clientes 24/7 sin perder ventas.',
+          text: 'Tico no atiende ni automatiza conversaciones de WhatsApp. Ese canal puede elegirse como destino de anuncios dentro de una campaña publicitaria.',
           time: 'Ahora',
-          options: ['Ver demo de conversación', 'Crear pauta para WhatsApp']
+          options: ['Ir al formulario de Briefing', 'Enviar correo a la agencia']
         };
       } else if (text.toLowerCase().includes('pauta') || text.toLowerCase().includes('meta')) {
         reply = {
           id: (Date.now() + 1).toString(),
           sender: 'tico',
-          text: 'Con nuestro generador puedes ingresar tu presupuesto y objetivo para que formule copys, segmentación y publique directo en Meta Ads y Google Ads.',
+          text: 'Con nuestro generador puedes indicar tu presupuesto y objetivo para preparar un plan publicitario editable. Las campañas en Meta Ads se crean en pausa para que las revises antes de activarlas.',
           time: 'Ahora',
-          options: ['Ir al formulario de Briefing', 'Ver presupuesto sugerido']
+          options: ['Ir al formulario de Briefing', 'Enviar correo a la agencia']
         };
-      } else if (text.toLowerCase().includes('asesor') || text.toLowerCase().includes('humano')) {
+      } else if (text.toLowerCase().includes('asesor') || text.toLowerCase().includes('humano') || text.toLowerCase().includes('agencia')) {
         reply = {
           id: (Date.now() + 1).toString(),
           sender: 'tico',
-          text: 'Te conecto con nuestro equipo comercial de TicTac Agency Performance en WhatsApp para agendar una consultoría personalizada.',
+          text: 'Puedes escribir al equipo de TicTac Agency Performance a tictacagencyperformance@gmail.com para hacer una consulta comercial.',
           time: 'Ahora',
-          options: ['Abrir chat de WhatsApp Oficial']
+          options: ['Enviar correo a la agencia']
         };
       } else {
         reply = {
           id: (Date.now() + 1).toString(),
           sender: 'tico',
-          text: `Entendido: "${text}". Tico aprende del catálogo y directrices de tu marca para ofrecer una experiencia conversacional impecable y convertir más prospectos.`,
+          text: `Entendido: "${text}". Tico ayuda a planear y revisar campañas publicitarias a partir de la información de tu marca.`,
           time: 'Ahora',
-          options: ['Probar briefing ahora', 'Contactar ventas']
+          options: ['Ir al formulario de Briefing', 'Enviar correo a la agencia']
         };
       }
 
@@ -147,7 +147,7 @@ export const TicoChatWidget: React.FC = () => {
           <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50/50 text-xs">
             <div className="text-center my-1">
               <span className="px-3 py-1 rounded-full bg-slate-200/60 text-slate-500 text-[10px] font-medium">
-                Conectado con Tico Smart Agent
+                Asistente del sitio de Tico
               </span>
             </div>
 
@@ -201,14 +201,11 @@ export const TicoChatWidget: React.FC = () => {
                         type="button"
                         onClick={() => {
                           if (opt.includes('Briefing')) {
-                            const el = document.getElementById('briefing');
+                            const el = document.getElementById('briefing-section');
                             if (el) el.scrollIntoView({ behavior: 'smooth' });
                             setIsOpen(false);
-                          } else if (opt.includes('WhatsApp Oficial')) {
-                            window.open(
-                              'https://api.whatsapp.com/send?text=Hola%20Tico,%20quisiera%20asesor%C3%ADa',
-                              '_blank'
-                            );
+                          } else if (opt.includes('correo')) {
+                            window.location.href = 'mailto:tictacagencyperformance@gmail.com?subject=Consulta%20sobre%20Tico';
                           } else {
                             handleSend(opt);
                           }
