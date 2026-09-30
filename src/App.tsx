@@ -1298,6 +1298,12 @@ export function App() {
             </div>
           </div>
 
+          <nav aria-label="Información legal" className="mt-7 flex flex-wrap gap-x-6 gap-y-3 text-xs font-semibold text-slate-600">
+            <a href="/terms" className="hover:text-indigo-700 hover:underline">Términos y Condiciones</a>
+            <a href="/privacy" className="hover:text-indigo-700 hover:underline">Política de Privacidad</a>
+            <a href="/data-deletion" className="hover:text-indigo-700 hover:underline">Eliminación de datos</a>
+          </nav>
+
           <div className="mt-8 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-400 gap-4">
             <div>
               © {new Date().getFullYear()} TicTac Agency Performance. Todos los derechos reservados.

@@ -6,6 +6,9 @@
   "outputDirectory": "dist",
   "rewrites": [
     { "source": "/api/:path*", "destination": "/api/index" },
+    { "source": "/terms", "destination": "/terms.html" },
+    { "source": "/privacy", "destination": "/privacy.html" },
+    { "source": "/data-deletion", "destination": "/data-deletion.html" },
     { "source": "/((?!api(?:/|$)|assets(?:/|$)|.*\\.(?:svg|png|ico|json|jpg|jpeg|webp|js|css|woff2?|ttf|map)$).*)", "destination": "/index.html" }
   ]
 }

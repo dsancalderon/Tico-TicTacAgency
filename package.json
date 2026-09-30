@@ -7,7 +7,7 @@
     "dev": "vite",
     "server": "npm run dev --prefix server",
     "dev:all": "concurrently -n \"frontend,backend\" -c \"cyan,magenta\" \"npm run dev\" \"npm run server\"",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && node scripts/prerender-legal.mjs",
     "build:server": "npm run build --prefix server",
     "build:all": "npm run build && npm run build:server",
     "lint": "oxlint",
